@@ -1,0 +1,52 @@
+syntax = "proto3";
+
+package raft;
+
+message Entry {
+    uint64      Index       = 1;
+    uint64      Term        = 2;
+    string      CommandName = 3;
+    bytes       Command     = 4;
+}
+
+message RequestVoteRequest {
+    uint64      Term         = 1;
+    string      CandidateId  = 2;
+    uint64      LastLogIndex = 3;
+    uint64      LastLogTerm  = 4;
+}
+
+message RequestVoteResponse {
+    uint64      Term        = 1;
+    bool        VoteGranted = 2;
+}
+
+message AppendEntriesRequest {
+    uint64          Term            = 1;
+    string          LeaderId        = 2;
+    uint64          PrevLogIndex    = 3;
+    uint64          PrevLogTerm     = 4;
+    repeated Entry  Entries         = 5;
+    uint64          LeaderCommit    = 6;
+}
+
+
+message AppendEntriesResponse {
+    uint64      Term        = 1;
+    bool        VoteGranted = 2;
+}
+
+message InstallSnapshotRequest {
+    uint64  Term                = 1;
+    string  LeaderId            = 2;
+    uint64  LastIncludedIndex   = 3;
+    uint64  LastIncludedTerm    = 4;
+    uint64  Offset              = 5;
+    bytes   Data                = 6;
+    bool    Done                = 7;
+}
+
+
+message InstallSnapshotResponse {
+    uint64  Term    = 1;
+}
