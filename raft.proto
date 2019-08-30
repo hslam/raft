@@ -33,7 +33,7 @@ message AppendEntriesRequest {
 
 message AppendEntriesResponse {
     uint64      Term        = 1;
-    bool        VoteGranted = 2;
+    bool        Success     = 2;
 }
 
 message InstallSnapshotRequest {

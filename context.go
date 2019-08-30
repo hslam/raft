@@ -5,7 +5,6 @@ import "time"
 type Context struct {
 	s State
 	ch chan int
-
 }
 
 func newContext()*Context{
@@ -26,8 +25,8 @@ func (c *Context) SetState(state State) {
 func (c *Context) GetState()State {
 	return c.s
 }
-func (c *Context) State()Role {
-	return c.s.State()
+func (c *Context) String()string {
+	return c.s.String()
 }
 func (c *Context) Change(i int){
 	c.ch<-i
@@ -47,7 +46,7 @@ func (c *Context)Update(){
 		default:
 			c.s.Update()
 		}
-		time.Sleep(time.Millisecond*10)
+		time.Sleep(time.Millisecond)
 	}
 }
 func T() {

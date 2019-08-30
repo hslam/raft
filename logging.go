@@ -8,9 +8,9 @@ import (
 type Level int
 
 const (
-	LogPrefix 	= "raft"
-	TraceLevel		Level = 1
-	DebugLevel		Level = 2
+	LogPrefix 		= "raft"
+	DebugLevel		Level = 1
+	TraceLevel		Level = 2
 	AllInfoLevel	Level = 3
 	InfoLevel		Level = 4
 	WarnLevel		Level = 5
@@ -26,7 +26,7 @@ var logLevel Level
 var Logger *log.Logger
 
 func init() {
-	SetLogLevel(TraceLevel)
+	SetLogLevel(DebugLevel)
 	InitLog()
 }
 func InitLog() {
@@ -68,31 +68,6 @@ func Allln(v ...interface{}) {
 }
 
 
-func Trace(v ...interface{}) {
-	if Logger==nil{
-		return
-	}
-	if logLevel <= TraceLevel {
-		Logger.Print(v...)
-	}
-}
-
-func Tracef(format string, v ...interface{}) {
-	if Logger==nil{
-		return
-	}
-	if logLevel <= TraceLevel {
-		Logger.Printf(format, v...)
-	}
-}
-func Traceln(v ...interface{}) {
-	if Logger==nil{
-		return
-	}
-	if logLevel <= TraceLevel {
-		Logger.Println(v...)
-	}
-}
 
 func Debug(v ...interface{}) {
 	if Logger==nil{
@@ -120,6 +95,31 @@ func Debugln(v ...interface{}) {
 	}
 }
 
+func Trace(v ...interface{}) {
+	if Logger==nil{
+		return
+	}
+	if logLevel <= TraceLevel {
+		Logger.Print(v...)
+	}
+}
+
+func Tracef(format string, v ...interface{}) {
+	if Logger==nil{
+		return
+	}
+	if logLevel <= TraceLevel {
+		Logger.Printf(format, v...)
+	}
+}
+func Traceln(v ...interface{}) {
+	if Logger==nil{
+		return
+	}
+	if logLevel <= TraceLevel {
+		Logger.Println(v...)
+	}
+}
 func AllInfo(v ...interface{}) {
 	if Logger==nil{
 		return

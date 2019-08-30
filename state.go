@@ -1,18 +1,18 @@
 package raft
 
-type Role int
 
 const (
-	Follower	Role = 0
-	Candidate	Role = 1
-	Leader		Role = 2
+	Follower	= "Follower"
+	Candidate	= "Candidate"
+	Leader		= "Leader"
 )
 
 
 type State interface{
 	PreState()State
 	NextState()State
+	Init()
 	Update()
-	State()Role
+	String()string
 }
 

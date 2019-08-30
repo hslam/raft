@@ -7,7 +7,6 @@ import(
 type Command interface {
 	Name()string
 	Do()
-
 }
 
 type Invoker struct {
