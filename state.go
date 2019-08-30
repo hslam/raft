@@ -9,10 +9,10 @@ const (
 
 
 type State interface{
-	PreState()State
-	NextState()State
 	Init()
 	Update()
 	String()string
+	StepDown()State
+	NextState()State
 }
 

@@ -1,51 +1,64 @@
 package raft
 
-import "time"
+import (
+	"time"
+	"sync"
+)
 
 type LeaderState struct{
-	server					*Server
+	once sync.Once
+	node					*Node
 	stop					chan bool
 	heartbeatTicker			*time.Ticker
 }
-func newLeaderState(server *Server) State {
-	Tracef("%s newLeaderState",server.address)
+func newLeaderState(node *Node) State {
+	//Tracef("%s newLeaderState",node.address)
 	state:=&LeaderState{
-		server:					server,
+		node:					node,
 		stop:					make(chan bool,1),
-		heartbeatTicker:		time.NewTicker(server.hearbeatTick),
+		heartbeatTicker:		time.NewTicker(node.hearbeatTick),
 	}
 	state.Init()
-	go state.run()
 	return state
 }
 
-func (this *LeaderState)PreState()State{
-	this.stop<-true
-	return newFollowerState(this.server)
-}
-func (this *LeaderState)NextState()State{
-	this.stop<-true
-	return newFollowerState(this.server)
-}
-func (this *LeaderState)Init(){
-	this.server.currentTerm+=1
-	this.server.leader=this.server.address
-	this.server.votedFor=this.server.address
+func (state *LeaderState)Init(){
+	state.node.votedFor=""
+	state.node.leader=state.node.address
+	state.once.Do(func() {
+		go state.run()
+	})
+	Debugf("%s LeaderState.Init Term :%d",state.node.address,state.node.currentTerm)
+
 }
 
-func (this *LeaderState) Update(){
+func (state *LeaderState) Update(){
+	if state.node.AliveCount()<state.node.Quorum(){
+		Tracef("%s LeaderState.Update AliveCount < Quorum",state.node.address)
+		state.node.stepDown()
+	}
 }
-func (this *LeaderState) String()string{
+
+func (state *LeaderState) String()string{
 	return Leader
 }
 
-func (this *LeaderState) run() {
+func (state *LeaderState)StepDown()State{
+	state.stop<-true
+	return newFollowerState(state.node)
+}
+func (state *LeaderState)NextState()State{
+	state.stop<-true
+	return newFollowerState(state.node)
+}
+
+func (state *LeaderState) run() {
 	for{
 		select {
-		case <-this.stop:
+		case <-state.stop:
 			goto endfor
-		case <-this.heartbeatTicker.C:
-			this.server.heartbeats()
+		case <-state.heartbeatTicker.C:
+			state.node.heartbeats()
 		}
 	}
 endfor:

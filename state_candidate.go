@@ -3,48 +3,56 @@ package raft
 import "time"
 
 type CandidateState struct{
-	server					*Server
+	node					*Node
 	startElectionTime 		time.Time
+	randomElectionTimeout		time.Duration
 }
-func newCandidateState(server *Server) State {
-	Tracef("%s newCandidateState",server.address)
+func newCandidateState(node *Node) State {
+	//Tracef("%s newCandidateState",node.address)
 	state:=&CandidateState{
-		server:server,
-		startElectionTime:time.Now(),
+		node:node,
 	}
 	state.Init()
 	return state
 }
-func (this *CandidateState)PreState()State{
-	Tracef("%s CandidateState.PreState",this.server.address)
-	return newFollowerState(this.server)
-}
 
-func (this *CandidateState)NextState()State{
-	Tracef("%s CandidateState.NextState",this.server.address)
-	return newLeaderState(this.server)
+func (state *CandidateState)Init(){
+	state.startElectionTime=time.Now()
+	state.randomElectionTimeout=state.node.electionTimeout+randomDurationTime(state.node.electionTimeout*DefaultRangeFactor)
+	state.node.currentTerm+=1
+	state.node.votedFor=state.node.address
+	state.node.leader=""
+	state.node.requestVotes()
+	Debugf("%s CandidateState.Init Term :%d",state.node.address,state.node.currentTerm)
 }
-
-func (this *CandidateState)Init(){
-	this.server.votedFor=""
-	this.server.leader=""
-	this.server.requestVotes()
-}
-func (this *CandidateState) Update(){
-	if this.server.voteCount>=this.server.Quorum(){
-		Tracef("%s CandidateState.Update request Enough Votes %d Quorum %d",this.server.address,this.server.voteCount,this.server.Quorum())
-		this.server.ChangeState(1)
+func (state *CandidateState) Update(){
+	if state.startElectionTime.Add(state.randomElectionTimeout).Before(time.Now()){
+		Tracef("%s CandidateState.Update ElectionTimeout",state.node.address)
+		state.node.stay()
 		return
-	}else if this.server.voteTotal>=this.server.NodesLen(){
-		Tracef("%s CandidateState.Update request All Votes",this.server.address)
-		this.server.ChangeState(-1)
-	}else if this.startElectionTime.Add(this.server.electionTimeout).Before(time.Now()){
-		Tracef("%s CandidateState.Update ElectionTimeout",this.server.address)
-		this.server.ChangeState(-1)
+	}else if state.node.votes.Count()>=state.node.Quorum(){
+		Tracef("%s CandidateState.Update request Enough Votes %d Quorum %d Term %d",state.node.address,state.node.votes.Count(),state.node.Quorum(),state.node.currentTerm)
+		state.node.nextState()
 		return
+	}else if state.node.votes.Total()>=state.node.NodesCount(){
+		Tracef("%s CandidateState.Update request All Replies",state.node.address)
+		state.node.stepDown()
+	}else if state.node.votes.Total()>=maxInt(state.node.NodesCount()-1,state.node.Quorum()){
+		Tracef("%s CandidateState.Update request All-1 Replies",state.node.address)
+		state.node.stepDown()
 	}
 }
 
-func (this *CandidateState) String()string{
+func (state *CandidateState) String()string{
 	return Candidate
+}
+
+func (state *CandidateState)StepDown()State{
+	//Tracef("%s CandidateState.PreState",state.node.address)
+	return newFollowerState(state.node)
+}
+
+func (state *CandidateState)NextState()State{
+	//Tracef("%s CandidateState.NextState",state.node.address)
+	return newLeaderState(state.node)
 }

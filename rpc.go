@@ -19,14 +19,12 @@ const (
 
 )
 
-func listenAndServe(address string,server *Server){
-	service:=new(Service)
-	service.server=server
+func listenAndServe(address string,node *Node){
+	service:=new(RPCService)
+	service.node=node
 	rpc.RegisterName(ServiceName,service)
 	rpc.SetLogLevel(log.NoLevel)
-	go func() {
-		Infoln(rpc.ListenAndServe(network,address))
-	}()
+	Infoln(rpc.ListenAndServe(network,address))
 }
 
 type RPCs struct {

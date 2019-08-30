@@ -8,16 +8,18 @@ import (
 
 func main() {
 	raft.SetLogLevel(raft.DebugLevel)
-	server,_:=raft.NewServer(":8002","raft2")
-	fmt.Println("State:",server.State())
-	server.AddNode(":8001")
-	server.AddNode(":8002")
-	server.AddNode(":8003")
-	server.AddNode(":8004")
-	server.AddNode(":8005")
+	node,_:=raft.NewNode(":8002","raft2")
+	fmt.Println("State:",node.State())
+	node.AddNode(":8001")
+	node.AddNode(":8002")
+	node.AddNode(":8003")
+	//node.AddNode(":8004")
+	//node.AddNode(":8005")
+	node.Start()
+
 	for{
 		time.Sleep(time.Second*3)
-		fmt.Printf("%d State:%s - Term:%d - Leader:%s\n",time.Now().Unix(),server.State(),server.Term(),server.Leader())
+		fmt.Printf("%d State:%s - Term:%d - Leader:%s\n",time.Now().Unix(),node.State(),node.Term(),node.Leader())
 	}
 	select {
 	}
