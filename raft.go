@@ -3,7 +3,7 @@ package raft
 import "time"
 
 type Raft interface {
-	Heartbeat(addr string) bool
+	Heartbeat(addr string) (bool,bool)
 	RequestVote(addr string) bool
 	AppendEntries(addr string) bool
 	InstallSnapshot(addr string) bool
@@ -30,7 +30,7 @@ func newRaft(node	*Node) Raft{
 		installSnapshotTimeout:	DefaultInstallSnapshotTimeout,
 	}
 }
-func (r *raft) Heartbeat(addr string) bool {
+func (r *raft) Heartbeat(addr string) (bool,bool) {
 	var req =&AppendEntriesRequest{}
 	req.Term=r.node.currentTerm
 	req.LeaderId=r.node.leader
@@ -51,17 +51,20 @@ func (r *raft) Heartbeat(addr string) bool {
 	case res:=<-ch:
 		if res==nil{
 			Tracef("raft.Heartbeat %s -> %s error",r.node.address,addr)
-			return false
+			return false,false
 		}
 		//Tracef("Node.heartbeat %s -> %s",r.node.address,r.address)
-		return true
+		if res.Success{
+			return true,true
+		}
+		return true,false
 	case <-time.After(r.hearbeatTimeout):
 		Tracef("raft.Heartbeat %s -> %s time out",r.node.address,addr)
 	}
-	return false
+	return false,false
 }
 
-func (r *raft) RequestVote(addr string) bool{
+func (r *raft) RequestVote(addr string) (bool){
 	var req =&RequestVoteRequest{}
 	req.Term=r.node.currentTerm
 	req.CandidateId=r.node.address
@@ -89,7 +92,6 @@ func (r *raft) RequestVote(addr string) bool{
 			r.node.votes.vote<-&Vote{candidateId:addr,vote:0,term:req.Term}
 		}
 		return true
-
 	case <-time.After(r.requestVoteTimeout):
 		Tracef("raft.RequestVote %s recv %s vote time out",r.node.address,addr)
 		r.node.votes.vote<-&Vote{candidateId:addr,vote:0,term:req.Term}
@@ -161,12 +163,13 @@ func (r *raft) HandleRequestVote(req *RequestVoteRequest, res *RequestVoteRespon
 		r.node.currentTerm=req.Term
 		r.node.stepDown()
 	}
-	if (r.node.votedFor==""||(r.node.votedFor==req.CandidateId&&r.node.currentTerm==req.Term))&&req.LastLogIndex>=r.node.lastLogIndex&&req.LastLogTerm>=r.node.lastLogTerm{
+	if (r.node.votedFor==""||r.node.votedFor==req.CandidateId)&&req.LastLogIndex>=r.node.lastLogIndex&&req.LastLogTerm>=r.node.lastLogTerm{
 		res.VoteGranted=true
 		r.node.votedFor=req.CandidateId
 		r.node.stepDown()
 	}
 	return nil
+
 }
 func (r *raft) HandleAppendEntries(req *AppendEntriesRequest, res *AppendEntriesResponse)error {
 	res.Term=r.node.currentTerm
@@ -178,14 +181,16 @@ func (r *raft) HandleAppendEntries(req *AppendEntriesRequest, res *AppendEntries
 		r.node.stepDown()
 	}
 	if len(req.Entries)==0{
-		if r.node.leader!=""&&r.node.leader!=req.LeaderId&&r.node.currentTerm!=req.Term{
-			res.Success=false
-			return nil
+		if 	r.node.leader==""{
+			r.node.leader=req.LeaderId
 		}
-		res.Success=true
-		r.node.leader=req.LeaderId
-		r.node.currentTerm=req.Term
-		r.node.resetLastRPCTime()
+		if r.node.leader==req.LeaderId{
+			res.Success=true
+			r.node.resetLastRPCTime()
+		}else {
+			res.Success=false
+			r.node.stepDown()
+		}
 		return nil
 	}
 	var lastEntryIndex uint64

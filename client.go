@@ -5,6 +5,7 @@ type Client struct {
 	node					*Node
 	address					string
 	alive					bool
+	follower				bool
 }
 
 func newClient(node *Node, address string) *Client {
@@ -16,7 +17,7 @@ func newClient(node *Node, address string) *Client {
 }
 
 func (c *Client) heartbeat() {
-	c.alive=c.node.raft.Heartbeat(c.address)
+	c.alive,c.follower=c.node.raft.Heartbeat(c.address)
 }
 
 func (c *Client) requestVote() {

@@ -249,6 +249,17 @@ func (n *Node) AliveCount() int {
 	}
 	return cnt
 }
+func (n *Node) FollowerCount() int {
+	n.nodesMut.RLock()
+	defer n.nodesMut.RUnlock()
+	cnt:=1
+	for _,v:=range n.clients{
+		if v.follower==true{
+			cnt+=1
+		}
+	}
+	return cnt
+}
 func (n *Node) requestVotes() error {
 	n.nodesMut.RLock()
 	defer n.nodesMut.RUnlock()

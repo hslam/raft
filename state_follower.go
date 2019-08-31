@@ -15,12 +15,12 @@ func newFollowerState(node *Node) State {
 	state:=&FollowerState{
 		node:node,
 	}
+	state.node.votedFor=""
 	state.Init()
 	return state
 }
 
 func (state *FollowerState)Init(){
-	state.node.votedFor=""
 	state.node.leader=""
 	state.startElectionTime=time.Now()
 	state.randomElectionTimeout=state.node.electionTimeout+randomDurationTime(state.node.electionTimeout*DefaultRangeFactor)
@@ -47,6 +47,7 @@ func (state *FollowerState) String()string{
 
 func (state *FollowerState)StepDown()State{
 	//Tracef("%s FollowerState.PreState",state.node.address)
+	state.Init()
 	return state
 }
 func (state *FollowerState)NextState()State{

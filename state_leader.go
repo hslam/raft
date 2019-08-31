@@ -34,8 +34,11 @@ func (state *LeaderState)Init(){
 
 func (state *LeaderState) Update(){
 	if state.node.AliveCount()<state.node.Quorum(){
-		Tracef("%s LeaderState.Update AliveCount < Quorum",state.node.address)
+		Tracef("%s LeaderState.Update AliveCount %d < Quorum %d",state.node.address,state.node.AliveCount(),state.node.Quorum())
 		state.node.stepDown()
+	}else if state.node.FollowerCount()<state.node.Quorum(){
+		//Tracef("%s LeaderState.Update FollowerCount %d < Quorum %d",state.node.address,state.node.FollowerCount(),state.node.Quorum())
+		//state.node.stepDown()
 	}
 }
 
