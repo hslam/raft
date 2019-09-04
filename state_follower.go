@@ -1,13 +1,7 @@
 package raft
 
-import "time"
-
 type FollowerState struct{
 	node							*Node
-	randomNormalOperationTimeout	time.Duration
-	randomElectionTimeout			time.Duration
-	startElectionTime 				time.Time
-
 }
 
 func newFollowerState(node *Node) State {
@@ -16,29 +10,21 @@ func newFollowerState(node *Node) State {
 		node:node,
 	}
 	state.node.votedFor=""
-	state.Init()
+	state.Reset()
 	return state
 }
 
-func (state *FollowerState)Init(){
+func (state *FollowerState)Reset(){
 	state.node.leader=""
-	state.startElectionTime=time.Now()
-	state.randomElectionTimeout=state.node.electionTimeout+randomDurationTime(state.node.electionTimeout*DefaultRangeFactor)
-	state.randomNormalOperationTimeout=state.node.normalOperationTimeout+randomDurationTime(state.node.normalOperationTimeout*DefaultRangeFactor)
-	state.node.resetLastRPCTime()
-	Debugf("%s FollowerState.Init Term :%d waitHearbeatTimeout :%s",state.node.address,state.node.currentTerm,state.randomNormalOperationTimeout.String())
+	state.node.election.Reset()
 }
 
 func (state *FollowerState) Update(){
-	if state.node.leader==""&&state.startElectionTime.Add(state.randomElectionTimeout+state.randomNormalOperationTimeout).Before(time.Now()){
+	if state.node.election.Timeout(){
 		Tracef("%s FollowerState.Update ElectionTimeout",state.node.address)
 		state.node.nextState()
 		return
-	}else if state.node.leader!=""&&state.node.lastRPCTime.Add(state.randomNormalOperationTimeout).Before(time.Now()){
-		 Tracef("%s FollowerState.Update waitTimeout leader %s",state.node.address,state.node.leader)
-		 state.node.nextState()
-		 return
-	 }
+	}
 }
 
 func (state *FollowerState) String()string{
@@ -47,7 +33,7 @@ func (state *FollowerState) String()string{
 
 func (state *FollowerState)StepDown()State{
 	//Tracef("%s FollowerState.PreState",state.node.address)
-	state.Init()
+	state.Reset()
 	return state
 }
 func (state *FollowerState)NextState()State{

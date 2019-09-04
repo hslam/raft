@@ -22,9 +22,10 @@ const (
 func listenAndServe(address string,node *Node){
 	service:=new(RPCService)
 	service.node=node
-	rpc.RegisterName(ServiceName,service)
+	server:=rpc.NewServer()
+	server.RegisterName(ServiceName,service)
 	rpc.SetLogLevel(log.NoLevel)
-	Infoln(rpc.ListenAndServe(network,address))
+	Infoln(server.ListenAndServe(network,address))
 }
 
 type RPCs struct {
@@ -86,9 +87,6 @@ func (r *RPCs) Ping(addr string)bool {
 	if conn!=nil{
 		if conn.Ping(){
 			return true
-		}else {
-			r.RemoveConn(addr)
-			return false
 		}
 	}
 	r.RemoveConn(addr)

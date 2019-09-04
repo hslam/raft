@@ -1,37 +1,32 @@
 package raft
 
-import "time"
-
 type CandidateState struct{
 	node					*Node
-	startElectionTime 		time.Time
-	randomElectionTimeout		time.Duration
 }
 func newCandidateState(node *Node) State {
 	//Tracef("%s newCandidateState",node.address)
 	state:=&CandidateState{
 		node:node,
 	}
-	state.Init()
+	state.Reset()
 	return state
 }
 
-func (state *CandidateState)Init(){
-	state.startElectionTime=time.Now()
-	state.randomElectionTimeout=state.node.electionTimeout+randomDurationTime(state.node.electionTimeout*DefaultRangeFactor)
-	state.node.currentTerm+=1
+func (state *CandidateState)Reset(){
+	state.node.election.Reset()
+	state.node.currentTerm.Incre()
 	state.node.votedFor=state.node.address
 	state.node.leader=""
 	state.node.requestVotes()
-	Debugf("%s CandidateState.Init Term :%d",state.node.address,state.node.currentTerm)
+	Debugf("%s CandidateState.Init Term :%d",state.node.address,state.node.currentTerm.Id())
 }
 func (state *CandidateState) Update(){
-	if state.startElectionTime.Add(state.randomElectionTimeout).Before(time.Now()){
+	if state.node.election.Timeout(){
 		Tracef("%s CandidateState.Update ElectionTimeout",state.node.address)
 		state.node.stay()
 		return
 	}else if state.node.votes.Count()>=state.node.Quorum(){
-		Tracef("%s CandidateState.Update request Enough Votes %d Quorum %d Term %d",state.node.address,state.node.votes.Count(),state.node.Quorum(),state.node.currentTerm)
+		Tracef("%s CandidateState.Update request Enough Votes %d Quorum %d Term %d",state.node.address,state.node.votes.Count(),state.node.Quorum(),state.node.currentTerm.Id())
 		state.node.nextState()
 		return
 	}else if state.node.votes.Total()>=state.node.NodesCount(){

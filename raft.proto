@@ -5,8 +5,9 @@ package raft;
 message Entry {
     uint64      Index       = 1;
     uint64      Term        = 2;
-    string      CommandName = 3;
-    bytes       Command     = 4;
+    bytes       Command     = 3;
+    uint32      CommandType = 4;
+    string      CommandId   = 5;
 }
 
 message RequestVoteRequest {
@@ -49,4 +50,15 @@ message InstallSnapshotRequest {
 
 message InstallSnapshotResponse {
     uint64  Term    = 1;
+}
+
+message LogStorage {
+    uint64          CurrentTerm = 1;
+    string          VotedFor    = 2;
+    repeated Entry  Entries     = 3;
+}
+
+message ConfigurationStorage {
+    string          Name        = 1;
+    repeated string Peers       = 2;
 }

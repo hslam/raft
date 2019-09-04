@@ -1,73 +1,36 @@
 package raft
 
-import(
-	"errors"
-"fmt"
+import (
+	"reflect"
 )
+
 type Command interface {
-	Name()string
-	Do()
+	Type()uint32
+	UniqueID()string
+	Do(node *Node)(interface{},error)
 }
 
-type Invoker struct {
-	cmd Command
+
+type CommandType struct {
+	types map[uint32]Command
 }
 
-func (p *Invoker) SetCommand(cmd Command) error{
-	if cmd == nil {
-		return errors.New("Command can not be nil")
+func (m *CommandType) register(cmd Command) error{
+	if _,ok:=m.types[cmd.Type()];ok{
+		return ErrCommandTypeExisted
 	}
-	p.cmd = cmd
+	m.types[cmd.Type()] = cmd
 	return nil
 }
-func (p Invoker) Name() string{
-	return ""
-}
-func (p Invoker) Do() {
-	p.cmd.Do()
-}
-
-
-type Commands struct {
-	cmds  []Command
-}
-
-func (p *Commands) AddCommand(cmd Command)error {
-	if cmd == nil {
-		return errors.New("Command can not be nil")
+func (m *CommandType) clone(Type uint32)Command{
+	if command,ok:=m.types[Type];ok{
+		command_copy := reflect.New(reflect.Indirect(reflect.ValueOf(command)).Type()).Interface()
+		return command_copy.(Command)
 	}
-	p.cmds= append(p.cmds,cmd)
+	Debugf("CommandType.clone Unregistered %d",Type)
 	return nil
 }
-func (p Commands) Name() string{
-	return ""
-}
-func (p Commands) Do() {
-	for _, item := range p.cmds {
-		item.Do()
-	}
-}
-
-
-type CommandMap struct {
-	cmdmap map[string]Command
-}
-
-func (p *CommandMap) RegisterCommand(cmd Command) error{
-	if cmd == nil {
-		return errors.New("Command can not be nil")
-	} else if p.cmdmap[cmd.Name()] != nil {
-		return errors.New(fmt.Sprintf("CommandMap.RegisterCommand: %s", cmd.Name()))
-	}
-	p.cmdmap[cmd.Name()] = cmd
-	return nil
-}
-
-func (p CommandMap) Name() string{
-	return ""
-}
-func (p CommandMap) Do() {
-	for _, item := range p.cmdmap {
-		item.Do()
-	}
+func (m *CommandType)exists(cmd Command) bool{
+	_,ok:=m.types[cmd.Type()];
+	return ok
 }

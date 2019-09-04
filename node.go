@@ -3,22 +3,22 @@ package raft
 import (
 	"sync"
 	"errors"
-	"encoding/json"
 	"time"
 )
 
 const (
 	DefaultDataDir = "default.raft"
 	DefaultConfig = "config"
-	DefaultTmpConfig = "config.tmp"
-	DefaultTmp = ".tmp"
 	DefaultLog = "log"
+	DefaultTerm = "term"
 	DefaultSnapshot = "snapshot"
+	DefaultTmp = ".tmp"
 )
 
 type Node struct {
 	mu 								sync.RWMutex
 	nodesMut 						sync.RWMutex
+	syncMut 						sync.RWMutex
 	waitGroup 						sync.WaitGroup
 	onceStart 						sync.Once
 	onceStop 						sync.Once
@@ -33,13 +33,16 @@ type Node struct {
 
 	//config
 	hearbeatTick					time.Duration
-	normalOperationTimeout			time.Duration
-	electionTimeout					time.Duration
-	storage *Storage
+	storage 						*Storage
 	raft 							Raft
 	rpcs							*RPCs
 	server							*Server
-	clients      					map[string]*Client
+	configuration 					*Configuration
+	log								*Log
+
+	stateMachine					*StateMachine
+	snapshot						*Snapshot
+	peers      						map[string]*Peer
 	detectTicker					*time.Ticker
 
 
@@ -48,30 +51,41 @@ type Node struct {
 	ticker							*time.Ticker
 
 	//persistent state on all servers
-	currentTerm						uint64
+	currentTerm						*Term
 	votedFor   						string
-	log								[]*Entry
 
 	//volatile state on all servers
 	commitIndex						uint64
-	lastApplied						uint64
 
 
 	//volatile state on leader
-	nextIndex						map[string]uint64
-	matchIndex						map[string]uint64
+	//nextIndex						map[string]uint64
+	//matchIndex					map[string]uint64
+
+	logIndex						uint64
 
 
-	lastRPCTime						time.Time
 	lastLogIndex					uint64
 	lastLogTerm						uint64
 
+	//follower
+	prevLogIndex 					uint64
+	prevLogTerm						uint64
+
+
 	//candidate
 	votes	 						*Votes
+	election						*Election
 
+	raftCodec						Codec
+	codec							Codec
+
+	context 						interface{}
+	commandType						*CommandType
+	pipeline						*Pipeline
 }
 
-func NewNode(address,data_dir string)(*Node,error){
+func NewNode(address,data_dir string,context interface{})(*Node,error){
 	if address == "" {
 		return nil, errors.New("address can not be empty")
 	}
@@ -82,21 +96,39 @@ func NewNode(address,data_dir string)(*Node,error){
 		address:address,
 		storage:newStorage(data_dir),
 		rpcs:newRPCs(address,[]string{}),
-
-		clients:make(map[string]*Client),
+		peers:make(map[string]*Peer),
 		detectTicker:time.NewTicker(DefaultDetectTick),
 		stop:make(chan bool,1),
 		changeStateChan: make(chan int,1),
 		ticker:time.NewTicker(DefaultNodeTick),
-		normalOperationTimeout:DefaultNormalOperationTimeout,
-		electionTimeout:DefaultElectionTimeout,
 		hearbeatTick:DefaultHearbeatTick,
+		raftCodec:new(ProtoCodec),
+		codec:new(JsonCodec),
+		context:context,
+		commandType:&CommandType{make(map[uint32]Command)},
 	}
-	n.state=newFollowerState(n)
-	n.raft=newRaft(n)
-	n.server=newServer(address,n)
 	n.votes=newVotes(n)
+
+	n.configuration=newConfiguration(n)
+	n.configuration.load()
+	n.log=newLog(n)
+	n.election=newElection(n,DefaultElectionTimeout)
+	n.raft=newRaft(n)
+	n.server=newServer(n,address)
+	n.currentTerm=newTerm(n)
+	n.state=newFollowerState(n)
+	n.stateMachine=newStateMachine(n)
+	n.snapshot=newSnapshot(n)
+	n.pipeline=NewPipeline(n,DefaultMaxConcurrency)
+
 	return n,nil
+}
+func (n *Node) Start() {
+	n.onceStart.Do(func() {
+		n.server.listenAndServe()
+		go n.run()
+	})
+	n.log.recovery()
 }
 func (n *Node) run() {
 	n.running=true
@@ -116,7 +148,7 @@ func (n *Node) run() {
 				} else if i == -1 {
 					n.setState(n.state.StepDown())
 				}else if i == 0 {
-					n.state.Init()
+					n.state.Reset()
 				}
 			default:
 				n.state.Update()
@@ -126,12 +158,7 @@ func (n *Node) run() {
 	}
 endfor:
 }
-func (n *Node) Start() {
-	n.onceStart.Do(func() {
-		n.server.listenAndServe()
-		go n.run()
-	})
-}
+
 func (n *Node)Running() bool{
 	n.mu.RLock()
 	defer n.mu.RUnlock()
@@ -152,17 +179,6 @@ func (n *Node)Enabled() bool{
 	n.mu.RLock()
 	defer n.mu.RUnlock()
 	return n.enabled
-}
-
-func (n *Node) LastRPCTime()time.Time{
-	n.mu.RLock()
-	defer n.mu.RUnlock()
-	return n.lastRPCTime
-}
-func (n *Node) resetLastRPCTime() {
-	n.mu.Lock()
-	defer n.mu.Unlock()
-	n.lastRPCTime = time.Now()
 }
 
 func (n *Node) setState(state State) {
@@ -195,10 +211,9 @@ func (n *Node) State()string {
 	defer n.mu.RUnlock()
 	return n.state.String()
 }
+
 func (n *Node) Term()uint64 {
-	n.mu.RLock()
-	defer n.mu.RUnlock()
-	return n.currentTerm
+	return n.currentTerm.Id()
 }
 func (n *Node) Leader()string {
 	n.mu.RLock()
@@ -208,41 +223,94 @@ func (n *Node) Leader()string {
 func (n *Node) IsLeader()bool {
 	n.mu.RLock()
 	defer n.mu.RUnlock()
-	if n.leader==n.address{
+	if n.leader==n.address&&n.state.String()==Leader{
 		return true
 	}else{
 		return false
 	}
 }
-func (n *Node) AddNode(address string) error {
+
+func (n *Node) SetCodec(codec Codec){
+	n.mu.RLock()
+	defer n.mu.RUnlock()
+	n.codec=codec
+}
+func (n *Node) SetContext(context interface{}){
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	n.context=context
+}
+
+func (n *Node) Context()interface{}{
+	n.mu.RLock()
+	defer n.mu.RUnlock()
+	return n.context
+}
+func (n *Node)Register(command Command) (error){
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	return n.commandType.register(command)
+}
+func (n *Node)Do(command Command) (interface{},error){
+	if n.IsLeader(){
+		if !n.commandType.exists(command){
+			return nil,ErrCommandNotRegistered
+		}
+		invoker:=newInvoker(command,false,n.codec)
+		ch:=NewPipelineCommand(invoker)
+		n.pipeline.pipelineCommandChan<-ch
+		select {
+		case res:=<-ch.cbChan:
+			return res,nil
+		case err:=<-ch.cbErrorChan:
+			return nil,err
+		case <-time.After(DefaultCommandTimeout):
+			return nil,ErrCommandTimeout
+		}
+	}
+	return nil,ErrNotLeader
+}
+
+func (n *Node) SetNode(addrs []string) error {
+	if !n.configuration.isPeersChanged(addrs){
+		return nil
+	}
+	n.peers=make(map[string]*Peer)
+	for _,address:=range addrs{
+		n.addNode(address)
+	}
+	n.configuration.SetPeers(addrs)
+	n.configuration.save()
+	return nil
+}
+func (n *Node) addNode(address string) error {
 	n.nodesMut.Lock()
 	defer n.nodesMut.Unlock()
-	if n.clients[address] != nil {
+	if n.peers[address] != nil {
 		return nil
 	}
 	if n.address != address {
-		client := newClient(n,address)
-		n.clients[address] = client
+		client := newPeer(n,address)
+		n.peers[address] = client
 	}
-	n.votes.Reset(len(n.clients)+1)
-	n.saveConfig()
+	n.votes.Reset(len(n.peers)+1)
 	return nil
 }
 func (n *Node) NodesCount() int {
 	n.nodesMut.RLock()
 	defer n.nodesMut.RUnlock()
-	return len(n.clients)+1
+	return len(n.peers)+1
 }
 func (n *Node) Quorum() int {
 	n.nodesMut.RLock()
 	defer n.nodesMut.RUnlock()
-	return (len(n.clients)+1)/2+1
+	return (len(n.peers)+1)/2+1
 }
 func (n *Node) AliveCount() int {
 	n.nodesMut.RLock()
 	defer n.nodesMut.RUnlock()
 	cnt:=1
-	for _,v:=range n.clients{
+	for _,v:=range n.peers{
 		if v.alive==true{
 			cnt+=1
 		}
@@ -253,19 +321,20 @@ func (n *Node) FollowerCount() int {
 	n.nodesMut.RLock()
 	defer n.nodesMut.RUnlock()
 	cnt:=1
-	for _,v:=range n.clients{
+	for _,v:=range n.peers{
 		if v.follower==true{
 			cnt+=1
 		}
 	}
 	return cnt
 }
+
 func (n *Node) requestVotes() error {
 	n.nodesMut.RLock()
 	defer n.nodesMut.RUnlock()
 	n.votes.Clear()
-	n.votes.vote<-&Vote{candidateId:n.address,vote:1,term:n.currentTerm}
-	for _,v :=range n.clients{
+	n.votes.vote<-&Vote{candidateId:n.address,vote:1,term:n.currentTerm.Id()}
+	for _,v :=range n.peers{
 		if v.alive==true{
 			go v.requestVote()
 		}
@@ -275,7 +344,7 @@ func (n *Node) requestVotes() error {
 func (n *Node) detectNodes() error {
 	n.nodesMut.RLock()
 	defer n.nodesMut.RUnlock()
-	for _,v :=range n.clients{
+	for _,v :=range n.peers{
 		if v.alive==false{
 			go v.ping()
 		}
@@ -285,7 +354,7 @@ func (n *Node) detectNodes() error {
 func (n *Node) heartbeats() error {
 	n.nodesMut.RLock()
 	defer n.nodesMut.RUnlock()
-	for _,v :=range n.clients{
+	for _,v :=range n.peers{
 		if v.alive==true{
 			go v.heartbeat()
 		}
@@ -293,34 +362,11 @@ func (n *Node) heartbeats() error {
 	return nil
 }
 
-func (n *Node) saveConfig() {
-	n.mu.Lock()
-	defer n.mu.Unlock()
-	clients := make([]string, len(n.clients))
-	i := 0
-	for _, node := range n.clients {
-		clients[i] = node.address
-		i++
+func (n *Node) appendEntries(entries []*Entry) error {
+	n.nodesMut.RLock()
+	defer n.nodesMut.RUnlock()
+	for _,p :=range n.peers{
+		go p.appendEntries(entries)
 	}
-	c := &Configuration{
-		Name:n.address,
-		Others:clients,
-	}
-	b, _ := json.Marshal(c)
-	n.storage.Persistence(DefaultConfig,b)
-}
-
-func (n *Node) loadConfig() error {
-	n.mu.Lock()
-	defer n.mu.Unlock()
-	b, err := n.storage.Load(DefaultConfig)
-	if err != nil {
-		return nil
-	}
-	config := &Configuration{}
-	if err = json.Unmarshal(b, config); err != nil {
-		return err
-	}
-	//n.log.updateCommitIndex(config.CommitIndex)
 	return nil
 }

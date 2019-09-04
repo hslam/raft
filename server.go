@@ -5,7 +5,7 @@ type Server struct {
 	node					*Node
 	address					string
 }
-func newServer(address string,node *Node, ) *Server {
+func newServer(node *Node,address string) *Server {
 	s:=&Server{
 		node :					node,
 		address :				address,

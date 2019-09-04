@@ -24,9 +24,9 @@ type Votes struct {
 func newVotes(node *Node) *Votes {
 	votes:=&Votes{
 		node:node,
-		vote: make(chan *Vote,1),
-		voteDic:make(map[string]int),
 	}
+	votes.Reset(1)
+	votes.Clear()
 	return votes
 }
 
@@ -35,7 +35,7 @@ func (votes *Votes)AddVote(v *Vote) {
 		return
 	}
 	votes.voteDic[v.Key()]=v.vote
-	if v.term==votes.node.currentTerm{
+	if v.term==votes.node.currentTerm.Id(){
 		votes.voteTotal+=1
 		votes.voteCount+=v.vote
 	}
@@ -54,7 +54,9 @@ func (votes *Votes)Clear() {
 	votes.voteTotal=0
 }
 func (votes *Votes)Reset(count int) {
-	close(votes.vote)
+	if votes.vote!=nil{
+		close(votes.vote)
+	}
 	votes.vote=make(chan *Vote,count)
 }
 

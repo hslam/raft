@@ -6,7 +6,7 @@ import (
 )
 
 type LeaderState struct{
-	once sync.Once
+	once 					sync.Once
 	node					*Node
 	stop					chan bool
 	heartbeatTicker			*time.Ticker
@@ -18,27 +18,23 @@ func newLeaderState(node *Node) State {
 		stop:					make(chan bool,1),
 		heartbeatTicker:		time.NewTicker(node.hearbeatTick),
 	}
-	state.Init()
+	state.Reset()
 	return state
 }
 
-func (state *LeaderState)Init(){
+func (state *LeaderState)Reset(){
 	state.node.votedFor=""
 	state.node.leader=state.node.address
 	state.once.Do(func() {
 		go state.run()
 	})
-	Debugf("%s LeaderState.Init Term :%d",state.node.address,state.node.currentTerm)
-
+	Debugf("%s LeaderState.Init Term :%d",state.node.address,state.node.currentTerm.Id())
 }
 
 func (state *LeaderState) Update(){
 	if state.node.AliveCount()<state.node.Quorum(){
 		Tracef("%s LeaderState.Update AliveCount %d < Quorum %d",state.node.address,state.node.AliveCount(),state.node.Quorum())
 		state.node.stepDown()
-	}else if state.node.FollowerCount()<state.node.Quorum(){
-		//Tracef("%s LeaderState.Update FollowerCount %d < Quorum %d",state.node.address,state.node.FollowerCount(),state.node.Quorum())
-		//state.node.stepDown()
 	}
 }
 
