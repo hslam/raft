@@ -3,9 +3,10 @@ package raft
 import "time"
 
 type Raft interface {
-	RequestVote(addr string) bool
-	AppendEntries(addr string,prevLogIndex,prevLogTerm uint64,entries []*Entry)  (uint64,uint64,bool,bool)
-	InstallSnapshot(addr string) bool
+	Hearbeat(addr string,prevLogIndex,prevLogTerm uint64)  (nextIndex uint64,term uint64,success bool,ok bool)
+	RequestVote(addr string) (ok bool)
+	AppendEntries(addr string,prevLogIndex,prevLogTerm uint64,entries []*Entry)  (nextIndex uint64,term uint64,success bool,ok bool)
+	InstallSnapshot(addr string) (ok bool)
 	HandleRequestVote(req *RequestVoteRequest, res *RequestVoteResponse)error
 	HandleAppendEntries(req *AppendEntriesRequest, res *AppendEntriesResponse)error
 	HandleInstallSnapshot(req *InstallSnapshotRequest,res *InstallSnapshotResponse)error
@@ -30,7 +31,42 @@ func newRaft(node	*Node) Raft{
 	}
 }
 
-func (r *raft) RequestVote(addr string) (bool){
+func (r *raft) Hearbeat(addr string,prevLogIndex,prevLogTerm uint64)  (nextIndex uint64,term uint64,success bool,ok bool){
+	var req =&AppendEntriesRequest{}
+	req.Term=r.node.currentTerm.Id()
+	req.LeaderId=r.node.leader
+	req.LeaderCommit=r.node.commitIndex
+	req.PrevLogIndex=prevLogIndex
+	req.PrevLogTerm=prevLogTerm
+	req.Entries=[]*Entry{}
+	var ch =make(chan *AppendEntriesResponse)
+	go func (rpcs *RPCs,addr string,req *AppendEntriesRequest, ch chan *AppendEntriesResponse) {
+		var res =&AppendEntriesResponse{}
+		if err := r.node.rpcs.CallAppendEntries(addr,req, res); err != nil {
+			ch<-nil
+		} else {
+			ch <- res
+		}
+	}(r.node.rpcs,addr,req,ch)
+	select {
+	case res:=<-ch:
+		if res==nil{
+			Tracef("raft.Hearbeat %s -> %s error",r.node.address,addr)
+			return 0,0,false,false
+		}
+		if res.Term>r.node.currentTerm.Id(){
+			r.node.currentTerm.Set(res.Term)
+			r.node.stepDown()
+
+		}
+		//Tracef("raft.Hearbeat %s -> %s",r.node.address,addr)
+		return res.NextIndex,res.Term,res.Success,true
+	case <-time.After(r.hearbeatTimeout):
+		Tracef("raft.Hearbeat %s -> %s time out",r.node.address,addr)
+	}
+	return 0,0,false,false
+}
+func (r *raft) RequestVote(addr string) (ok bool){
 	var req =&RequestVoteRequest{}
 	req.Term=r.node.currentTerm.Id()
 	req.CandidateId=r.node.address
@@ -68,7 +104,7 @@ func (r *raft) RequestVote(addr string) (bool){
 	}
 	return false
 }
-func (r *raft) AppendEntries(addr string,prevLogIndex,prevLogTerm uint64,entries []*Entry)  (uint64,uint64,bool,bool){
+func (r *raft) AppendEntries(addr string,prevLogIndex,prevLogTerm uint64,entries []*Entry)  (nextIndex uint64,term uint64,success bool,ok bool){
 	var req =&AppendEntriesRequest{}
 	req.Term=r.node.currentTerm.Id()
 	req.LeaderId=r.node.leader
@@ -95,7 +131,7 @@ func (r *raft) AppendEntries(addr string,prevLogIndex,prevLogTerm uint64,entries
 			r.node.currentTerm.Set(res.Term)
 			r.node.stepDown()
 			if len(entries)>0{
-				return res.NextIndex,res.Term,false,false
+				return res.NextIndex,res.Term,false,true
 			}
 		}
 		//Tracef("raft.AppendEntries %s -> %s",r.node.address,addr)

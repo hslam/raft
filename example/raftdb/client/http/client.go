@@ -17,7 +17,7 @@ func main()  {
 		conn.client=&fasthttp.Client{
 			//MaxConnsPerHost:1,
 		}
-		conn.url="http://localhost:7001/db/"
+		conn.url="http://localhost:7002/db/"
 		conn.meth="POST"
 		wrkClients[i]= conn
 	}

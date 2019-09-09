@@ -6,14 +6,13 @@ import (
 
 
 const (
+	DefaultStartWait = 10*1000*time.Microsecond
 	DefaultNodeTick = time.Microsecond*100
 	DefaultCompactionTick 	=	60*1000 * time.Millisecond
 	DefaultHearbeatTick = 100 * time.Millisecond
-	DefaultDetectTick = 1000 * time.Millisecond
-	DefaultKeepAliveTick = 1000 * time.Millisecond
-
+	DefaultDetectTick = 100 * time.Millisecond
+	DefaultKeepAliveTick = 10000 * time.Millisecond
 	DefaultElectionTimeout = 1000 * time.Millisecond
-
 	DefaultHearbeatTimeout = 100 * time.Millisecond
 	DefaultRequestVoteTimeout = 1000 * time.Millisecond
 	DefaultAppendEntriesTimeout = 1000 * time.Millisecond

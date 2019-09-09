@@ -28,17 +28,37 @@ func newPeer(node *Node, address string) *Peer {
 }
 
 func (p *Peer) heartbeat() {
-	nextIndex, term,success,ok:=p.appendEntries([]*Entry{})
-	if nextIndex>0&&term>0||success||ok{
-		p.alive=true
+	if !p.alive{
+		return
 	}
-	if nextIndex>0{
+	var prevLogIndex,prevLogTerm uint64
+	if p.nextIndex<=1{
+		prevLogIndex=0
+		prevLogTerm=0
+	}else {
+		entry:=p.node.log.lookup(p.nextIndex-1)
+		if entry==nil{
+			prevLogIndex=0
+			prevLogTerm=0
+		}else {
+			prevLogIndex=p.nextIndex-1
+			prevLogTerm=entry.Term
+		}
+	}
+	//Tracef("Peer.heartbeat %s %d %d",p.address,prevLogIndex,prevLogTerm)
+	nextIndex, term,success,ok:=p.node.raft.Hearbeat(p.address,prevLogIndex,prevLogTerm)
+	if !ok{
+		p.alive=false
+	}else if nextIndex>0&&term>0&&success{
 		p.nextIndex=nextIndex
 	}
-	//Tracef("Peer.heartbeat %s %d %d %t %t %d",p.address,index, term,success,ok,p.nextIndex)
+	//Tracef("Peer.heartbeat %s %d %d %t %t %d",p.address,nextIndex, term,success,ok,p.nextIndex)
 }
 
 func (p *Peer) requestVote() {
+	if !p.alive{
+		return
+	}
 	p.alive=p.node.raft.RequestVote(p.address)
 }
 
@@ -62,11 +82,15 @@ func (p *Peer) appendEntries(entries []*Entry) (nextIndex uint64,term uint64,suc
 	return
 }
 func (p *Peer) installSnapshot() {
+	if !p.alive{
+		return
+	}
 	p.alive=p.node.raft.InstallSnapshot(p.address)
 }
 
 func (p *Peer) ping() {
 	p.alive=p.node.rpcs.Ping(p.address)
+	//Debugf("Peer.ping %s %t",p.address,p.alive)
 }
 
 func (p *Peer) run()  {
@@ -79,19 +103,20 @@ func (p *Peer) run()  {
 			if p.node.state.String()==Leader&&p.send{
 				p.send=false
 				if p.node.lastLogIndex>p.nextIndex-1&&p.nextIndex>0{
-					Tracef("Peer.run %s ++++++nextIndex %d,%d",p.address,p.node.lastLogIndex,p.nextIndex)
 					entries:=p.node.log.copyAfter(p.nextIndex,DefaultMaxBatch)
 					if len(entries)>0{
 						for i:=0;i<DefaultRetryTimes;i++{
 							nextIndex,term,success,ok:=p.appendEntries(entries)
 							if success&&ok{
 								//p.nextIndex=entries[len(entries)-1].Index+1
+								Tracef("Peer.run %s nextIndex %d==>%d",p.address,p.nextIndex,nextIndex)
 								p.nextIndex=nextIndex
-								Tracef("Peer.run %s ------nextIndex %d,%d",p.address,p.node.lastLogIndex,p.nextIndex)
 								break
 							}else if ok&&term==p.node.currentTerm.Id(){
 								p.nextIndex=nextIndex
 								break
+							}else if !ok{
+								p.alive=false
 							}
 						}
 					}

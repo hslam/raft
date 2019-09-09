@@ -1,9 +1,14 @@
 package raft
 
-import "time"
+import (
+	"time"
+	"sync"
+)
 
 type Election struct{
 	node					*Node
+	once 					sync.Once
+	onceDisabled 			bool
 	startTime 				time.Time
 	electionTimeout			time.Duration
 	randomElectionTimeout	time.Duration
@@ -19,11 +24,17 @@ func newElection(node *Node,electionTimeout time.Duration) *Election {
 
 func (election *Election)Reset(){
 	election.startTime=time.Now()
-	election.randomElectionTimeout=election.electionTimeout+randomDurationTime(election.electionTimeout)
+	if election.onceDisabled{
+		election.randomElectionTimeout=election.electionTimeout+randomDurationTime(election.electionTimeout)
+	}
+	election.once.Do(func() {
+		election.randomElectionTimeout=DefaultStartWait
+	})
 }
 
 func (election *Election)Timeout()bool{
 	if election.startTime.Add(election.randomElectionTimeout).Before(time.Now()){
+		election.onceDisabled=true
 		return true
 	}
 	return false

@@ -6,6 +6,7 @@ import (
 
 var (
 	ErrNotLeader=errors.New("this node is not Leader")
+	ErrNotRunning=errors.New("this node do not running")
 
 
 	//AppendEntries

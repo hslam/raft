@@ -29,12 +29,6 @@ func (state *CandidateState) Update(){
 		Tracef("%s CandidateState.Update request Enough Votes %d Quorum %d Term %d",state.node.address,state.node.votes.Count(),state.node.Quorum(),state.node.currentTerm.Id())
 		state.node.nextState()
 		return
-	}else if state.node.votes.Total()>=state.node.NodesCount(){
-		Tracef("%s CandidateState.Update request All Replies",state.node.address)
-		state.node.stepDown()
-	}else if state.node.votes.Total()>=maxInt(state.node.NodesCount()-1,state.node.Quorum()){
-		Tracef("%s CandidateState.Update request All-1 Replies",state.node.address)
-		state.node.stepDown()
 	}
 }
 

@@ -18,7 +18,6 @@ type Node struct {
 	running							bool
 	stop							chan bool
 	stoped							bool
-	enabled							bool
 
 	host    						string
 	port 							int
@@ -112,15 +111,15 @@ func NewNode(host string, port int,data_dir string,context interface{})(*Node,er
 	return n,nil
 }
 func (n *Node) Start() {
+	n.log.recover()
+	n.election.Reset()
 	n.onceStart.Do(func() {
 		n.server.listenAndServe()
 		go n.run()
 	})
-	n.log.recover()
-
+	n.running=true
 }
 func (n *Node) run() {
-	n.running=true
 	tm:=time.NewTicker(time.Millisecond*1000)
 	for{
 		select {
@@ -135,6 +134,9 @@ func (n *Node) run() {
 		case <-tm.C:
 			//Tracef("Node.run %d %d",len(n.pipeline.pipelineCommandChan),len(n.pipeline.readyInvokerChan))
 		case <-n.ticker.C:
+			if !n.running{
+				return
+			}
 			select {
 			case i := <-n.changeStateChan:
 				if i == 1 {
@@ -168,11 +170,6 @@ func (n *Node)Stoped() bool{
 	defer n.mu.RUnlock()
 	return n.stoped
 }
-func (n *Node)Enabled() bool{
-	n.mu.RLock()
-	defer n.mu.RUnlock()
-	return n.enabled
-}
 
 func (n *Node) setState(state State) {
 	n.state = state
@@ -200,12 +197,18 @@ func (n *Node) changeState(i int){
 }
 
 func (n *Node) State()string {
+	if n.state==nil{
+		return ""
+	}
 	n.mu.RLock()
 	defer n.mu.RUnlock()
 	return n.state.String()
 }
 
 func (n *Node) Term()uint64 {
+	if !n.running{
+		return 0
+	}
 	return n.currentTerm.Id()
 }
 func (n *Node) Leader()string {
@@ -214,6 +217,9 @@ func (n *Node) Leader()string {
 	return n.leader
 }
 func (n *Node) IsLeader()bool {
+	if !n.running{
+		return false
+	}
 	n.mu.RLock()
 	defer n.mu.RUnlock()
 	if n.leader==n.address&&n.state.String()==Leader{
@@ -253,6 +259,9 @@ func (n *Node)RegisterCommand(command Command) (error){
 	return n.commandType.register(command)
 }
 func (n *Node)Do(command Command) (interface{},error){
+	if !n.running{
+		return nil,ErrNotRunning
+	}
 	if command == nil {
 		return nil,ErrCommandNil
 	}else if command.Type() < 0 {
@@ -386,7 +395,7 @@ func (n *Node) Commit() error {
 			Tracef("Node.Commit %s commitIndex %d==>%d",n.address,commitIndex,n.commitIndex)
 			if n.commitIndex<=n.recoverLogIndex{
 				var lastApplied=n.stateMachine.lastApplied
-				n.log.commit()
+				n.log.applyCommited()
 				Tracef("Node.Commit %s lastApplied %d==>%d",n.address,lastApplied,n.stateMachine.lastApplied)
 			}
 		}
@@ -413,7 +422,7 @@ func (n *Node) Commit() error {
 					Tracef("Node.Commit %s commitIndex %d==>%d",n.address,commitIndex,n.commitIndex)
 					if n.commitIndex<=n.recoverLogIndex{
 						var lastApplied=n.stateMachine.lastApplied
-						n.log.commit()
+						n.log.applyCommited()
 						Tracef("Node.Commit %s lastApplied %d==>%d",n.address,lastApplied,n.stateMachine.lastApplied)
 					}
 				}

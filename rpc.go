@@ -15,7 +15,7 @@ const (
 	AppendEntriesName = "A"
 	InstallSnapshotName = "I"
 
-	RetryTimes = 5
+	RetryTimes = 0
 
 )
 
@@ -29,20 +29,24 @@ func listenAndServe(address string,node *Node){
 }
 
 type RPCs struct {
-	mu sync.RWMutex
-	conns map[string]rpc.Client
+	mu				sync.RWMutex
+	conns			map[string]rpc.Client
+	failedCount		map[string]int
 }
 func newRPCs(addrs []string) *RPCs{
-	c :=&RPCs{
+	r :=&RPCs{
 		conns:make(map[string]rpc.Client),
+		failedCount:make(map[string]int),
 	}
 	for _, addr:= range addrs {
-		conn, err := c.NewConn(addr)
+		conn, err := r.NewConn(addr)
 		if err==nil{
-			c.conns[addr] = conn
+			conn.DisableRetry()
+			r.conns[addr] = conn
+			r.failedCount[addr] = 0
 		}
 	}
-	return c
+	return r
 }
 
 func (r *RPCs) GetConn(addr string) rpc.Client {
@@ -53,7 +57,9 @@ func (r *RPCs) GetConn(addr string) rpc.Client {
 	}
 	conn, err := r.NewConn(addr)
 	if err==nil{
+		conn.DisableRetry()
 		r.conns[addr] = conn
+		r.failedCount[addr] = 0
 		return r.conns[addr]
 	}
 	return nil
@@ -62,11 +68,15 @@ func (r *RPCs) GetConn(addr string) rpc.Client {
 func (r *RPCs) RemoveConn(addr string){
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if _,ok:=r.conns[addr];ok{
+	//Debugf("RPCs.RemoveConn %s",addr)
+	if conn,ok:=r.conns[addr];ok{
 		delete(r.conns,addr)
+		delete(r.failedCount,addr)
+		defer conn.Close()
 	}
 }
 func (r *RPCs) NewConn(addr string) (rpc.Client, error){
+	//Debugf("RPCs.NewConn %s",addr)
 	return rpc.Dial(network,addr,codec)
 }
 func (r *RPCs) ServiceAppendEntriesName() string {

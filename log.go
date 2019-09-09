@@ -176,7 +176,7 @@ func (log *Log) copyRange(startIndex uint64,endIndex uint64) []*Entry{
 	}
 	return entries
 }
-func (log *Log) commit() {
+func (log *Log) applyCommited() {
 	log.mu.Lock()
 	defer log.mu.Unlock()
 	length:=len(log.entries)
@@ -185,9 +185,9 @@ func (log *Log) commit() {
 	}
 	var startIndex =maxUint64(log.node.stateMachine.lastApplied,log.entries[0].Index)
 	var endIndex =log.node.commitIndex
-	log.commitRange(startIndex,endIndex)
+	log.applyCommitedRange(startIndex,endIndex)
 }
-func (log *Log) commitBefore(index uint64) {
+func (log *Log) applyCommitedBefore(index uint64) {
 	log.mu.Lock()
 	defer log.mu.Unlock()
 	if !log.checkIndex(index){
@@ -195,9 +195,9 @@ func (log *Log) commitBefore(index uint64) {
 	}
 	var startIndex =maxUint64(log.node.stateMachine.lastApplied,log.entries[0].Index)
 	var endIndex =index
-	log.commitRange(startIndex,endIndex)
+	log.applyCommitedRange(startIndex,endIndex)
 }
-func (log *Log) commitRange(startIndex uint64,endIndex uint64) {
+func (log *Log) applyCommitedRange(startIndex uint64,endIndex uint64) {
 	if startIndex>endIndex{
 		return
 	}
