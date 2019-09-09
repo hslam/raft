@@ -1,16 +1,6 @@
 package raft
 
-
-type Snapshot struct {
-	node 	*Node
-}
-
-func newSnapshot(node *Node)*Snapshot {
-	s:=&Snapshot{
-		node:node,
-	}
-	return s
-}
-func (s *Snapshot)Compact() {
-
+type Snapshot interface {
+	Save(context interface{}) ([]byte, error)
+	Recover(context interface{},snapshot []byte) error
 }

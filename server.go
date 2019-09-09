@@ -3,15 +3,15 @@ package raft
 
 type Server struct {
 	node					*Node
-	address					string
+	addr					string
 }
-func newServer(node *Node,address string) *Server {
+func newServer(node *Node,addr string) *Server {
 	s:=&Server{
 		node :					node,
-		address :				address,
+		addr :					addr,
 	}
 	return s
 }
 func  (s *Server) listenAndServe(){
-	go listenAndServe(s.address,s.node)
+	go listenAndServe(s.addr,s.node)
 }

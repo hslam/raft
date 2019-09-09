@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package node;
+
+message SetCommand {
+    string  Key     = 1;
+    string  Value   = 2;
+}
+
+message Request {
+    string  Key     = 1;
+    string  Value   = 2;
+}
+
+message Response {
+    bool  ok     = 1;
+}

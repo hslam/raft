@@ -16,6 +16,7 @@ func newConfiguration(node *Node) *Configuration {
 	c:=&Configuration{
 		node:node,
 	}
+	c.load()
 	return c
 }
 
@@ -46,7 +47,7 @@ func (c *Configuration) save() {
 	}
 	c.peers=peers
 	configurationStorage := &ConfigurationStorage{
-		Name:c.node.address,
+		Address:c.node.address,
 		Peers:c.peers,
 	}
 	b, _ := json.Marshal(configurationStorage)
@@ -65,7 +66,7 @@ func (c *Configuration) load() error {
 	if err = json.Unmarshal(b, configurationStorage); err != nil {
 		return err
 	}
-	c.node.address=configurationStorage.Name
+	c.node.address=configurationStorage.Address
 	peers:=configurationStorage.Peers
 	if !c.isPeersChanged(peers){
 		Tracef("is not PeersChanged %d %d",len(peers),len(c.peers))
@@ -81,10 +82,9 @@ func (c *Configuration) load() error {
 }
 
 func  (c *Configuration) isPeersChanged(peers []string)  bool {
-	if len(peers) == 0 && len(c.peers) == 0 {
-		return false
-	}
-	sort.Strings(peers)
-	sort.Strings(c.peers)
-	return !reflect.DeepEqual(peers, c.peers)
+	old_nodes:=append(c.peers[:],c.node.address)
+	new_nodes:=append(peers[:],c.node.address)
+	sort.Strings(old_nodes)
+	sort.Strings(new_nodes)
+	return !reflect.DeepEqual(old_nodes, new_nodes)
 }

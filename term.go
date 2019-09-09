@@ -43,12 +43,12 @@ func (term *Term) saveTerm() {
 
 func (term *Term) loadTerm() error {
 	if !term.node.storage.Exists(DefaultTerm){
-		return errors.New("term is not existed")
+		return errors.New("term file is not existed")
 	}
 	b, err := term.node.storage.Load(DefaultTerm)
-	term.id = bytesToUint64(b)
 	if err != nil {
-		return nil
+		return err
 	}
+	term.id = bytesToUint64(b)
 	return nil
 }

@@ -3,9 +3,8 @@ package raft
 import "time"
 
 type Raft interface {
-	Heartbeat(addr string,prevLogIndex,prevLogTerm uint64) (bool,bool)
 	RequestVote(addr string) bool
-	AppendEntries(addr string,prevLogIndex,prevLogTerm uint64,entries []*Entry)  (bool,bool)
+	AppendEntries(addr string,prevLogIndex,prevLogTerm uint64,entries []*Entry)  (uint64,uint64,bool,bool)
 	InstallSnapshot(addr string) bool
 	HandleRequestVote(req *RequestVoteRequest, res *RequestVoteResponse)error
 	HandleAppendEntries(req *AppendEntriesRequest, res *AppendEntriesResponse)error
@@ -29,45 +28,6 @@ func newRaft(node	*Node) Raft{
 		appendEntriesTimeout:	DefaultAppendEntriesTimeout,
 		installSnapshotTimeout:	DefaultInstallSnapshotTimeout,
 	}
-}
-
-
-func (r *raft) Heartbeat(addr string,prevLogIndex,prevLogTerm uint64) (bool,bool) {
-	var req =&AppendEntriesRequest{}
-	req.Term=r.node.currentTerm.Id()
-	req.LeaderId=r.node.leader
-	req.LeaderCommit=r.node.commitIndex
-	req.PrevLogIndex=prevLogIndex
-	req.PrevLogTerm=prevLogTerm
-	req.Entries=[]*Entry{}
-	var ch =make(chan *AppendEntriesResponse)
-	go func (rpcs *RPCs,addr string,req *AppendEntriesRequest, ch chan *AppendEntriesResponse) {
-		var res =&AppendEntriesResponse{}
-		if err := r.node.rpcs.CallAppendEntries(addr,req, res); err != nil {
-			ch<-nil
-		} else {
-			ch <- res
-		}
-	}(r.node.rpcs,addr,req,ch)
-	select {
-	case res:=<-ch:
-		if res==nil{
-			Tracef("raft.Heartbeat %s -> %s error",r.node.address,addr)
-			return false,false
-		}
-		if res.Term>r.node.currentTerm.Id(){
-			r.node.currentTerm.Set(res.Term)
-			r.node.stepDown()
-		}
-		//Tracef("Node.heartbeat %s -> %s",r.node.address,r.address)
-		if res.Success{
-			return true,true
-		}
-		return true,false
-	case <-time.After(r.hearbeatTimeout):
-		Tracef("raft.Heartbeat %s -> %s time out",r.node.address,addr)
-	}
-	return false,false
 }
 
 func (r *raft) RequestVote(addr string) (bool){
@@ -97,18 +57,18 @@ func (r *raft) RequestVote(addr string) (bool){
 		}
 		//Tracef("raft.RequestVote %s recv %s vote %t",r.node.address,addr,res.VoteGranted)
 		if res.VoteGranted{
-			r.node.votes.vote<-&Vote{candidateId:addr,vote:1,term:req.Term}
+			r.node.votes.vote<-newVote(addr,req.Term,1)
 		}else {
-			r.node.votes.vote<-&Vote{candidateId:addr,vote:0,term:req.Term}
+			r.node.votes.vote<-newVote(addr,req.Term,0)
 		}
 		return true
 	case <-time.After(r.requestVoteTimeout):
 		Tracef("raft.RequestVote %s recv %s vote time out",r.node.address,addr)
-		r.node.votes.vote<-&Vote{candidateId:addr,vote:0,term:req.Term}
+		r.node.votes.vote<-newVote(addr,req.Term,0)
 	}
 	return false
 }
-func (r *raft) AppendEntries(addr string,prevLogIndex,prevLogTerm uint64,entries []*Entry)  (bool,bool){
+func (r *raft) AppendEntries(addr string,prevLogIndex,prevLogTerm uint64,entries []*Entry)  (uint64,uint64,bool,bool){
 	var req =&AppendEntriesRequest{}
 	req.Term=r.node.currentTerm.Id()
 	req.LeaderId=r.node.leader
@@ -129,22 +89,21 @@ func (r *raft) AppendEntries(addr string,prevLogIndex,prevLogTerm uint64,entries
 	case res:=<-ch:
 		if res==nil{
 			Tracef("raft.AppendEntries %s -> %s error",r.node.address,addr)
-			return false,false
+			return 0,0,false,false
 		}
 		if res.Term>r.node.currentTerm.Id(){
 			r.node.currentTerm.Set(res.Term)
 			r.node.stepDown()
-			return true,false
-		}
-		if res.Success{
-			return true,true
+			if len(entries)>0{
+				return res.NextIndex,res.Term,false,false
+			}
 		}
 		//Tracef("raft.AppendEntries %s -> %s",r.node.address,addr)
-		return true,false
+		return res.NextIndex,res.Term,res.Success,true
 	case <-time.After(r.appendEntriesTimeout):
 		Tracef("raft.AppendEntries %s -> %s time out",r.node.address,addr)
 	}
-	return false,false
+	return 0,0,false,false
 }
 func (r *raft) InstallSnapshot(addr string) bool{
 	var req =&InstallSnapshotRequest{}
@@ -185,12 +144,13 @@ func (r *raft) HandleRequestVote(req *RequestVoteRequest, res *RequestVoteRespon
 		r.node.currentTerm.Set(req.Term)
 		r.node.stepDown()
 		if r.node.state.String()==Leader||r.node.state.String()==Candidate{
+			res.VoteGranted=false
 			return nil
 		}
 	}
-	if (r.node.votedFor==""||r.node.votedFor==req.CandidateId)&&req.LastLogIndex>=r.node.lastLogIndex&&req.LastLogTerm>=r.node.lastLogTerm{
+	if (r.node.votedFor.String()==""||r.node.votedFor.String()==req.CandidateId)&&req.LastLogIndex>=r.node.lastLogIndex&&req.LastLogTerm>=r.node.lastLogTerm{
 		res.VoteGranted=true
-		r.node.votedFor=req.CandidateId
+		r.node.votedFor.Set(req.CandidateId)
 		r.node.stepDown()
 	}
 	return nil
@@ -198,6 +158,7 @@ func (r *raft) HandleRequestVote(req *RequestVoteRequest, res *RequestVoteRespon
 }
 func (r *raft) HandleAppendEntries(req *AppendEntriesRequest, res *AppendEntriesResponse)error {
 	res.Term=r.node.currentTerm.Id()
+	res.NextIndex=r.node.nextIndex
 	if req.Term<r.node.currentTerm.Id(){
 		res.Success=false
 		return nil
@@ -205,37 +166,59 @@ func (r *raft) HandleAppendEntries(req *AppendEntriesRequest, res *AppendEntries
 		r.node.currentTerm.Set(req.Term)
 		r.node.stepDown()
 		if r.node.state.String()==Leader||r.node.state.String()==Candidate{
+			res.Success=false
 			return nil
 		}
 	}
-	if len(req.Entries)==0{
-		if 	r.node.leader==""{
-			r.node.leader=req.LeaderId
-		}
-		if r.node.leader==req.LeaderId{
-			res.Success=true
-			r.node.election.Reset()
-		}else {
-			res.Success=false
-			if r.node.state.String()==Leader||r.node.state.String()==Candidate{
-				Tracef("raft.HandleAppendEntries %s State %s Term %d",r.node.address, r.node.State(),r.node.currentTerm.Id())
-			}
-			r.node.stepDown()
-		}
+	if 	r.node.leader==""{
+		r.node.leader=req.LeaderId
+	}
+	if r.node.leader!=req.LeaderId{
+		res.Success=false
+		r.node.stepDown()
 		return nil
 	}
-	if req.PrevLogIndex!=r.node.prevLogIndex||req.PrevLogTerm!=r.node.prevLogTerm{
+	if r.node.state.String()==Leader||r.node.state.String()==Candidate{
+		r.node.stepDown()
+		Tracef("raft.HandleAppendEntries %s State %s Term %d",r.node.address, r.node.State(),r.node.currentTerm.Id())
+	}
+	r.node.election.Reset()
+	if req.PrevLogIndex==0&&req.PrevLogTerm==0&&len(req.Entries)==0{
+		res.Success=true
+		return nil
+	}else if req.PrevLogIndex>0{
+		if req.PrevLogIndex>r.node.lastLogIndex{
+			res.Success=false
+			return nil
+		}else if  r.node.log.lookup(req.PrevLogIndex)==nil{
+			res.Success=false
+			return nil
+		}else if r.node.log.lookup(req.PrevLogIndex).Term!=req.PrevLogTerm{
+			r.node.log.deleteAfter(req.PrevLogIndex)
+			r.node.nextIndex=r.node.lastLogIndex+1
+			res.NextIndex=r.node.nextIndex
+			r.node.commitIndex=0
+			res.Success=false
+			return nil
+		}
+	}
+	if req.LeaderCommit>r.node.commitIndex {
+		var commitIndex=r.node.commitIndex
+		r.node.commitIndex=minUint64(req.LeaderCommit,r.node.lastLogIndex)
+		if r.node.commitIndex>commitIndex{
+			Tracef("raft.HandleAppendEntries %s commitIndex %d==>%d",r.node.address, commitIndex,r.node.commitIndex)
+		}
+	}
+	res.Success=true
+	if len(req.Entries)>0&&req.PrevLogIndex==r.node.lastLogIndex{
+		r.node.log.appendEntries(req.Entries)
+		r.node.nextIndex=r.node.lastLogIndex+1
+		res.NextIndex=r.node.nextIndex
+		return nil
+	}else {
 		res.Success=false
 		return nil
 	}
-	r.node.log.appendEntries(req.Entries)
-	var lastEntryIndex =req.Entries[len(req.Entries)-1].Index
-	if req.LeaderCommit>r.node.commitIndex{
-		r.node.commitIndex=minUint64(req.LeaderCommit,lastEntryIndex)
-		res.Success=true
-		return nil
-	}
-	return nil
 }
 func (r *raft) HandleInstallSnapshot(req *InstallSnapshotRequest,res *InstallSnapshotResponse)error {
 	return nil

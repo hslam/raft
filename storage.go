@@ -5,6 +5,8 @@ import (
 	"os"
 	"path"
 	"io/ioutil"
+	"crypto/md5"
+	"fmt"
 )
 
 type Storage struct {
@@ -55,10 +57,42 @@ func (s *Storage)SafeOverWrite(file_name string, data []byte ) error {
 	return os.Rename(tmp_file_path, file_path)
 }
 func (s *Storage) Load(file_name string) ([]byte,error) {
-	config_path := path.Join(s.data_dir, file_name)
-	return ioutil.ReadFile(config_path)
+	file_path := path.Join(s.data_dir, file_name)
+	return ioutil.ReadFile(file_path)
 }
-
+func (s *Storage) Size(file_name string) (int64,error) {
+	file_path := path.Join(s.data_dir, file_name)
+	f , err := os.OpenFile(file_path, os.O_RDONLY, 0600)
+	if err != nil {
+		return -1,err
+	}
+	defer f.Close()
+	return f.Seek(0, os.SEEK_END)
+}
+func (s *Storage) MD5(file_name string) string{
+	file_path := path.Join(s.data_dir, file_name)
+	testFile := file_path
+	file, inerr := os.Open(testFile)
+	defer file.Close()
+	if inerr == nil {
+		md5h := md5.New()
+		io.Copy(md5h, file)
+		return fmt.Sprintf("%x", md5h.Sum(nil))
+	}
+	return ""
+}
+func (s *Storage) MD5Bytes(file_name string) []byte{
+	file_path := path.Join(s.data_dir, file_name)
+	testFile := file_path
+	file, inerr := os.Open(testFile)
+	defer file.Close()
+	if inerr == nil {
+		md5h := md5.New()
+		io.Copy(md5h, file)
+		return md5h.Sum(nil)
+	}
+	return []byte{}
+}
 func (s *Storage)OverWrite(file_name string, data []byte ) error {
 	file_path := path.Join(s.data_dir, file_name)
 	f , err := os.OpenFile(file_path, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0600)
@@ -91,14 +125,14 @@ func (s *Storage)AppendWrite(file_name string, data []byte) error {
 	f.Sync()
 	return err
 }
-func (s *Storage)SeekWrite(file_name string,offset int64,data []byte) error {
+func (s *Storage)SeekWrite(file_name string,cursor uint64,data []byte) error {
 	file_path := path.Join(s.data_dir, file_name)
 	f, err := os.OpenFile(file_path, os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
-	ret, _ := f.Seek(offset, os.SEEK_SET)
+	ret, _ := f.Seek(int64(cursor), os.SEEK_SET)
 	n, err := f.WriteAt(data, ret)
 	if err != nil {
 		return err

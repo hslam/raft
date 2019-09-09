@@ -1,9 +1,9 @@
 package raft
 
-type LogEntry struct {
-	Entry
+func (entry *Entry)Encode(codec Codec)([]byte ,error) {
+	return codec.Encode(entry)
 }
 
-func (e LogEntry)AddListener()  {
-	
+func (entry *Entry)Decode(codec Codec ,data []byte)  {
+	codec.Decode(data,entry)
 }

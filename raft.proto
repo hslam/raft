@@ -6,9 +6,10 @@ message Entry {
     uint64      Index       = 1;
     uint64      Term        = 2;
     bytes       Command     = 3;
-    uint32      CommandType = 4;
+    int32       CommandType = 4;
     string      CommandId   = 5;
 }
+
 
 message RequestVoteRequest {
     uint64      Term         = 1;
@@ -33,8 +34,9 @@ message AppendEntriesRequest {
 
 
 message AppendEntriesResponse {
-    uint64      Term        = 1;
-    bool        Success     = 2;
+    uint64      Term            = 1;
+    bool        Success         = 2;
+    uint64      NextIndex       = 3;
 }
 
 message InstallSnapshotRequest {
@@ -47,18 +49,25 @@ message InstallSnapshotRequest {
     bool    Done                = 7;
 }
 
-
 message InstallSnapshotResponse {
     uint64  Term    = 1;
 }
 
+message Meta {
+    uint64      Index       = 1;
+    uint64      Term        = 2;
+    uint64      Ret         = 3;
+    uint64      Offset      = 4;
+}
+
+message MetaStorage {
+    repeated    Meta    Metas   = 1;
+}
 message LogStorage {
-    uint64          CurrentTerm = 1;
-    string          VotedFor    = 2;
-    repeated Entry  Entries     = 3;
+    repeated    Entry   Entries = 1;
 }
 
 message ConfigurationStorage {
-    string          Name        = 1;
+    string          Address     = 1;
     repeated string Peers       = 2;
 }

@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package pb;
+
+message Request {
+    string  Key     = 1;
+    string  Value   = 2;
+}
+
+message Response {
+    bool  ok     = 1;
+}

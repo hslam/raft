@@ -15,10 +15,10 @@ func newCandidateState(node *Node) State {
 func (state *CandidateState)Reset(){
 	state.node.election.Reset()
 	state.node.currentTerm.Incre()
-	state.node.votedFor=state.node.address
+	state.node.votedFor.Set(state.node.address)
 	state.node.leader=""
 	state.node.requestVotes()
-	Debugf("%s CandidateState.Init Term :%d",state.node.address,state.node.currentTerm.Id())
+	Debugf("%s CandidateState.Reset Term :%d",state.node.address,state.node.currentTerm.Id())
 }
 func (state *CandidateState) Update(){
 	if state.node.election.Timeout(){

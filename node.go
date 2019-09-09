@@ -2,18 +2,10 @@ package raft
 
 import (
 	"sync"
-	"errors"
+	"fmt"
 	"time"
 )
 
-const (
-	DefaultDataDir = "default.raft"
-	DefaultConfig = "config"
-	DefaultLog = "log"
-	DefaultTerm = "term"
-	DefaultSnapshot = "snapshot"
-	DefaultTmp = ".tmp"
-)
 
 type Node struct {
 	mu 								sync.RWMutex
@@ -28,6 +20,8 @@ type Node struct {
 	stoped							bool
 	enabled							bool
 
+	host    						string
+	port 							int
 	address							string
 	leader							string
 
@@ -41,10 +35,10 @@ type Node struct {
 	log								*Log
 
 	stateMachine					*StateMachine
-	snapshot						*Snapshot
 	peers      						map[string]*Peer
 	detectTicker					*time.Ticker
 
+	keepAliveTicker					*time.Ticker
 
 	state							State
 	changeStateChan 				chan int
@@ -52,26 +46,17 @@ type Node struct {
 
 	//persistent state on all servers
 	currentTerm						*Term
-	votedFor   						string
+	votedFor   						*VoteFor
 
 	//volatile state on all servers
 	commitIndex						uint64
 
-
-	//volatile state on leader
-	//nextIndex						map[string]uint64
-	//matchIndex					map[string]uint64
-
-	logIndex						uint64
-
+	//init
+	recoverLogIndex					uint64
 
 	lastLogIndex					uint64
 	lastLogTerm						uint64
-
-	//follower
-	prevLogIndex 					uint64
-	prevLogTerm						uint64
-
+	nextIndex						uint64
 
 	//candidate
 	votes	 						*Votes
@@ -83,43 +68,46 @@ type Node struct {
 	context 						interface{}
 	commandType						*CommandType
 	pipeline						*Pipeline
+	pipelineChan					chan bool
+
 }
 
-func NewNode(address,data_dir string,context interface{})(*Node,error){
-	if address == "" {
-		return nil, errors.New("address can not be empty")
-	}
+func NewNode(host string, port int,data_dir string,context interface{})(*Node,error){
 	if data_dir == "" {
 		data_dir=DefaultDataDir
 	}
+	address:=fmt.Sprintf("%s:%d",host,port)
 	n := &Node{
+		host:host,
+		port:port,
 		address:address,
 		storage:newStorage(data_dir),
-		rpcs:newRPCs(address,[]string{}),
+		rpcs:newRPCs([]string{}),
 		peers:make(map[string]*Peer),
 		detectTicker:time.NewTicker(DefaultDetectTick),
+		keepAliveTicker:time.NewTicker(DefaultKeepAliveTick),
+		ticker:time.NewTicker(DefaultNodeTick),
 		stop:make(chan bool,1),
 		changeStateChan: make(chan int,1),
-		ticker:time.NewTicker(DefaultNodeTick),
 		hearbeatTick:DefaultHearbeatTick,
 		raftCodec:new(ProtoCodec),
 		codec:new(JsonCodec),
 		context:context,
-		commandType:&CommandType{make(map[uint32]Command)},
+		commandType:&CommandType{types:make(map[int32]Command)},
+		nextIndex:1,
 	}
 	n.votes=newVotes(n)
-
+	n.stateMachine=newStateMachine(n)
 	n.configuration=newConfiguration(n)
-	n.configuration.load()
 	n.log=newLog(n)
 	n.election=newElection(n,DefaultElectionTimeout)
 	n.raft=newRaft(n)
-	n.server=newServer(n,address)
+	n.server=newServer(n,fmt.Sprintf(":%d",port))
 	n.currentTerm=newTerm(n)
+	n.votedFor=newVoteFor(n)
 	n.state=newFollowerState(n)
-	n.stateMachine=newStateMachine(n)
-	n.snapshot=newSnapshot(n)
 	n.pipeline=NewPipeline(n,DefaultMaxConcurrency)
+	n.pipelineChan = make(chan bool,DefaultMaxConcurrency)
 
 	return n,nil
 }
@@ -128,10 +116,12 @@ func (n *Node) Start() {
 		n.server.listenAndServe()
 		go n.run()
 	})
-	n.log.recovery()
+	n.log.recover()
+
 }
 func (n *Node) run() {
 	n.running=true
+	tm:=time.NewTicker(time.Millisecond*1000)
 	for{
 		select {
 		case <-n.stop:
@@ -140,6 +130,10 @@ func (n *Node) run() {
 			n.votes.AddVote(v)
 		case <-n.detectTicker.C:
 			n.detectNodes()
+		case <-n.keepAliveTicker.C:
+			n.keepAliveNodes()
+		case <-tm.C:
+			//Tracef("Node.run %d %d",len(n.pipeline.pipelineCommandChan),len(n.pipeline.readyInvokerChan))
 		case <-n.ticker.C:
 			select {
 			case i := <-n.changeStateChan:
@@ -153,7 +147,6 @@ func (n *Node) run() {
 			default:
 				n.state.Update()
 			}
-
 		}
 	}
 endfor:
@@ -246,29 +239,47 @@ func (n *Node) Context()interface{}{
 	defer n.mu.RUnlock()
 	return n.context
 }
-func (n *Node)Register(command Command) (error){
+func (n *Node)SetSnapshot(snapshot Snapshot){
+	n.stateMachine.SetSnapshot(snapshot)
+}
+func (n *Node)RegisterCommand(command Command) (error){
+	if command == nil {
+		return ErrCommandNil
+	}else if command.Type() < 0 {
+		return ErrCommandTypeMinus
+	}
 	n.mu.Lock()
 	defer n.mu.Unlock()
 	return n.commandType.register(command)
 }
 func (n *Node)Do(command Command) (interface{},error){
-	if n.IsLeader(){
-		if !n.commandType.exists(command){
-			return nil,ErrCommandNotRegistered
-		}
-		invoker:=newInvoker(command,false,n.codec)
-		ch:=NewPipelineCommand(invoker)
-		n.pipeline.pipelineCommandChan<-ch
-		select {
-		case res:=<-ch.cbChan:
-			return res,nil
-		case err:=<-ch.cbErrorChan:
-			return nil,err
-		case <-time.After(DefaultCommandTimeout):
-			return nil,ErrCommandTimeout
-		}
+	if command == nil {
+		return nil,ErrCommandNil
+	}else if command.Type() < 0 {
+		return nil,ErrCommandTypeMinus
 	}
-	return nil,ErrNotLeader
+	n.pipelineChan<-true
+	var reply interface{}
+	var err error
+	if n.IsLeader(){
+		if n.commandType.exists(command){
+			invoker:=newInvoker(command,false,n.codec)
+			ch:=NewPipelineCommand(invoker)
+			n.pipeline.pipelineCommandChan<-ch
+			select {
+			case reply=<-ch.reply:
+			case err=<-ch.err:
+			case <-time.After(DefaultCommandTimeout):
+				err=ErrCommandTimeout
+			}
+		}else {
+			err=ErrCommandNotRegistered
+		}
+	}else {
+		err=ErrNotLeader
+	}
+	<-n.pipelineChan
+	return reply,err
 }
 
 func (n *Node) SetNode(addrs []string) error {
@@ -304,6 +315,9 @@ func (n *Node) NodesCount() int {
 func (n *Node) Quorum() int {
 	n.nodesMut.RLock()
 	defer n.nodesMut.RUnlock()
+	return n.quorum()
+}
+func (n *Node) quorum() int {
 	return (len(n.peers)+1)/2+1
 }
 func (n *Node) AliveCount() int {
@@ -317,23 +331,13 @@ func (n *Node) AliveCount() int {
 	}
 	return cnt
 }
-func (n *Node) FollowerCount() int {
-	n.nodesMut.RLock()
-	defer n.nodesMut.RUnlock()
-	cnt:=1
-	for _,v:=range n.peers{
-		if v.follower==true{
-			cnt+=1
-		}
-	}
-	return cnt
-}
+
 
 func (n *Node) requestVotes() error {
 	n.nodesMut.RLock()
 	defer n.nodesMut.RUnlock()
 	n.votes.Clear()
-	n.votes.vote<-&Vote{candidateId:n.address,vote:1,term:n.currentTerm.Id()}
+	n.votes.vote<-newVote(n.address,n.currentTerm.Id(),1)
 	for _,v :=range n.peers{
 		if v.alive==true{
 			go v.requestVote()
@@ -351,6 +355,14 @@ func (n *Node) detectNodes() error {
 	}
 	return nil
 }
+func (n *Node) keepAliveNodes() error {
+	n.nodesMut.RLock()
+	defer n.nodesMut.RUnlock()
+	for _,v :=range n.peers{
+		go v.ping()
+	}
+	return nil
+}
 func (n *Node) heartbeats() error {
 	n.nodesMut.RLock()
 	defer n.nodesMut.RUnlock()
@@ -362,11 +374,53 @@ func (n *Node) heartbeats() error {
 	return nil
 }
 
-func (n *Node) appendEntries(entries []*Entry) error {
+
+func (n *Node) Commit() error {
 	n.nodesMut.RLock()
 	defer n.nodesMut.RUnlock()
-	for _,p :=range n.peers{
-		go p.appendEntries(entries)
+	var commitIndex=n.commitIndex
+	if len(n.peers)==0{
+		index:=n.lastLogIndex
+		if index>n.commitIndex{
+			n.commitIndex=index
+			Tracef("Node.Commit %s commitIndex %d==>%d",n.address,commitIndex,n.commitIndex)
+			if n.commitIndex<=n.recoverLogIndex{
+				var lastApplied=n.stateMachine.lastApplied
+				n.log.commit()
+				Tracef("Node.Commit %s lastApplied %d==>%d",n.address,lastApplied,n.stateMachine.lastApplied)
+			}
+		}
+		return nil
 	}
+	quorum:=n.quorum()
+	var lastLogIndexCount =make(map[uint64]int)
+	var lastLogIndexs	=make([]uint64,0)
+	for _,v :=range n.peers{
+		if _,ok:=lastLogIndexCount[v.nextIndex-1];!ok{
+			lastLogIndexCount[v.nextIndex-1]=1
+			lastLogIndexs=append(lastLogIndexs, v.nextIndex-1)
+		}else {
+			lastLogIndexCount[v.nextIndex-1]+=1
+		}
+	}
+	quickSort(lastLogIndexs,-999,-999)
+	for i:=0;i<len(lastLogIndexs);i++{
+		index:=lastLogIndexs[i]
+		if v,ok:=lastLogIndexCount[index];ok{
+			if v+1>=quorum{
+				if index>n.commitIndex{
+					n.commitIndex=index
+					Tracef("Node.Commit %s commitIndex %d==>%d",n.address,commitIndex,n.commitIndex)
+					if n.commitIndex<=n.recoverLogIndex{
+						var lastApplied=n.stateMachine.lastApplied
+						n.log.commit()
+						Tracef("Node.Commit %s lastApplied %d==>%d",n.address,lastApplied,n.stateMachine.lastApplied)
+					}
+				}
+				break
+			}
+		}
+	}
+
 	return nil
 }

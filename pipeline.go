@@ -1,17 +1,20 @@
 package raft
 
+import (
+	"time"
+)
 
 type PipelineCommand struct {
 	invoker RaftCommand
-	cbChan chan interface{}
-	cbErrorChan chan error
+	reply 	chan interface{}
+	err 	chan error
 }
 
 func NewPipelineCommand(invoker RaftCommand) *PipelineCommand {
 	c:= &PipelineCommand{
 		invoker:invoker,
-		cbChan:make(chan interface{},1),
-		cbErrorChan:make(chan error,1),
+		reply:make(chan interface{},1),
+		err:make(chan error,1),
 	}
 	return c
 }
@@ -19,17 +22,17 @@ func NewPipelineCommand(invoker RaftCommand) *PipelineCommand {
 type PipelineCommandChan chan *PipelineCommand
 
 type Pipeline struct {
-	node					*Node
-	pipelineCommandChan 	PipelineCommandChan
-	replyChan 				PipelineCommandChan
-	maxPipelineCommand		int
+	node						*Node
+	pipelineCommandChan 		PipelineCommandChan
+	readyInvokerChan			PipelineCommandChan
+	maxPipelineCommand			int
 }
 
 func NewPipeline(node *Node,maxPipelineCommand int) *Pipeline {
 	pipeline:= &Pipeline{
 		node :					node,
-		pipelineCommandChan:make(PipelineCommandChan,maxPipelineCommand),
-		replyChan:make(PipelineCommandChan,maxPipelineCommand),
+		pipelineCommandChan:make(PipelineCommandChan,maxPipelineCommand*2),
+		readyInvokerChan:make(PipelineCommandChan,maxPipelineCommand*2),
 		maxPipelineCommand:maxPipelineCommand,
 	}
 	go pipeline.run()
@@ -40,19 +43,35 @@ func (pipeline *Pipeline)GetMaxPipelineCommand()int {
 	return pipeline.maxPipelineCommand
 }
 func (pipeline *Pipeline)run()  {
+	go func() {
+		for p := range pipeline.readyInvokerChan {
+			for{
+				if pipeline.node.commitIndex>0&&p.invoker.Index()<=pipeline.node.commitIndex{
+					var lastApplied  = pipeline.node.stateMachine.lastApplied
+					reply,err:=pipeline.node.stateMachine.Apply(p.invoker.Index(),p.invoker)
+					p.reply<-reply
+					p.err<-err
+					Tracef("Pipeline.run %s lastApplied %d==>%d",pipeline.node.address,lastApplied,pipeline.node.stateMachine.lastApplied)
+					goto endfor
+				}
+				time.Sleep(time.Microsecond*100)
+			}
+			endfor:
+		}
+	}()
 	for p := range pipeline.pipelineCommandChan {
 		data,_:=p.invoker.Encode()
-		pipeline.node.logIndex+=1
+		p.invoker.SetIndex(pipeline.node.nextIndex)
+		pipeline.node.nextIndex+=1
 		entry:=&Entry{
-			Index:pipeline.node.logIndex,
+			Index:p.invoker.Index(),
 			Term:pipeline.node.currentTerm.Id(),
 			Command:data,
 			CommandType:p.invoker.Type(),
 			CommandId:p.invoker.UniqueID(),
 		}
+		pipeline.readyInvokerChan<-p
 		pipeline.node.log.entryChan<-entry
-		res,err:=p.invoker.Do(pipeline.node)
-		p.cbChan<-res
-		p.cbErrorChan<-err
+
 	}
 }

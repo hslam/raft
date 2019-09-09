@@ -9,7 +9,7 @@ func newFollowerState(node *Node) State {
 	state:=&FollowerState{
 		node:node,
 	}
-	state.node.votedFor=""
+	state.node.votedFor.Reset()
 	state.Reset()
 	return state
 }
@@ -17,6 +17,7 @@ func newFollowerState(node *Node) State {
 func (state *FollowerState)Reset(){
 	state.node.leader=""
 	state.node.election.Reset()
+	Debugf("%s FollowerState.Reset Term :%d",state.node.address,state.node.currentTerm.Id())
 }
 
 func (state *FollowerState) Update(){
@@ -24,6 +25,11 @@ func (state *FollowerState) Update(){
 		Tracef("%s FollowerState.Update ElectionTimeout",state.node.address)
 		state.node.nextState()
 		return
+	}
+	if state.node.commitIndex>0&&state.node.commitIndex>state.node.stateMachine.lastApplied{
+		var lastApplied=state.node.stateMachine.lastApplied
+		state.node.log.commit()
+		Tracef("FollowerState.Update %s lastApplied %d==>%d",state.node.address, lastApplied,state.node.stateMachine.lastApplied)
 	}
 }
 

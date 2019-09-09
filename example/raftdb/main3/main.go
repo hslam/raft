@@ -2,36 +2,34 @@ package main
 
 import (
 	"flag"
-	"hslam.com/mgit/Mort/raft/example/raftdb/server"
+	"hslam.com/mgit/Mort/raft/example/raftdb/node"
 	"log"
-	"os"
 	"strings"
 )
 
-var host string
-var port int
-var raft_port int
-var join string
-var serverPeers string
-var path string
+var(
+	host string
+	port int
+	rpc_port int
+	raft_port int
+	addrs string
+	data_dir string
+)
+
 func init() {
 	flag.StringVar(&host, "h", "localhost", "hostname")
-	flag.IntVar(&port, "p", 4003, "port")
-	flag.IntVar(&raft_port, "r", 9003, "port")
-	flag.StringVar(&join, "join", "", "host:port of leader to join")
-	flag.StringVar(&serverPeers, "peers", ":9001,:9002,:9003", "host:port,host:port")
-	flag.StringVar(&path, "path", "raft.3", "path")
+	flag.IntVar(&port, "p", 7003, "port")
+	flag.IntVar(&rpc_port, "c", 8003, "port")
+	flag.IntVar(&raft_port, "f", 9003, "port")
+	flag.StringVar(&addrs, "peers", "localhost:9001,localhost:9002,localhost:9003", "host:port,host:port")
+	flag.StringVar(&data_dir, "path", "defalut.raft.3", "path")
 }
 
 func main() {
-
-	if err := os.MkdirAll(path, 0744); err != nil {
-		log.Fatalf("Unable to create path: %v", err)
-	}
 	var peers []string
-	if serverPeers != "" {
-		peers = strings.Split(serverPeers, ",")
+	if addrs != "" {
+		peers = strings.Split(addrs, ",")
 	}
-	s := server.New(path, host, port,raft_port)
-	log.Fatal(s.ListenAndServe(join,peers))
+	s := node.NewNode(data_dir, host, port,rpc_port,raft_port,peers)
+	log.Fatal(s.ListenAndServe())
 }

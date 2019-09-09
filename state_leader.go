@@ -19,16 +19,19 @@ func newLeaderState(node *Node) State {
 		heartbeatTicker:		time.NewTicker(node.hearbeatTick),
 	}
 	state.Reset()
+	go state.run()
 	return state
 }
 
 func (state *LeaderState)Reset(){
-	state.node.votedFor=""
+	if len(state.node.peers)>0{
+		for _,v:=range state.node.peers{
+			v.nextIndex=state.node.lastLogIndex+1
+			Debugf("%s LeaderState.Reset v.nextIndex :%d",state.node.address,v.nextIndex)
+		}
+	}
 	state.node.leader=state.node.address
-	state.once.Do(func() {
-		go state.run()
-	})
-	Debugf("%s LeaderState.Init Term :%d",state.node.address,state.node.currentTerm.Id())
+	Debugf("%s LeaderState.Reset Term :%d",state.node.address,state.node.currentTerm.Id())
 }
 
 func (state *LeaderState) Update(){
@@ -36,6 +39,7 @@ func (state *LeaderState) Update(){
 		Tracef("%s LeaderState.Update AliveCount %d < Quorum %d",state.node.address,state.node.AliveCount(),state.node.Quorum())
 		state.node.stepDown()
 	}
+	state.node.Commit()
 }
 
 func (state *LeaderState) String()string{

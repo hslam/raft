@@ -11,13 +11,10 @@ func main() {
 	node,_:=raft.NewNode(":8004","raft4",nil)
 	fmt.Println("State:",node.State())
 	node.SetNode([]string{":8001",":8002",":8003",":8004",":8005"})
-
 	node.Start()
-
 	for{
 		time.Sleep(time.Second*3)
 		fmt.Printf("%d State:%s - Term:%d - Leader:%s\n",time.Now().Unix(),node.State(),node.Term(),node.Leader())
 	}
-	select {
-	}
+	select {}
 }
