@@ -28,7 +28,7 @@ func (election *Election)Reset(){
 		election.randomElectionTimeout=election.electionTimeout+randomDurationTime(election.electionTimeout)
 	}
 	election.once.Do(func() {
-		election.randomElectionTimeout=DefaultStartWait
+		election.randomElectionTimeout=DefaultStartWait 
 	})
 }
 

@@ -2,8 +2,8 @@ package main
 
 import (
 	"hslam.com/mgit/Mort/rpc"
-	"hslam.com/mgit/Mort/rpc/stats"
-	"hslam.com/mgit/Mort/raft/example/raftdb/client/rpc/pb"
+	"hslam.com/mgit/Mort/stats"
+	"hslam.com/mgit/Mort/raft/example/debug/raftdb/client/rpc/pb"
 	"math/rand"
 	"strconv"
 	"runtime"
@@ -90,16 +90,16 @@ type WrkClient struct {
 	Conn rpc.Client
 }
 
-func (c *WrkClient)Call()(int64,bool){
+func (c *WrkClient)Call()(int64,int64,bool){
 	A:= RandString(4)
 	B:= RandString(32)
 	req := &pb.Request{Key:A,Value:B}
 	var res pb.Response
 	c.Conn.Call("S.Set", req, &res)
 	if res.Ok==true{
-		return 0,true
+		return int64(len(A)+len(B)),0,true
 	}
-	return 0,false
+	return int64(len(A)+len(B)),0,true
 }
 
 func RandString(len int) string {

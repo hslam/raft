@@ -11,13 +11,13 @@ func main()  {
 	clients:=1
 	var wrkClients =make([]stats.Client,clients)
 	parallel:=200
-	total_calls:=10000
+	total_calls:=100000
 	for i:=0;i<clients;i++{
 		var conn =&WrkClient{}
 		conn.client=&fasthttp.Client{
 			//MaxConnsPerHost:1,
 		}
-		conn.url="http://localhost:7002/db/"
+		conn.url="http://localhost:7001/db/"
 		conn.meth="POST"
 		wrkClients[i]= conn
 	}
@@ -30,7 +30,7 @@ type WrkClient struct {
 	meth string
 }
 
-func (c *WrkClient)Call()(int64,bool){
+func (c *WrkClient)Call()(int64,int64,bool){
 	key:= RandString(4)
 	value:= RandString(32)
 	var requestBody =[]byte(value)
@@ -44,9 +44,9 @@ func (c *WrkClient)Call()(int64,bool){
 	err := c.client.Do(req, resp)
 	length:=len(resp.Body())
 	if err!=nil{
-		return 0,false
+		return int64(len(key)+len(value)),0,false
 	}
-	return int64(length),true
+	return int64(len(key)+len(value)),int64(length),true
 }
 
 
