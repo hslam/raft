@@ -1,5 +1,5 @@
 
-### HTTP BENCHMARK
+### HTTP BENCHMARK SINGLETON
 ```
 ==========================BENCHMARK==========================
 Used Connections:		1
@@ -23,7 +23,7 @@ ResponseOk:			100000 (100.00%)
 Errors:				0 (0.00%)
 ```
 
-### RPC BENCHMARK
+### RPC BENCHMARK SINGLETON
 
 ```
 ==========================BENCHMARK==========================
@@ -45,5 +45,53 @@ Avg body size per request:		36.00 Byte
 Transfer request rate per second:		1101170.97 Byte/s (1.10 MByte/s)
 ==========================RESPONSES==========================
 ResponseOk:			1000000 (100.00%)
+Errors:				0 (0.00%)
+```
+
+### HTTP BENCHMARK THREE NODES
+```
+==========================BENCHMARK==========================
+Used Connections:		1
+Used Parallel Calls:		200
+Total Number Of Calls:		100000
+
+===========================TIMINGS===========================
+Total time passed:		25.46s
+Avg time per request:		50.78ms
+Requests per second:		3927.23
+Median time per request:	49.88ms
+99th percentile time:		81.17ms
+Slowest time for request:	199.00ms
+
+=========================REQUESTDATA=========================
+Total request body sizes:		3600000
+Avg body size per request:		36.00 Byte
+Transfer request rate per second:		141380.45 Byte/s (0.14 MByte/s)
+==========================RESPONSES==========================
+ResponseOk:			100000 (100.00%)
+Errors:				0 (0.00%)
+```
+
+### RPC BENCHMARK THREE NODES
+```
+==========================BENCHMARK==========================
+Used Connections:		16
+Used Parallel Calls:		256
+Total Number Of Calls:		1000001
+
+===========================TIMINGS===========================
+Total time passed:		57.58s
+Avg time per request:		234.30ms
+Requests per second:		17366.78
+Median time per request:	194.53ms
+99th percentile time:		818.00ms
+Slowest time for request:	1271.00ms
+
+=========================REQUESTDATA=========================
+Total request body sizes:		36000036
+Avg body size per request:		36.00 Byte
+Transfer request rate per second:		625204.03 Byte/s (0.63 MByte/s)
+==========================RESPONSES==========================
+ResponseOk:			1000001 (100.00%)
 Errors:				0 (0.00%)
 ```

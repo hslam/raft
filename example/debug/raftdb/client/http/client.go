@@ -5,19 +5,32 @@ import (
 	"hslam.com/mgit/Mort/stats"
 	"math/rand"
 	"time"
+	"flag"
+	"strconv"
 )
-
+var port int
+var host string
+var addr string
+var clients int
+var total_calls int
+var parallel int
+func init(){
+	flag.StringVar(&host, "h", "127.0.0.1", "host: -h=127.0.0.1")
+	flag.IntVar(&port, "p", 7002, "port: -p=7001")
+	flag.IntVar(&clients, "clients", 1, "num: -clients=1")
+	flag.IntVar(&total_calls, "total", 100000, "total_calls: -total=10000")
+	flag.IntVar(&parallel, "parallel", 200, "total_calls: -total=10000")
+	flag.Parse()
+	addr=host+":"+strconv.Itoa(port)
+}
 func main()  {
-	clients:=1
 	var wrkClients =make([]stats.Client,clients)
-	parallel:=200
-	total_calls:=100000
 	for i:=0;i<clients;i++{
 		var conn =&WrkClient{}
 		conn.client=&fasthttp.Client{
 			//MaxConnsPerHost:1,
 		}
-		conn.url="http://localhost:7001/db/"
+		conn.url="http://"+addr+"/db/"
 		conn.meth="POST"
 		wrkClients[i]= conn
 	}
