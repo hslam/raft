@@ -47,11 +47,11 @@ func (pipeline *Pipeline)run()  {
 		for p := range pipeline.readyInvokerChan {
 			for{
 				if pipeline.node.commitIndex>0&&p.invoker.Index()<=pipeline.node.commitIndex{
-					var lastApplied  = pipeline.node.stateMachine.lastApplied
+					//var lastApplied  = pipeline.node.stateMachine.lastApplied
 					reply,err:=pipeline.node.stateMachine.Apply(p.invoker.Index(),p.invoker)
 					p.reply<-reply
 					p.err<-err
-					Tracef("Pipeline.run %s lastApplied %d==>%d",pipeline.node.address,lastApplied,pipeline.node.stateMachine.lastApplied)
+					//Tracef("Pipeline.run %s lastApplied %d==>%d",pipeline.node.address,lastApplied,pipeline.node.stateMachine.lastApplied)
 					goto endfor
 				}
 				time.Sleep(time.Microsecond*100)

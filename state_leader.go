@@ -31,7 +31,7 @@ func (state *LeaderState)Reset(){
 		}
 	}
 	state.node.leader=state.node.address
-	Debugf("%s LeaderState.Reset Term :%d",state.node.address,state.node.currentTerm.Id())
+	Allf("%s LeaderState.Reset Term :%d",state.node.address,state.node.currentTerm.Id())
 }
 
 func (state *LeaderState) Update(){

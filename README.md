@@ -16,17 +16,18 @@ Concurrent Calls Per Connection:	1
 Total Number Of Calls:			100000
 
 ===========================TIMINGS===========================
-Total time passed:			9.62s
-Avg time per request:			19.18ms
-Requests per second:			10396.80
-Median time per request:		18.06ms
-99th percentile time:			39.60ms
-Slowest time for request:		158.00ms
+Total time passed:			9.49s
+Avg time per request:			18.93ms
+Requests per second:			10539.60
+Median time per request:		16.97ms
+99th percentile time:			52.21ms
+Slowest time for request:		159.00ms
 
 =========================REQUESTDATA=========================
 Total request body sizes:		3600000
 Avg body size per request:		36.00 Byte
-Transfer request rate per second:	374284.80 Byte/s (0.37 MByte/s)
+Transfer request rate per second:	379425.76 Byte/s (0.38 MByte/s)
+
 ==========================RESPONSES==========================
 ResponseOk:				100000 (100.00%)
 Errors:					0 (0.00%)
@@ -41,17 +42,18 @@ Concurrent Calls Per Connection:	256
 Total Number Of Calls:			1000000
 
 ===========================TIMINGS===========================
-Total time passed:			32.50s
-Avg time per request:			132.05ms
-Requests per second:			30771.57
-Median time per request:		108.89ms
-99th percentile time:			381.30ms
-Slowest time for request:		574.00ms
+Total time passed:			25.70s
+Avg time per request:			104.68ms
+Requests per second:			38914.09
+Median time per request:		80.62ms
+99th percentile time:			360.49ms
+Slowest time for request:		621.00ms
 
 =========================REQUESTDATA=========================
 Total request body sizes:		36000000
 Avg body size per request:		36.00 Byte
-Transfer request rate per second:	1107776.40 Byte/s (1.11 MByte/s)
+Transfer request rate per second:	1400907.18 Byte/s (1.40 MByte/s)
+
 ==========================RESPONSES==========================
 ResponseOk:				1000000 (100.00%)
 Errors:					0 (0.00%)
@@ -59,22 +61,24 @@ Errors:					0 (0.00%)
 
 ### THREE NODES HTTP
 ```
+==========================BENCHMARK==========================
 Used Connections:			200
 Concurrent Calls Per Connection:	1
 Total Number Of Calls:			100000
 
 ===========================TIMINGS===========================
-Total time passed:			27.14s
-Avg time per request:			54.10ms
-Requests per second:			3684.92
-Median time per request:		53.18ms
-99th percentile time:			82.88ms
-Slowest time for request:		120.00ms
+Total time passed:			26.99s
+Avg time per request:			53.86ms
+Requests per second:			3704.42
+Median time per request:		53.44ms
+99th percentile time:			83.74ms
+Slowest time for request:		118.00ms
 
 =========================REQUESTDATA=========================
 Total request body sizes:		3600000
 Avg body size per request:		36.00 Byte
-Transfer request rate per second:	132656.99 Byte/s (0.13 MByte/s)
+Transfer request rate per second:	133358.99 Byte/s (0.13 MByte/s)
+
 ==========================RESPONSES==========================
 ResponseOk:				100000 (100.00%)
 Errors:					0 (0.00%)
@@ -88,17 +92,18 @@ Concurrent Calls Per Connection:	256
 Total Number Of Calls:			1000000
 
 ===========================TIMINGS===========================
-Total time passed:			57.04s
-Avg time per request:			232.33ms
-Requests per second:			17531.26
-Median time per request:		197.73ms
-99th percentile time:			692.00ms
-Slowest time for request:		949.00ms
+Total time passed:			52.86s
+Avg time per request:			215.31ms
+Requests per second:			18918.59
+Median time per request:		181.93ms
+99th percentile time:			630.44ms
+Slowest time for request:		966.00ms
 
 =========================REQUESTDATA=========================
 Total request body sizes:		36000000
 Avg body size per request:		36.00 Byte
-Transfer request rate per second:	631125.40 Byte/s (0.63 MByte/s)
+Transfer request rate per second:	681069.30 Byte/s (0.68 MByte/s)
+
 ==========================RESPONSES==========================
 ResponseOk:				1000000 (100.00%)
 Errors:					0 (0.00%)
