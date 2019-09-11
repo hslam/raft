@@ -1,3 +1,6 @@
+# RAFT
+
+## Example raftdb
 
 ### env Mac 4 CPU 8 GiB
 
