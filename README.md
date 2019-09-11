@@ -4,25 +4,25 @@
 ### HTTP BENCHMARK SINGLETON
 ```
 ==========================BENCHMARK==========================
-Used Connections:		1
-Used Parallel Calls:		200
-Total Number Of Calls:		100000
+Used Connections:			200
+Concurrent Calls Per Connection:	1
+Total Number Of Calls:			100000
 
 ===========================TIMINGS===========================
-Total time passed:		8.87s
-Avg time per request:		17.71ms
-Requests per second:		11268.45
-Median time per request:	16.43ms
-99th percentile time:		39.88ms
-Slowest time for request:	114.00ms
+Total time passed:			9.62s
+Avg time per request:			19.18ms
+Requests per second:			10396.80
+Median time per request:		18.06ms
+99th percentile time:			39.60ms
+Slowest time for request:		158.00ms
 
 =========================REQUESTDATA=========================
 Total request body sizes:		3600000
 Avg body size per request:		36.00 Byte
-Transfer request rate per second:		405664.06 Byte/s (0.41 MByte/s)
+Transfer request rate per second:	374284.80 Byte/s (0.37 MByte/s)
 ==========================RESPONSES==========================
-ResponseOk:			100000 (100.00%)
-Errors:				0 (0.00%)
+ResponseOk:				100000 (100.00%)
+Errors:					0 (0.00%)
 ```
 
 ### RPC BENCHMARK SINGLETON
@@ -52,26 +52,25 @@ Errors:				0 (0.00%)
 
 ### HTTP BENCHMARK THREE NODES
 ```
-==========================BENCHMARK==========================
-Used Connections:		1
-Used Parallel Calls:		200
-Total Number Of Calls:		100000
+Used Connections:			200
+Concurrent Calls Per Connection:	1
+Total Number Of Calls:			100000
 
 ===========================TIMINGS===========================
-Total time passed:		25.46s
-Avg time per request:		50.78ms
-Requests per second:		3927.23
-Median time per request:	49.88ms
-99th percentile time:		81.17ms
-Slowest time for request:	199.00ms
+Total time passed:			27.14s
+Avg time per request:			54.10ms
+Requests per second:			3684.92
+Median time per request:		53.18ms
+99th percentile time:			82.88ms
+Slowest time for request:		120.00ms
 
 =========================REQUESTDATA=========================
 Total request body sizes:		3600000
 Avg body size per request:		36.00 Byte
-Transfer request rate per second:		141380.45 Byte/s (0.14 MByte/s)
+Transfer request rate per second:	132656.99 Byte/s (0.13 MByte/s)
 ==========================RESPONSES==========================
-ResponseOk:			100000 (100.00%)
-Errors:				0 (0.00%)
+ResponseOk:				100000 (100.00%)
+Errors:					0 (0.00%)
 ```
 
 ### RPC BENCHMARK THREE NODES
