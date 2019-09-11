@@ -8,7 +8,7 @@
 Mac 4 CPU 8 GiB
 ```
 
-### HTTP BENCHMARK SINGLETON
+### SINGLETON HTTP
 ```
 ==========================BENCHMARK==========================
 Used Connections:			200
@@ -32,7 +32,7 @@ ResponseOk:				100000 (100.00%)
 Errors:					0 (0.00%)
 ```
 
-### RPC BENCHMARK SINGLETON
+### SINGLETON RPC
 
 ```
 ==========================BENCHMARK==========================
@@ -57,7 +57,7 @@ ResponseOk:				1000000 (100.00%)
 Errors:					0 (0.00%)
 ```
 
-### HTTP BENCHMARK THREE NODES
+### THREE NODES HTTP
 ```
 Used Connections:			200
 Concurrent Calls Per Connection:	1
@@ -80,7 +80,7 @@ ResponseOk:				100000 (100.00%)
 Errors:					0 (0.00%)
 ```
 
-### RPC BENCHMARK THREE NODES
+### THREE NODES RPC
 ```
 ==========================BENCHMARK==========================
 Used Connections:			16
