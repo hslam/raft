@@ -65,8 +65,7 @@ func (n *Node) ListenAndServe() error {
 	service.node=n
 	server:= rpc.NewServer()
 	server.RegisterName("S",service)
-	//server.EnableAsyncHandle()
-	server.EnableAsyncHandleWithSize(1024*64)
+	server.EnableAsyncHandleWithSize(1024*256)
 	rpc.SetLogLevel(99)
 	go server.ListenAndServe("tcp", fmt.Sprintf(":%d", n.rpc_port))
 	return n.http_server.ListenAndServe()
