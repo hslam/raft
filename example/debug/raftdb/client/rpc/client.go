@@ -33,12 +33,12 @@ func init()  {
 	flag.StringVar(&compress, "compress", "no", "compress: -compress=no|flate|zlib|gzip")
 	flag.StringVar(&host, "h", "127.0.0.1", "host: -h=127.0.0.1")
 	flag.IntVar(&port, "p", 8001, "port: -p=8002")
-	flag.IntVar(&total_calls, "total", 100000, "total_calls: -total=10000")
+	flag.IntVar(&total_calls, "total", 1000000, "total_calls: -total=10000")
 	flag.BoolVar(&batch, "batch", true, "batch: -batch=false")
 	flag.BoolVar(&batch_async, "batch_async", true, "batch_async: -batch_async=false")
 	flag.BoolVar(&pipelining, "pipelining", true, "pipelining: -pipelining=false")
 	flag.BoolVar(&multiplexing, "multiplexing", false, "pipelining: -pipelining=false")
-	flag.IntVar(&clients, "clients", 8, "num: -clients=1")
+	flag.IntVar(&clients, "clients", 16, "num: -clients=1")
 	flag.BoolVar(&bar, "bar", false, "bar: -bar=true")
 	log.SetFlags(0)
 	flag.Parse()
@@ -51,7 +51,7 @@ func main()  {
 	var wrkClients []stats.Client
 	parallel:=1
 	if clients>1{
-		pool,err := rpc.DialsWithMaxRequests(clients,network,addr,codec,1024*32)
+		pool,err := rpc.DialsWithMaxRequests(clients,network,addr,codec,256)
 		if err != nil {
 			log.Fatalln("dailing error: ", err)
 		}
@@ -62,15 +62,9 @@ func main()  {
 		for i:=0; i<len(pool.All());i++  {
 			wrkClients[i]=&WrkClient{pool.All()[i]}
 		}
-		if batch{
-			parallel=pool.GetMaxBatchRequest()
-		}else if pipelining{
-			parallel=pool.GetMaxRequests()
-		}else if multiplexing{
-			parallel=pool.GetMaxRequests()
-		}
+		parallel=pool.GetMaxRequests()
 	}else if clients==1 {
-		conn, err:= rpc.DialWithMaxRequests(network,addr,codec,1024*32)
+		conn, err:= rpc.DialWithMaxRequests(network,addr,codec,1024)
 		if err != nil {
 			log.Fatalln("dailing error: ", err)
 		}
@@ -78,13 +72,7 @@ func main()  {
 		if batch {conn.EnableBatch()}
 		if batch_async{conn.EnableBatchAsync()}
 		if multiplexing{conn.EnableMultiplexing()}
-		if batch{
-			parallel=conn.GetMaxBatchRequest()
-		}else if pipelining{
-			parallel=conn.GetMaxRequests()
-		}else if multiplexing{
-			parallel=conn.GetMaxRequests()
-		}
+		parallel=conn.GetMaxRequests()
 		wrkClients=make([]stats.Client,1)
 		wrkClients[0]= &WrkClient{conn}
 	}else {
