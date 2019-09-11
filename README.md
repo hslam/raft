@@ -2,7 +2,7 @@
 
 ## example raftdb benchmark
 
-### env
+### ENV
 
 ```
 Mac 4 CPU 8 GiB
