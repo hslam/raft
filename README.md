@@ -1,8 +1,12 @@
 # RAFT
 
-## Example raftdb
+## example raftdb benchmark
 
-### env Mac 4 CPU 8 GiB
+### env
+
+```
+Mac 4 CPU 8 GiB
+```
 
 ### HTTP BENCHMARK SINGLETON
 ```
