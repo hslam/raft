@@ -24,6 +24,7 @@ func listenAndServe(address string,node *Node){
 	service.node=node
 	server:= rpc.NewServer()
 	server.RegisterName(ServiceName,service)
+	server.EnableMultiplexing()
 	rpc.SetLogLevel(log.NoLevel)
 	Infoln(server.ListenAndServe(network,address))
 }
@@ -42,6 +43,8 @@ func newRPCs(addrs []string) *RPCs{
 		conn, err := r.NewConn(addr)
 		if err==nil{
 			conn.DisableRetry()
+			conn.SetCompressType("gzip")
+			conn.EnableMultiplexing()
 			r.conns[addr] = conn
 			r.failedCount[addr] = 0
 		}
@@ -58,6 +61,8 @@ func (r *RPCs) GetConn(addr string) rpc.Client {
 	conn, err := r.NewConn(addr)
 	if err==nil{
 		conn.DisableRetry()
+		conn.SetCompressType("gzip")
+		conn.EnableMultiplexing()
 		r.conns[addr] = conn
 		r.failedCount[addr] = 0
 		return r.conns[addr]

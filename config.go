@@ -20,9 +20,9 @@ const (
 
 	DefaultCommandTimeout = 10*1000 * time.Millisecond
 
-	DefaultMaxConcurrency = 1024*64
-	DefaultMaxBatch = 1024*64
-	DefaultMaxCacheEntries=1024*1024
+	DefaultMaxConcurrency = 1024*32
+	DefaultMaxBatch = 1024*32
+	DefaultMaxCacheEntries=1024*32
 	DefaultMaxDelay	=	 time.Millisecond
 
 	DefaultRetryTimes	=	5

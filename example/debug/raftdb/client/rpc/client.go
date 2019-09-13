@@ -30,15 +30,15 @@ func init()  {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	flag.StringVar(&network, "network", "tcp", "network: -network=tcp|ws|fast|http|http2|quic|udp")
 	flag.StringVar(&codec, "codec", "pb", "codec: -codec=pb|json|xml")
-	flag.StringVar(&compress, "compress", "no", "compress: -compress=no|flate|zlib|gzip")
+	flag.StringVar(&compress, "compress", "gzip", "compress: -compress=no|flate|zlib|gzip")
 	flag.StringVar(&host, "h", "127.0.0.1", "host: -h=127.0.0.1")
-	flag.IntVar(&port, "p", 8003, "port: -p=8002")
+	flag.IntVar(&port, "p", 8002, "port: -p=8002")
 	flag.IntVar(&total_calls, "total", 1000000, "total_calls: -total=10000")
 	flag.BoolVar(&batch, "batch", true, "batch: -batch=false")
 	flag.BoolVar(&batch_async, "batch_async", true, "batch_async: -batch_async=false")
 	flag.BoolVar(&pipelining, "pipelining", true, "pipelining: -pipelining=false")
-	flag.BoolVar(&multiplexing, "multiplexing", false, "pipelining: -pipelining=false")
-	flag.IntVar(&clients, "clients", 16, "num: -clients=1")
+	flag.BoolVar(&multiplexing, "multiplexing", false, "multiplexing: -multiplexing=false")
+	flag.IntVar(&clients, "clients", 2, "num: -clients=1")
 	flag.BoolVar(&bar, "bar", false, "bar: -bar=true")
 	log.SetFlags(0)
 	flag.Parse()
@@ -47,17 +47,18 @@ func init()  {
 }
 
 func main()  {
-	fmt.Printf("./client -network=%s -codec=%s -compress=%s -h=%s -p=%d -total=%d -pipelining=%t -batch=%t -batch_async=%t -clients=%d\n",network,codec,compress,host,port,total_calls,pipelining,batch,batch_async,clients)
+	fmt.Printf("./client -network=%s -codec=%s -compress=%s -h=%s -p=%d -total=%d -pipelining=%t -multiplexing=%t -batch=%t -batch_async=%t -clients=%d\n",network,codec,compress,host,port,total_calls,pipelining,multiplexing,batch,batch_async,clients)
 	var wrkClients []stats.Client
 	parallel:=1
 	if clients>1{
-		pool,err := rpc.DialsWithMaxRequests(clients,network,addr,codec,256)
+		pool,err := rpc.DialsWithMaxRequests(clients,network,addr,codec,1024)
 		if err != nil {
 			log.Fatalln("dailing error: ", err)
 		}
 		pool.SetCompressType(compress)
 		if batch {pool.EnableBatch()}
 		if batch_async{pool.EnableBatchAsync()}
+		if multiplexing{pool.EnableMultiplexing()}
 		wrkClients=make([]stats.Client,len(pool.All()))
 		for i:=0; i<len(pool.All());i++  {
 			wrkClients[i]=&WrkClient{pool.All()[i]}

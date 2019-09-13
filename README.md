@@ -34,25 +34,25 @@ Errors:					0 (0.00%)
 ```
 
 ### SINGLETON RPC
-
+./client -network=tcp -codec=pb -compress=gzip -h=127.0.0.1 -p=8001 -total=1000000 -pipelining=true -multiplexing=false -batch=true -batch_async=true -clients=2
 ```
 ==========================BENCHMARK==========================
-Used Connections:			16
-Concurrent Calls Per Connection:	256
+Used Connections:			2
+Concurrent Calls Per Connection:	1024
 Total Number Of Calls:			1000000
 
 ===========================TIMINGS===========================
-Total time passed:			25.70s
-Avg time per request:			104.68ms
-Requests per second:			38914.09
-Median time per request:		80.62ms
-99th percentile time:			360.49ms
-Slowest time for request:		621.00ms
+Total time passed:			29.18s
+Avg time per request:			59.56ms
+Requests per second:			34265.14
+Median time per request:		45.95ms
+99th percentile time:			189.07ms
+Slowest time for request:		335.00ms
 
 =========================REQUESTDATA=========================
 Total request body sizes:		36000000
 Avg body size per request:		36.00 Byte
-Transfer request rate per second:	1400907.18 Byte/s (1.40 MByte/s)
+Transfer request rate per second:	1233545.19 Byte/s (1.23 MByte/s)
 
 ==========================RESPONSES==========================
 ResponseOk:				1000000 (100.00%)
@@ -85,24 +85,25 @@ Errors:					0 (0.00%)
 ```
 
 ### THREE NODES RPC
+./client -network=tcp -codec=pb -compress=gzip -h=127.0.0.1 -p=8002 -total=1000000 -pipelining=true -multiplexing=false -batch=true -batch_async=true -clients=2
 ```
 ==========================BENCHMARK==========================
-Used Connections:			16
-Concurrent Calls Per Connection:	256
+Used Connections:			2
+Concurrent Calls Per Connection:	1024
 Total Number Of Calls:			1000000
 
 ===========================TIMINGS===========================
-Total time passed:			52.86s
-Avg time per request:			215.31ms
-Requests per second:			18918.59
-Median time per request:		181.93ms
-99th percentile time:			630.44ms
-Slowest time for request:		966.00ms
+Total time passed:			66.42s
+Avg time per request:			135.68ms
+Requests per second:			15056.22
+Median time per request:		123.75ms
+99th percentile time:			328.28ms
+Slowest time for request:		538.00ms
 
 =========================REQUESTDATA=========================
 Total request body sizes:		36000000
 Avg body size per request:		36.00 Byte
-Transfer request rate per second:	681069.30 Byte/s (0.68 MByte/s)
+Transfer request rate per second:	542023.94 Byte/s (0.54 MByte/s)
 
 ==========================RESPONSES==========================
 ResponseOk:				1000000 (100.00%)
