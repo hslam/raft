@@ -118,19 +118,18 @@ func BenchmarkStorageAppendWrite10MB(t *testing.B) {
 	}
 }
 
-//go test -v -bench=.  -benchmem -benchtime=10s
+//go test -v -bench=.  -benchmem -benchtime=1s
 //=== RUN   TestStorageSafeOverWrite10B
 //--- PASS: TestStorageSafeOverWrite10B (0.01s)
 //goos: darwin
 //goarch: amd64
 //pkg: hslam.com/mgit/Mort/raft
-//BenchmarkStorageSafeOverWrite10B-4   	    3000	   5182259 ns/op	     698 B/op	      10 allocs/op
-//BenchmarkStorageOverWrite10B-4       	    3000	   4433203 ns/op	     201 B/op	       4 allocs/op
-//BenchmarkStorageAppendWrite10B-4     	    3000	   3984780 ns/op	     202 B/op	       4 allocs/op
-//BenchmarkStorageAppendWrite1KB-4     	    3000	   3952492 ns/op	     200 B/op	       4 allocs/op
-//BenchmarkStorageAppendWrite10KB-4    	    3000	   4011653 ns/op	     201 B/op	       4 allocs/op
-//BenchmarkStorageAppendWrite100KB-4   	    3000	   4575498 ns/op	     201 B/op	       4 allocs/op
-//BenchmarkStorageAppendWrite1MB-4     	    2000	   6982571 ns/op	     200 B/op	       4 allocs/op
-//BenchmarkStorageAppendWrite10MB-4    	    1000	  19553136 ns/op	     202 B/op	       4 allocs/op
-//PASS
-//ok  	hslam.com/mgit/Mort/raft	117.785s
+//BenchmarkStorageSafeOverWrite10B-4   	     300	   5119095 ns/op	     714 B/op	      10 allocs/op
+//BenchmarkStorageOverWrite10B-4       	     300	   4492027 ns/op	     201 B/op	       4 allocs/op
+//BenchmarkStorageAppendWrite10B-4     	     300	   4045003 ns/op	     203 B/op	       4 allocs/op
+//BenchmarkStorageSeekWrite10B-4       	     300	   4051719 ns/op	     200 B/op	       4 allocs/op
+//BenchmarkStorageAppendWrite1KB-4     	     300	   4415973 ns/op	     201 B/op	       4 allocs/op
+//BenchmarkStorageAppendWrite10KB-4    	     300	   4189121 ns/op	     202 B/op	       4 allocs/op
+//BenchmarkStorageAppendWrite100KB-4   	     300	   4781797 ns/op	     200 B/op	       4 allocs/op
+//BenchmarkStorageAppendWrite1MB-4     	     200	   6140275 ns/op	     202 B/op	       4 allocs/op
+//BenchmarkStorageAppendWrite10MB-4    	     100	  38680691 ns/op	     223 B/op	       4 allocs/op
