@@ -240,11 +240,11 @@ func (r *raft) HandleAppendEntries(req *AppendEntriesRequest, res *AppendEntries
 		}
 	}
 	if req.LeaderCommit>r.node.commitIndex {
-		var commitIndex=r.node.commitIndex
+		//var commitIndex=r.node.commitIndex
 		r.node.commitIndex=minUint64(req.LeaderCommit,r.node.lastLogIndex)
-		if r.node.commitIndex>commitIndex{
-			Tracef("raft.HandleAppendEntries %s commitIndex %d==>%d",r.node.address, commitIndex,r.node.commitIndex)
-		}
+		//if r.node.commitIndex>commitIndex{
+		//	Tracef("raft.HandleAppendEntries %s commitIndex %d==>%d",r.node.address, commitIndex,r.node.commitIndex)
+		//}
 	}
 	res.Success=true
 	if len(req.Entries)>0&&req.PrevLogIndex==r.node.lastLogIndex{

@@ -4,6 +4,7 @@ import (
 	"flag"
 	"log"
 	"strings"
+	"runtime"
 	"hslam.com/mgit/Mort/raft/example/raftdb/node"
 )
 
@@ -23,6 +24,7 @@ func init() {
 	flag.IntVar(&raft_port, "f", 9001, "port")
 	flag.StringVar(&addrs, "peers", "", "host:port,host:port")
 	flag.StringVar(&data_dir, "path", "raft.1", "path")
+	runtime.GOMAXPROCS(runtime.NumCPU())
 }
 
 func main() {

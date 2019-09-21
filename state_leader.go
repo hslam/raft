@@ -27,7 +27,7 @@ func (state *LeaderState)Reset(){
 	if len(state.node.peers)>0{
 		for _,v:=range state.node.peers{
 			v.nextIndex=state.node.lastLogIndex+1
-			Debugf("%s LeaderState.Reset v.nextIndex :%d",state.node.address,v.nextIndex)
+			Debugf("%s LeaderState.Reset %s nextIndex :%d",state.node.address,v.address,v.nextIndex)
 		}
 	}
 	state.node.leader=state.node.address
@@ -65,4 +65,5 @@ func (state *LeaderState) run() {
 		}
 	}
 endfor:
+	close(state.stop)
 }

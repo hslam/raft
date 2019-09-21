@@ -14,7 +14,6 @@ type StateMachine struct {
 	snapshot						Snapshot
 	snapshotSyncType				SnapshotSyncType
 	snapshotSyncTicker				*time.Ticker
-
 }
 func newStateMachine(node *Node)*StateMachine {
 	s:=&StateMachine{

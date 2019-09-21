@@ -133,3 +133,13 @@ func BenchmarkStorageAppendWrite10MB(t *testing.B) {
 //BenchmarkStorageAppendWrite100KB-4   	     300	   4781797 ns/op	     200 B/op	       4 allocs/op
 //BenchmarkStorageAppendWrite1MB-4     	     200	   6140275 ns/op	     202 B/op	       4 allocs/op
 //BenchmarkStorageAppendWrite10MB-4    	     100	  38680691 ns/op	     223 B/op	       4 allocs/op
+
+//without f.Sync()
+//BenchmarkStorageSafeOverWrite10B-4   	    5000	    376955 ns/op	     697 B/op	      10 allocs/op
+//BenchmarkStorageAppendWrite10B-4     	   20000	     77311 ns/op	     200 B/op	       4 allocs/op
+//BenchmarkStorageSeekWrite10B-4       	   20000	     78145 ns/op	     200 B/op	       4 allocs/op
+//BenchmarkStorageAppendWrite1KB-4     	   20000	     72821 ns/op	     200 B/op	       4 allocs/op
+//BenchmarkStorageAppendWrite10KB-4    	   10000	    131661 ns/op	     200 B/op	       4 allocs/op
+//BenchmarkStorageAppendWrite100KB-4   	   10000	    148539 ns/op	     200 B/op	       4 allocs/op
+//BenchmarkStorageAppendWrite1MB-4     	    2000	    527443 ns/op	     200 B/op	       4 allocs/op
+//BenchmarkStorageAppendWrite10MB-4    	     300	   5280905 ns/op	     200 B/op	       4 allocs/op
