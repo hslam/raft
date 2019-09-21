@@ -208,6 +208,7 @@ func (r *raft) HandleAppendEntries(req *AppendEntriesRequest, res *AppendEntries
 	}
 	if 	r.node.leader==""{
 		r.node.leader=req.LeaderId
+		Tracef("raft.HandleAppendEntries %s State %s leader %s Term %d",r.node.address, r.node.State(),r.node.leader,r.node.currentTerm.Id())
 	}
 	if r.node.leader!=req.LeaderId{
 		res.Success=false
