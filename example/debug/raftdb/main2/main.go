@@ -26,6 +26,7 @@ func init() {
 }
 
 func main() {
+	flag.Parse()
 	var peers []string
 	if addrs != "" {
 		peers = strings.Split(addrs, ",")

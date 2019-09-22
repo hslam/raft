@@ -27,9 +27,9 @@ func (state *FollowerState) Update(){
 		return
 	}
 	if state.node.commitIndex>0&&state.node.commitIndex>state.node.stateMachine.lastApplied{
-		var lastApplied=state.node.stateMachine.lastApplied
+		//var lastApplied=state.node.stateMachine.lastApplied
 		state.node.log.applyCommited()
-		Tracef("FollowerState.Update %s lastApplied %d==>%d",state.node.address, lastApplied,state.node.stateMachine.lastApplied)
+		//Tracef("FollowerState.Update %s lastApplied %d==>%d",state.node.address, lastApplied,state.node.stateMachine.lastApplied)
 	}
 }
 

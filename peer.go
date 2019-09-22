@@ -108,8 +108,7 @@ func (p *Peer) run()  {
 						for i:=0;i<DefaultRetryTimes;i++{
 							nextIndex,term,success,ok:=p.appendEntries(entries)
 							if success&&ok{
-								//p.nextIndex=entries[len(entries)-1].Index+1
-								Tracef("Peer.run %s nextIndex %d==>%d",p.address,p.nextIndex,nextIndex)
+								//Tracef("Peer.run %s nextIndex %d==>%d",p.address,p.nextIndex,nextIndex)
 								p.nextIndex=nextIndex
 								break
 							}else if ok&&term==p.node.currentTerm.Id(){

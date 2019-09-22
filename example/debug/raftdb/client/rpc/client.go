@@ -95,7 +95,7 @@ func (c *WrkClient)Call()(int64,int64,bool){
 	if res.Ok==true{
 		return int64(len(A)+len(B)),0,true
 	}
-	return int64(len(A)+len(B)),0,true
+	return int64(len(A)+len(B)),0,false
 }
 
 func RandString(len int) string {
