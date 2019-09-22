@@ -6,7 +6,7 @@ import (
 
 
 const (
-	DefaultStartWait = 10*1000*time.Microsecond
+	DefaultStartWait = 3*1000*time.Millisecond
 	DefaultNodeTick = time.Millisecond
 	DefaultNodeTracePrintTick = 1000 * time.Millisecond
 	DefaultCompactionTick 	=	60*1000 * time.Millisecond
