@@ -19,12 +19,13 @@ const (
 	DefaultAppendEntriesTimeout = 1000 * time.Millisecond
 	DefaultInstallSnapshotTimeout = 10*1000 * time.Millisecond
 
-	DefaultCommandTimeout = 10*1000 * time.Millisecond
+	DefaultCommandTimeout = 60*1000 * time.Millisecond
 
 	DefaultMaxConcurrency = 1024*32
 	DefaultMaxBatch = 1024*32
 	DefaultMaxCacheEntries=1024*32
 	DefaultMaxDelay	=	 time.Millisecond
+	DefaultCheckDelay	=	 time.Millisecond*5
 
 	DefaultRetryTimes	=	5
 

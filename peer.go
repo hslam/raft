@@ -20,10 +20,9 @@ func newPeer(node *Node, address string) *Peer {
 	p:=&Peer{
 		node :					node,
 		address :				address,
-		appendEntriesTicker:	time.NewTicker(DefaultMaxDelay),
+		appendEntriesTicker:	time.NewTicker(DefaultMaxDelay*5),
 		send:					true,
 	}
-	go p.run()
 	return p
 }
 
@@ -92,37 +91,28 @@ func (p *Peer) ping() {
 	p.alive=p.node.rpcs.Ping(p.address)
 	//Debugf("Peer.ping %s %t",p.address,p.alive)
 }
-
-func (p *Peer) run()  {
-	for{
-		select {
-		case <-p.appendEntriesTicker.C:
-			if p.node.state==nil{
-				return
-			}
-			if p.node.state.String()==Leader&&p.send{
-				p.send=false
-				if p.node.lastLogIndex>p.nextIndex-1&&p.nextIndex>0{
-					entries:=p.node.log.copyAfter(p.nextIndex,DefaultMaxBatch)
-					if len(entries)>0{
-						for i:=0;i<DefaultRetryTimes;i++{
-							nextIndex,term,success,ok:=p.appendEntries(entries)
-							if success&&ok{
-								//Tracef("Peer.run %s nextIndex %d==>%d",p.address,p.nextIndex,nextIndex)
-								p.nextIndex=nextIndex
-								break
-							}else if ok&&term==p.node.currentTerm.Id(){
-								p.nextIndex=nextIndex
-								break
-							}else if !ok{
-								p.alive=false
-							}
-						}
+func (p *Peer) check() {
+	if p.send{
+		p.send=false
+		if p.node.lastLogIndex>p.nextIndex-1&&p.nextIndex>0{
+			entries:=p.node.log.copyAfter(p.nextIndex,DefaultMaxBatch)
+			if len(entries)>0{
+				for i:=0;i<DefaultRetryTimes;i++{
+					nextIndex,term,success,ok:=p.appendEntries(entries)
+					if success&&ok{
+						//Tracef("Peer.run %s nextIndex %d==>%d",p.address,p.nextIndex,nextIndex)
+						p.nextIndex=nextIndex
+						break
+					}else if ok&&term==p.node.currentTerm.Id(){
+						p.nextIndex=nextIndex
+						break
+					}else if !ok{
+						p.alive=false
 					}
-
 				}
-				p.send=true
 			}
+
 		}
+		p.send=true
 	}
 }

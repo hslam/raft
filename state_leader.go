@@ -1,7 +1,7 @@
 package raft
 
 import (
-	"time"
+	"hslam.com/mgit/Mort/timer"
 	"sync"
 )
 
@@ -9,14 +9,16 @@ type LeaderState struct{
 	once 					sync.Once
 	node					*Node
 	stop					chan bool
-	heartbeatTicker			*time.Ticker
+	heartbeatTicker			*timer.Ticker
+	checkTicker				*timer.Ticker
 }
 func newLeaderState(node *Node) State {
 	//Tracef("%s newLeaderState",node.address)
 	state:=&LeaderState{
 		node:					node,
 		stop:					make(chan bool,1),
-		heartbeatTicker:		time.NewTicker(node.hearbeatTick),
+		heartbeatTicker:		timer.NewFuncTicker(node.hearbeatTick),
+		checkTicker:			timer.NewFuncTicker(DefaultCheckDelay),
 	}
 	state.Reset()
 	go state.run()
@@ -56,14 +58,20 @@ func (state *LeaderState)NextState()State{
 }
 
 func (state *LeaderState) run() {
+	state.checkTicker.Tick(func() {
+		state.node.check()
+	})
+	state.heartbeatTicker.Tick(func() {
+		state.node.heartbeats()
+	})
 	for{
 		select {
 		case <-state.stop:
 			goto endfor
-		case <-state.heartbeatTicker.C:
-			state.node.heartbeats()
 		}
 	}
 endfor:
 	close(state.stop)
+	state.heartbeatTicker.Stop()
+	state.checkTicker.Stop()
 }

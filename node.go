@@ -4,6 +4,7 @@ import (
 	"sync"
 	"fmt"
 	"time"
+	"hslam.com/mgit/Mort/timer"
 )
 
 
@@ -35,13 +36,13 @@ type Node struct {
 
 	stateMachine					*StateMachine
 	peers      						map[string]*Peer
-	detectTicker					*time.Ticker
+	detectTicker					*timer.Ticker
 
-	keepAliveTicker					*time.Ticker
+	keepAliveTicker					*timer.Ticker
 
 	state							State
 	changeStateChan 				chan int
-	ticker							*time.Ticker
+	ticker							*timer.Ticker
 
 	//persistent state on all servers
 	currentTerm						*Term
@@ -86,9 +87,9 @@ func NewNode(host string, port int,data_dir string,context interface{})(*Node,er
 		storage:newStorage(data_dir),
 		rpcs:newRPCs([]string{}),
 		peers:make(map[string]*Peer),
-		detectTicker:time.NewTicker(DefaultDetectTick),
-		keepAliveTicker:time.NewTicker(DefaultKeepAliveTick),
-		ticker:time.NewTicker(DefaultNodeTick),
+		detectTicker:timer.NewTicker(DefaultDetectTick),
+		keepAliveTicker:timer.NewTicker(DefaultKeepAliveTick),
+		ticker:timer.NewFuncTicker(DefaultNodeTick),
 		stop:make(chan bool,1),
 		changeStateChan: make(chan int,1),
 		hearbeatTick:DefaultHearbeatTick,
@@ -124,6 +125,23 @@ func (n *Node) Start() {
 }
 func (n *Node) run() {
 	tracePrintTicker:=time.NewTicker(DefaultNodeTracePrintTick)
+	n.ticker.Tick(func() {
+		if !n.running{
+			return
+		}
+		select {
+		case i := <-n.changeStateChan:
+			if i == 1 {
+				n.setState(n.state.NextState())
+			} else if i == -1 {
+				n.setState(n.state.StepDown())
+			}else if i == 0 {
+				n.state.Reset()
+			}
+		default:
+			n.state.Update()
+		}
+	})
 	for{
 		select {
 		case <-n.stop:
@@ -137,22 +155,22 @@ func (n *Node) run() {
 		case <-tracePrintTicker.C:
 			n.print()
 			//Tracef("Node.run %d %d",len(n.pipeline.pipelineCommandChan),len(n.pipeline.readyInvokerChan))
-		case <-n.ticker.C:
-			if !n.running{
-				return
-			}
-			select {
-			case i := <-n.changeStateChan:
-				if i == 1 {
-					n.setState(n.state.NextState())
-				} else if i == -1 {
-					n.setState(n.state.StepDown())
-				}else if i == 0 {
-					n.state.Reset()
-				}
-			default:
-				n.state.Update()
-			}
+		//case <-n.ticker.C:
+			//if !n.running{
+			//	return
+			//}
+			//select {
+			//case i := <-n.changeStateChan:
+			//	if i == 1 {
+			//		n.setState(n.state.NextState())
+			//	} else if i == -1 {
+			//		n.setState(n.state.StepDown())
+			//	}else if i == 0 {
+			//		n.state.Reset()
+			//	}
+			//default:
+			//	n.state.Update()
+			//}
 		}
 	}
 endfor:
@@ -386,7 +404,16 @@ func (n *Node) heartbeats() error {
 	}
 	return nil
 }
-
+func (n *Node) check() error {
+	n.nodesMut.RLock()
+	defer n.nodesMut.RUnlock()
+	for _,v :=range n.peers{
+		if v.alive==true{
+			go v.check()
+		}
+	}
+	return nil
+}
 func (n *Node) print(){
 	if n.commitIndex>n.lastPrintCommitIndex{
 		Tracef("Node.print %s commitIndex %d==>%d",n.address,n.lastPrintCommitIndex,n.commitIndex)

@@ -1,7 +1,7 @@
 package raft
 
 import (
-	"time"
+	"hslam.com/mgit/Mort/timer"
 	"sync"
 	"errors"
 )
@@ -16,8 +16,8 @@ type Log struct {
 	entryChan             	chan *Entry
 	readyEntries			[]*Entry
 	maxBatch				int
-	appendEntriesTicker		*time.Ticker
-	compactionTicker		*time.Ticker
+	appendEntriesTicker		*timer.Ticker
+	compactionTicker		*timer.Ticker
 }
 
 func newLog(node *Node) *Log {
@@ -27,8 +27,8 @@ func newLog(node *Node) *Log {
 		entryChan:				make(chan *Entry,DefaultMaxCacheEntries),
 		readyEntries:			make([]*Entry,0),
 		maxBatch:				DefaultMaxBatch,
-		appendEntriesTicker:	time.NewTicker(DefaultMaxDelay),
-		compactionTicker:	time.NewTicker(DefaultCompactionTick),
+		appendEntriesTicker:	timer.NewFuncTicker(DefaultMaxDelay),
+		compactionTicker:	timer.NewTicker(DefaultCompactionTick),
 	}
 	go log.run()
 	return log
@@ -385,20 +385,33 @@ func (log *Log) run()  {
 			log.batchMu.Unlock()
 		}
 	}()
+	log.appendEntriesTicker.Tick(func() {
+		log.batchMu.Lock()
+		if len(log.readyEntries)>log.maxBatch{
+			entries:=log.readyEntries[:log.maxBatch]
+			log.readyEntries=log.readyEntries[log.maxBatch:]
+			log.ticker(entries)
+		}else  if len(log.readyEntries)>0{
+			entries:=log.readyEntries[:]
+			log.readyEntries=log.readyEntries[len(log.readyEntries):]
+			log.ticker(entries)
+		}
+		log.batchMu.Unlock()
+	})
 	for{
 		select {
-		case <-log.appendEntriesTicker.C:
-			log.batchMu.Lock()
-			if len(log.readyEntries)>log.maxBatch{
-				entries:=log.readyEntries[:log.maxBatch]
-				log.readyEntries=log.readyEntries[log.maxBatch:]
-				log.ticker(entries)
-			}else  if len(log.readyEntries)>0{
-				entries:=log.readyEntries[:]
-				log.readyEntries=log.readyEntries[len(log.readyEntries):]
-				log.ticker(entries)
-			}
-			log.batchMu.Unlock()
+		//case <-log.appendEntriesTicker.C:
+		//	log.batchMu.Lock()
+		//	if len(log.readyEntries)>log.maxBatch{
+		//		entries:=log.readyEntries[:log.maxBatch]
+		//		log.readyEntries=log.readyEntries[log.maxBatch:]
+		//		log.ticker(entries)
+		//	}else  if len(log.readyEntries)>0{
+		//		entries:=log.readyEntries[:]
+		//		log.readyEntries=log.readyEntries[len(log.readyEntries):]
+		//		log.ticker(entries)
+		//	}
+		//	log.batchMu.Unlock()
 		case <-log.compactionTicker.C:
 			//log.compaction()
 		}

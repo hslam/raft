@@ -38,7 +38,7 @@ func init()  {
 	flag.BoolVar(&batch_async, "batch_async", true, "batch_async: -batch_async=false")
 	flag.BoolVar(&pipelining, "pipelining", true, "pipelining: -pipelining=false")
 	flag.BoolVar(&multiplexing, "multiplexing", false, "multiplexing: -multiplexing=false")
-	flag.IntVar(&clients, "clients", 2, "num: -clients=1")
+	flag.IntVar(&clients, "clients", 8, "num: -clients=1")
 	flag.BoolVar(&bar, "bar", false, "bar: -bar=true")
 	log.SetFlags(0)
 	flag.Parse()
@@ -51,7 +51,7 @@ func main()  {
 	var wrkClients []stats.Client
 	parallel:=1
 	if clients>1{
-		pool,err := rpc.DialsWithMaxRequests(clients,network,addr,codec,1024)
+		pool,err := rpc.DialsWithMaxRequests(clients,network,addr,codec,512)
 		if err != nil {
 			log.Fatalln("dailing error: ", err)
 		}
@@ -65,7 +65,7 @@ func main()  {
 		}
 		parallel=pool.GetMaxRequests()
 	}else if clients==1 {
-		conn, err:= rpc.DialWithMaxRequests(network,addr,codec,1024)
+		conn, err:= rpc.DialWithMaxRequests(network,addr,codec,512)
 		if err != nil {
 			log.Fatalln("dailing error: ", err)
 		}
