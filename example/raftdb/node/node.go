@@ -10,6 +10,7 @@ import (
 	"github.com/gorilla/mux"
 	"hslam.com/mgit/Mort/rpc"
 )
+const LeaderPrefix  = "Leader "
 
 type Node struct {
 	mu			sync.RWMutex
@@ -91,6 +92,14 @@ func (n *Node) setHandler(w http.ResponseWriter, req *http.Request) {
 	value := string(b)
 	_, err = n.raft_node.Do(newSetCommand(vars["key"], value))
 	if err != nil {
+		if err==raft.ErrNotLeader{
+			leader:=n.raft_node.Leader()
+			if leader!=""{
+				http.Error(w, leader, http.StatusBadRequest)
+				return
+			}
+		}
 		http.Error(w, err.Error(), http.StatusBadRequest)
+
 	}
 }

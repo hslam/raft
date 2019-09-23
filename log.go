@@ -400,18 +400,6 @@ func (log *Log) run()  {
 	})
 	for{
 		select {
-		//case <-log.appendEntriesTicker.C:
-		//	log.batchMu.Lock()
-		//	if len(log.readyEntries)>log.maxBatch{
-		//		entries:=log.readyEntries[:log.maxBatch]
-		//		log.readyEntries=log.readyEntries[log.maxBatch:]
-		//		log.ticker(entries)
-		//	}else  if len(log.readyEntries)>0{
-		//		entries:=log.readyEntries[:]
-		//		log.readyEntries=log.readyEntries[len(log.readyEntries):]
-		//		log.ticker(entries)
-		//	}
-		//	log.batchMu.Unlock()
 		case <-log.compactionTicker.C:
 			//log.compaction()
 		}

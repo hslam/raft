@@ -156,28 +156,6 @@ func (n *Node) run() {
 			goto endfor
 		case v:=<-n.votes.vote:
 			n.votes.AddVote(v)
-		//case <-n.detectTicker.C:
-		//	n.detectNodes()
-		//case <-n.keepAliveTicker.C:
-		//	n.keepAliveNodes()
-		//case <-tracePrintTicker.C:
-		//	n.print()
-		//case <-n.ticker.C:
-			//if !n.running{
-			//	return
-			//}
-			//select {
-			//case i := <-n.changeStateChan:
-			//	if i == 1 {
-			//		n.setState(n.state.NextState())
-			//	} else if i == -1 {
-			//		n.setState(n.state.StepDown())
-			//	}else if i == 0 {
-			//		n.state.Reset()
-			//	}
-			//default:
-			//	n.state.Update()
-			//}
 		}
 	}
 endfor:
