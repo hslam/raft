@@ -14,4 +14,5 @@ message Request {
 
 message Response {
     bool  ok     = 1;
+    string  leader = 2;
 }
