@@ -87,8 +87,8 @@ func NewNode(host string, port int,data_dir string,context interface{})(*Node,er
 		storage:newStorage(data_dir),
 		rpcs:newRPCs([]string{}),
 		peers:make(map[string]*Peer),
-		detectTicker:timer.NewTicker(DefaultDetectTick),
-		keepAliveTicker:timer.NewTicker(DefaultKeepAliveTick),
+		detectTicker:timer.NewFuncTicker(DefaultDetectTick),
+		keepAliveTicker:timer.NewFuncTicker(DefaultKeepAliveTick),
 		ticker:timer.NewFuncTicker(DefaultNodeTick),
 		stop:make(chan bool,1),
 		changeStateChan: make(chan int,1),
@@ -124,7 +124,9 @@ func (n *Node) Start() {
 	n.running=true
 }
 func (n *Node) run() {
-	tracePrintTicker:=time.NewTicker(DefaultNodeTracePrintTick)
+	timer.NewFuncTicker(DefaultNodeTracePrintTick, func() {
+		n.print()
+	})
 	n.ticker.Tick(func() {
 		if !n.running{
 			return
@@ -142,19 +144,24 @@ func (n *Node) run() {
 			n.state.Update()
 		}
 	})
+	n.detectTicker.Tick(func() {
+		n.detectNodes()
+	})
+	n.keepAliveTicker.Tick(func() {
+		n.keepAliveNodes()
+	})
 	for{
 		select {
 		case <-n.stop:
 			goto endfor
 		case v:=<-n.votes.vote:
 			n.votes.AddVote(v)
-		case <-n.detectTicker.C:
-			n.detectNodes()
-		case <-n.keepAliveTicker.C:
-			n.keepAliveNodes()
-		case <-tracePrintTicker.C:
-			n.print()
-			//Tracef("Node.run %d %d",len(n.pipeline.pipelineCommandChan),len(n.pipeline.readyInvokerChan))
+		//case <-n.detectTicker.C:
+		//	n.detectNodes()
+		//case <-n.keepAliveTicker.C:
+		//	n.keepAliveNodes()
+		//case <-tracePrintTicker.C:
+		//	n.print()
 		//case <-n.ticker.C:
 			//if !n.running{
 			//	return
