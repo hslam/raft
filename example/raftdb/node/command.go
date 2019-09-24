@@ -4,16 +4,11 @@ import (
 	"hslam.com/mgit/Mort/raft"
 )
 
-//type SetCommand struct {
-//	Key   	string		`json:"k"`
-//	Value 	string		`json:"v"`
-//}
-
 func newSetCommand(key string, value string) raft.Command {
-	return &SetCommand{
-		Key:   key,
-		Value: value,
-	}
+	c:=setCommandPool.Get().(*SetCommand)
+	c.Key=key
+	c.Value=value
+	return c
 }
 func (c *SetCommand) Type()int32{
 	return 1

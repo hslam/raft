@@ -50,6 +50,7 @@ type Node struct {
 
 	//volatile state on all servers
 	commitIndex						uint64
+	lastPrintLastLogIndex			uint64
 	lastPrintCommitIndex			uint64
 	lastPrintLastApplied			uint64
 
@@ -288,12 +289,15 @@ func (n *Node)Do(command Command) (interface{},error){
 			case <-time.After(DefaultCommandTimeout):
 				err=ErrCommandTimeout
 			}
+			invokerPool.Put(invoker)
+			pipelineCommandPool.Put(ch)
 		}else {
 			err=ErrCommandNotRegistered
 		}
 	}else {
 		err=ErrNotLeader
 	}
+
 	<-n.pipelineChan
 	return reply,err
 }
@@ -400,6 +404,10 @@ func (n *Node) check() error {
 	return nil
 }
 func (n *Node) print(){
+	if n.lastLogIndex>n.lastPrintLastLogIndex{
+		Tracef("Node.print %s lastLogIndex %d==>%d",n.address,n.lastPrintLastLogIndex,n.lastLogIndex)
+		n.lastPrintLastLogIndex=n.lastLogIndex
+	}
 	if n.commitIndex>n.lastPrintCommitIndex{
 		Tracef("Node.print %s commitIndex %d==>%d",n.address,n.lastPrintCommitIndex,n.commitIndex)
 		n.lastPrintCommitIndex=n.commitIndex

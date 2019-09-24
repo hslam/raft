@@ -10,6 +10,16 @@ import (
 	"github.com/gorilla/mux"
 	"hslam.com/mgit/Mort/rpc"
 )
+var (
+	setCommandPool			*sync.Pool
+)
+func init() {
+	setCommandPool= &sync.Pool{
+		New: func() interface{} {
+			return &SetCommand{}
+		},
+	}
+}
 const LeaderPrefix  = "LEADER:"
 
 type Node struct {
@@ -90,7 +100,9 @@ func (n *Node) setHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	value := string(b)
-	_, err = n.raft_node.Do(newSetCommand(vars["key"], value))
+	setCommand:=newSetCommand(vars["key"], value)
+	_, err = n.raft_node.Do(setCommand)
+	setCommandPool.Put(setCommand)
 	if err != nil {
 		if err==raft.ErrNotLeader{
 			leader:=n.raft_node.Leader()

@@ -31,6 +31,7 @@ func listenAndServe(address string,node *Node){
 
 type RPCs struct {
 	mu				sync.RWMutex
+	udpconns			map[string]rpc.Client
 	conns			map[string]rpc.Client
 	failedCount		map[string]int
 }

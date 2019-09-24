@@ -7,11 +7,14 @@ import (
 	"io/ioutil"
 	"crypto/md5"
 	"fmt"
+	"errors"
 )
 
 type Storage struct {
 	data_dir    					string
 }
+
+var errSeeker = errors.New("seeker can't seek")
 
 func newStorage(data_dir string)*Storage {
 	s:=&Storage{
@@ -60,6 +63,7 @@ func (s *Storage) Load(file_name string) ([]byte,error) {
 	file_path := path.Join(s.data_dir, file_name)
 	return ioutil.ReadFile(file_path)
 }
+
 func (s *Storage) Size(file_name string) (int64,error) {
 	file_path := path.Join(s.data_dir, file_name)
 	f , err := os.OpenFile(file_path, os.O_RDONLY, 0600)
@@ -122,8 +126,7 @@ func (s *Storage)AppendWrite(file_name string, data []byte) error {
 	}else if n < len(data) {
 		return io.ErrShortWrite
 	}
-	f.Sync()
-	return err
+	return f.Sync()
 }
 func (s *Storage)SeekWrite(file_name string,cursor uint64,data []byte) error {
 	file_path := path.Join(s.data_dir, file_name)
@@ -139,6 +142,21 @@ func (s *Storage)SeekWrite(file_name string,cursor uint64,data []byte) error {
 	}else if n < len(data) {
 		return io.ErrShortWrite
 	}
-	f.Sync()
-	return err
+	return f.Sync()
+}
+func (s *Storage) SeekRead(file_name string,cursor uint64,b []byte)(err error) {
+	file_path := path.Join(s.data_dir, file_name)
+	f , err := os.OpenFile(file_path, os.O_RDONLY, 0600)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	ret, _ := f.Seek(int64(cursor), os.SEEK_SET)
+	n, err := f.ReadAt(b, ret)
+	if err != nil {
+		return err
+	}else if n < len(b) {
+		return io.ErrShortBuffer
+	}
+	return nil
 }

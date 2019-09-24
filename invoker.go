@@ -1,5 +1,17 @@
 package raft
-
+import (
+	"sync"
+)
+var (
+	invokerPool			*sync.Pool
+)
+func init() {
+	invokerPool= &sync.Pool{
+		New: func() interface{} {
+			return &Invoker{}
+		},
+	}
+}
 
 type RaftCommand interface {
 	Type()int32
@@ -18,12 +30,12 @@ type Invoker struct {
 	private 	bool
 	index 		uint64
 }
-func newInvoker(cmd Command,private bool,codec Codec) RaftCommand {
-	return &Invoker{
-		codec:codec,
-		cmd: cmd,
-		private:private,
-	}
+func newInvoker(cmd Command,private bool,codec Codec) *Invoker {
+	i:=invokerPool.Get().(*Invoker)
+	i.codec=codec
+	i.cmd=cmd
+	i.private=private
+	return i
 }
 func (i *Invoker) Private()bool{
 	return i.private

@@ -2,8 +2,19 @@ package raft
 
 import (
 	"time"
+	"sync"
+)
+var (
+	pipelineCommandPool			*sync.Pool
 )
 
+func init() {
+	pipelineCommandPool= &sync.Pool{
+		New: func() interface{} {
+			return &PipelineCommand{}
+		},
+	}
+}
 type PipelineCommand struct {
 	invoker RaftCommand
 	reply 	chan interface{}
@@ -11,11 +22,10 @@ type PipelineCommand struct {
 }
 
 func NewPipelineCommand(invoker RaftCommand) *PipelineCommand {
-	c:= &PipelineCommand{
-		invoker:invoker,
-		reply:make(chan interface{},1),
-		err:make(chan error,1),
-	}
+	c:=pipelineCommandPool.Get().(*PipelineCommand)
+	c.invoker=invoker
+	c.reply=make(chan interface{},1)
+	c.err=make(chan error,1)
 	return c
 }
 
@@ -63,13 +73,12 @@ func (pipeline *Pipeline)run()  {
 		data,_:=p.invoker.Encode()
 		p.invoker.SetIndex(pipeline.node.nextIndex)
 		pipeline.node.nextIndex+=1
-		entry:=&Entry{
-			Index:p.invoker.Index(),
-			Term:pipeline.node.currentTerm.Id(),
-			Command:data,
-			CommandType:p.invoker.Type(),
-			CommandId:p.invoker.UniqueID(),
-		}
+		entry:=pipeline.node.log.getEmtyEntry()
+		entry.Index=p.invoker.Index()
+		entry.Term=pipeline.node.currentTerm.Id()
+		entry.Command=data
+		entry.CommandType=p.invoker.Type()
+		entry.CommandId=p.invoker.UniqueID()
 		pipeline.readyInvokerChan<-p
 		pipeline.node.log.entryChan<-entry
 

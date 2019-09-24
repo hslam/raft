@@ -7,7 +7,9 @@ type Service struct {
 }
 
 func (s *Service)Set(req *Request, res *Response) error {
+	setCommand:=newSetCommand(req.Key, req.Value)
 	_, err := s.node.raft_node.Do(newSetCommand(req.Key, req.Value))
+	setCommandPool.Put(setCommand)
 	if err==nil{
 		res.Ok=true
 		return nil
