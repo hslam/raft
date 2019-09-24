@@ -21,11 +21,11 @@ type PipelineCommand struct {
 	err 	chan error
 }
 
-func NewPipelineCommand(invoker RaftCommand) *PipelineCommand {
+func NewPipelineCommand(invoker RaftCommand,reply chan interface{},err chan error) *PipelineCommand {
 	c:=pipelineCommandPool.Get().(*PipelineCommand)
 	c.invoker=invoker
-	c.reply=make(chan interface{},1)
-	c.err=make(chan error,1)
+	c.reply=reply
+	c.err=err
 	return c
 }
 
@@ -56,17 +56,29 @@ func (pipeline *Pipeline)run()  {
 	go func() {
 		for p := range pipeline.readyInvokerChan {
 			for{
-				if pipeline.node.commitIndex>0&&p.invoker.Index()<=pipeline.node.commitIndex{
+				if pipeline.node.commitIndex.Id()>0&&p.invoker.Index()<=pipeline.node.commitIndex.Id(){
 					//var lastApplied  = pipeline.node.stateMachine.lastApplied
 					reply,err:=pipeline.node.stateMachine.Apply(p.invoker.Index(),p.invoker)
-					p.reply<-reply
-					p.err<-err
+					func(){
+						defer func() {
+							if err := recover(); err != nil {
+							}
+						}()
+						p.reply<-reply
+						p.err<-err
+					}()
 					//Tracef("Pipeline.run %s lastApplied %d==>%d",pipeline.node.address,lastApplied,pipeline.node.stateMachine.lastApplied)
 					goto endfor
 				}
 				time.Sleep(time.Microsecond*100)
 			}
 			endfor:
+				invoker:=p.invoker
+				invokerPool.Put(invoker)
+				p.err=nil
+				p.reply=nil
+				p.invoker=nil
+				pipelineCommandPool.Put(p)
 		}
 	}()
 	for p := range pipeline.pipelineCommandChan {

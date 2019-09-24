@@ -112,10 +112,10 @@ func (s *StateMachine) loadLastSaved() error {
 		return err
 	}
 	s.lastSaved= bytesToUint64(b)
-	if s.node.commitIndex<s.lastSaved{
+	if s.node.commitIndex.Id()<s.lastSaved{
 		var commitIndex=s.lastApplied
-		s.node.commitIndex=s.lastSaved
-		Tracef("StateMachine.loadLastSaved %s recover commitIndex %d==%d",s.node.address,commitIndex,s.node.commitIndex)
+		s.node.commitIndex.Set(s.lastSaved)
+		Tracef("StateMachine.loadLastSaved %s recover commitIndex %d==%d",s.node.address,commitIndex,s.node.commitIndex.Id())
 	}
 	if s.lastApplied<s.lastSaved{
 		var lastApplied=s.lastApplied

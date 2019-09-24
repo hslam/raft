@@ -45,13 +45,13 @@ func (p *Peer) heartbeat() {
 		}
 	}
 	//Tracef("Peer.heartbeat %s %d %d",p.address,prevLogIndex,prevLogTerm)
-	nextIndex, term,success,ok:=p.node.raft.Hearbeat(p.address,prevLogIndex,prevLogTerm)
+	nextIndex, term,_,ok:=p.node.raft.Hearbeat(p.address,prevLogIndex,prevLogTerm)
 	if !ok{
 		p.alive=false
-	}else if nextIndex>0&&term>0&&success{
+	}else if nextIndex>0&&term>0&&ok{
 		p.nextIndex=nextIndex
 	}
-	//Tracef("Peer.heartbeat %s %d %d %t %t %d",p.address,nextIndex, term,success,ok,p.nextIndex)
+	//Tracef("Peer.heartbeat %s %d %d %t %d",p.address,nextIndex, term,ok,p.nextIndex)
 }
 
 func (p *Peer) requestVote() {
@@ -94,21 +94,17 @@ func (p *Peer) ping() {
 func (p *Peer) check() {
 	if p.send{
 		p.send=false
-		if p.node.lastLogIndex>p.nextIndex-1&&p.nextIndex>0{
+		if p.node.lastLogIndex.Id()>p.nextIndex-1&&p.nextIndex>0{
 			entries:=p.node.log.copyAfter(p.nextIndex,DefaultMaxBatch)
 			if len(entries)>0{
-				for i:=0;i<DefaultRetryTimes;i++{
-					nextIndex,term,success,ok:=p.appendEntries(entries)
-					if success&&ok{
-						//Tracef("Peer.run %s nextIndex %d==>%d",p.address,p.nextIndex,nextIndex)
-						p.nextIndex=nextIndex
-						break
-					}else if ok&&term==p.node.currentTerm.Id(){
-						p.nextIndex=nextIndex
-						break
-					}else if !ok{
-						p.alive=false
-					}
+				nextIndex,term,success,ok:=p.appendEntries(entries)
+				if success&&ok{
+					//Tracef("Peer.run %s nextIndex %d==>%d",p.address,p.nextIndex,nextIndex)
+					p.nextIndex=nextIndex
+				}else if ok&&term==p.node.currentTerm.Id(){
+					p.nextIndex=nextIndex
+				}else if !ok{
+					p.alive=false
 				}
 			}
 

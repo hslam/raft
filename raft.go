@@ -35,7 +35,7 @@ func (r *raft) Hearbeat(addr string,prevLogIndex,prevLogTerm uint64)  (nextIndex
 	var req =&AppendEntriesRequest{}
 	req.Term=r.node.currentTerm.Id()
 	req.LeaderId=r.node.leader
-	req.LeaderCommit=r.node.commitIndex
+	req.LeaderCommit=r.node.commitIndex.Id()
 	req.PrevLogIndex=prevLogIndex
 	req.PrevLogTerm=prevLogTerm
 	req.Entries=[]*Entry{}
@@ -70,7 +70,7 @@ func (r *raft) RequestVote(addr string) (ok bool){
 	var req =&RequestVoteRequest{}
 	req.Term=r.node.currentTerm.Id()
 	req.CandidateId=r.node.address
-	req.LastLogIndex=r.node.lastLogIndex
+	req.LastLogIndex=r.node.lastLogIndex.Id()
 	req.LastLogTerm=r.node.lastLogTerm
 	var ch =make(chan *RequestVoteResponse)
 	go func (rpcs *RPCs,addr string,req *RequestVoteRequest, ch chan *RequestVoteResponse) {
@@ -108,7 +108,7 @@ func (r *raft) AppendEntries(addr string,prevLogIndex,prevLogTerm uint64,entries
 	var req =&AppendEntriesRequest{}
 	req.Term=r.node.currentTerm.Id()
 	req.LeaderId=r.node.leader
-	req.LeaderCommit=r.node.commitIndex
+	req.LeaderCommit=r.node.commitIndex.Id()
 	req.PrevLogIndex=prevLogIndex
 	req.PrevLogTerm=prevLogTerm
 	req.Entries=entries
@@ -184,7 +184,7 @@ func (r *raft) HandleRequestVote(req *RequestVoteRequest, res *RequestVoteRespon
 			return nil
 		}
 	}
-	if (r.node.votedFor.String()==""||r.node.votedFor.String()==req.CandidateId)&&req.LastLogIndex>=r.node.lastLogIndex&&req.LastLogTerm>=r.node.lastLogTerm{
+	if (r.node.votedFor.String()==""||r.node.votedFor.String()==req.CandidateId)&&req.LastLogIndex>=r.node.lastLogIndex.Id()&&req.LastLogTerm>=r.node.lastLogTerm{
 		res.VoteGranted=true
 		r.node.votedFor.Set(req.CandidateId)
 		r.node.stepDown()
@@ -224,7 +224,7 @@ func (r *raft) HandleAppendEntries(req *AppendEntriesRequest, res *AppendEntries
 		res.Success=true
 		return nil
 	}else if req.PrevLogIndex>0{
-		if req.PrevLogIndex>r.node.lastLogIndex{
+		if req.PrevLogIndex>r.node.lastLogIndex.Id(){
 			res.Success=false
 			return nil
 		}else if  r.node.log.lookup(req.PrevLogIndex)==nil{
@@ -232,30 +232,31 @@ func (r *raft) HandleAppendEntries(req *AppendEntriesRequest, res *AppendEntries
 			return nil
 		}else if r.node.log.lookup(req.PrevLogIndex).Term!=req.PrevLogTerm{
 			r.node.log.deleteAfter(req.PrevLogIndex)
-			r.node.nextIndex=r.node.lastLogIndex+1
+			r.node.nextIndex=r.node.lastLogIndex.Id()+1
 			res.NextIndex=r.node.nextIndex
-			r.node.commitIndex=0
+			//r.node.commitIndex=0
 			res.Success=false
 			return nil
 		}
 	}
-	if req.LeaderCommit>r.node.commitIndex {
+	if req.LeaderCommit>r.node.commitIndex.Id() {
 		//var commitIndex=r.node.commitIndex
-		r.node.commitIndex=minUint64(req.LeaderCommit,r.node.lastLogIndex)
+		r.node.commitIndex.Set(minUint64(req.LeaderCommit,r.node.lastLogIndex.Id()))
 		//if r.node.commitIndex>commitIndex{
 		//	Tracef("raft.HandleAppendEntries %s commitIndex %d==>%d",r.node.address, commitIndex,r.node.commitIndex)
 		//}
 	}
-	res.Success=true
-	if len(req.Entries)>0&&req.PrevLogIndex==r.node.lastLogIndex{
-		r.node.log.appendEntries(req.Entries)
-		r.node.nextIndex=r.node.lastLogIndex+1
-		res.NextIndex=r.node.nextIndex
-		return nil
-	}else {
-		res.Success=false
-		return nil
+	if len(req.Entries)>0&&req.PrevLogIndex==r.node.lastLogIndex.Id(){
+		if req.PrevLogIndex+1==req.Entries[0].Index{
+			res.Success=true
+			r.node.log.appendEntries(req.Entries)
+			r.node.nextIndex=r.node.lastLogIndex.Id()+1
+			res.NextIndex=r.node.nextIndex
+			return nil
+		}
 	}
+	res.Success=false
+	return nil
 }
 func (r *raft) HandleInstallSnapshot(req *InstallSnapshotRequest,res *InstallSnapshotResponse)error {
 	return nil

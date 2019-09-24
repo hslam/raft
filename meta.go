@@ -4,12 +4,16 @@ import (
 	"bytes"
 )
 
+const MetaSize  = 32
+
 func (meta *Meta)Encode()[]byte  {
 	indexBytes := uint64ToBytes(meta.Index)
 	termBytes :=uint64ToBytes(meta.Term)
 	retBytes := uint64ToBytes(meta.Ret)
 	offsetBytes := uint64ToBytes(meta.Offset)
-	Bytes:=append(indexBytes,termBytes...)
+	Bytes:=make([]byte,0,32)
+	Bytes=append(Bytes,indexBytes...)
+	Bytes=append(Bytes,termBytes...)
 	Bytes=append(Bytes,retBytes...)
 	Bytes=append(Bytes,offsetBytes...)
 	return Bytes

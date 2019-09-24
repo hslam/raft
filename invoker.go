@@ -30,12 +30,16 @@ type Invoker struct {
 	private 	bool
 	index 		uint64
 }
-func newInvoker(cmd Command,private bool,codec Codec) *Invoker {
+func newInvoker(cmd Command,private bool,codec Codec) RaftCommand {
 	i:=invokerPool.Get().(*Invoker)
 	i.codec=codec
 	i.cmd=cmd
 	i.private=private
-	return i
+	return &Invoker{
+		codec:codec,
+		cmd: cmd,
+		private:private,
+	}
 }
 func (i *Invoker) Private()bool{
 	return i.private

@@ -45,21 +45,23 @@ type Node struct {
 	ticker							*timer.Ticker
 
 	//persistent state on all servers
-	currentTerm						*Term
-	votedFor   						*VoteFor
+	currentTerm						*PersistentUint64
+	votedFor   						*PersistentString
 
 	//volatile state on all servers
-	commitIndex						uint64
-	lastPrintLastLogIndex			uint64
-	lastPrintCommitIndex			uint64
-	lastPrintLastApplied			uint64
+	commitIndex						*PersistentUint64
+
+
+
+	lastLogIndex					*PersistentUint64
+	lastLogTerm						uint64
+	nextIndex						uint64
 
 	//init
 	recoverLogIndex					uint64
-
-	lastLogIndex					uint64
-	lastLogTerm						uint64
-	nextIndex						uint64
+	lastPrintLastLogIndex			uint64
+	lastPrintCommitIndex			uint64
+	lastPrintLastApplied			uint64
 
 	//candidate
 	votes	 						*Votes
@@ -107,8 +109,10 @@ func NewNode(host string, port int,data_dir string,context interface{})(*Node,er
 	n.election=newElection(n,DefaultElectionTimeout)
 	n.raft=newRaft(n)
 	n.server=newServer(n,fmt.Sprintf(":%d",port))
-	n.currentTerm=newTerm(n)
-	n.votedFor=newVoteFor(n)
+	n.currentTerm=newPersistentUint64(n,DefaultTerm)
+	n.lastLogIndex=newPersistentUint64(n,DefaultLastLogIndex)
+	n.commitIndex=newPersistentUint64(n,DefaultCommitIndex)
+	n.votedFor=newPersistentString(n,DefaultVoteFor)
 	n.state=newFollowerState(n)
 	n.pipeline=NewPipeline(n,DefaultMaxConcurrency)
 	n.pipelineChan = make(chan bool,DefaultMaxConcurrency)
@@ -281,16 +285,19 @@ func (n *Node)Do(command Command) (interface{},error){
 	if n.IsLeader(){
 		if n.commandType.exists(command){
 			invoker:=newInvoker(command,false,n.codec)
-			ch:=NewPipelineCommand(invoker)
+
+			replyChan:=make(chan interface{},1)
+			errChan:=make(chan error,1)
+			ch:=NewPipelineCommand(invoker,replyChan,errChan)
 			n.pipeline.pipelineCommandChan<-ch
 			select {
-			case reply=<-ch.reply:
-			case err=<-ch.err:
+			case reply=<-replyChan:
+			case err=<-errChan:
 			case <-time.After(DefaultCommandTimeout):
 				err=ErrCommandTimeout
 			}
-			invokerPool.Put(invoker)
-			pipelineCommandPool.Put(ch)
+			close(replyChan)
+			close(errChan)
 		}else {
 			err=ErrCommandNotRegistered
 		}
@@ -403,34 +410,47 @@ func (n *Node) check() error {
 	}
 	return nil
 }
-func (n *Node) print(){
-	if n.lastLogIndex>n.lastPrintLastLogIndex{
-		Tracef("Node.print %s lastLogIndex %d==>%d",n.address,n.lastPrintLastLogIndex,n.lastLogIndex)
-		n.lastPrintLastLogIndex=n.lastLogIndex
+
+func (n *Node) printPeers(){
+	if !n.IsLeader(){
+		return
 	}
-	if n.commitIndex>n.lastPrintCommitIndex{
-		Tracef("Node.print %s commitIndex %d==>%d",n.address,n.lastPrintCommitIndex,n.commitIndex)
-		n.lastPrintCommitIndex=n.commitIndex
+	n.nodesMut.RLock()
+	defer n.nodesMut.RUnlock()
+	for _,v :=range n.peers{
+		Tracef("Node.printPeers %s %d",v.address,v.nextIndex)
+	}
+}
+
+func (n *Node) print(){
+	if n.lastLogIndex.Id()>n.lastPrintLastLogIndex{
+		Tracef("Node.print %s lastLogIndex %d==>%d",n.address,n.lastPrintLastLogIndex,n.lastLogIndex.Id())
+		n.lastPrintLastLogIndex=n.lastLogIndex.Id()
+	}
+	if n.commitIndex.Id()>n.lastPrintCommitIndex{
+		Tracef("Node.print %s commitIndex %d==>%d",n.address,n.lastPrintCommitIndex,n.commitIndex.Id())
+		n.lastPrintCommitIndex=n.commitIndex.Id()
 	}
 	if n.stateMachine.lastApplied>n.lastPrintLastApplied{
 		Tracef("Node.print %s lastApplied %d==>%d",n.address,n.lastPrintLastApplied,n.stateMachine.lastApplied)
 		n.lastPrintLastApplied=n.stateMachine.lastApplied
 	}
+	//n.printPeers()
 }
 func (n *Node) Commit() error {
 	n.nodesMut.RLock()
 	defer n.nodesMut.RUnlock()
 	//var commitIndex=n.commitIndex
 	if len(n.peers)==0{
-		index:=n.lastLogIndex
-		if index>n.commitIndex{
-			n.commitIndex=index
+		index:=n.lastLogIndex.Id()
+		if index>n.commitIndex.Id(){
+			n.commitIndex.Set(index)
 			//Tracef("Node.Commit %s commitIndex %d==>%d",n.address,commitIndex,n.commitIndex)
-			if n.commitIndex<=n.recoverLogIndex{
-				//var lastApplied=n.stateMachine.lastApplied
-				n.log.applyCommited()
-				//Tracef("Node.Commit %s lastApplied %d==>%d",n.address,lastApplied,n.stateMachine.lastApplied)
-			}
+		}
+		if n.commitIndex.Id()<=n.recoverLogIndex&&n.commitIndex.Id()>n.stateMachine.lastApplied{
+			//var lastApplied=n.stateMachine.lastApplied
+			n.log.applyCommited()
+			//Tracef("Node.Commit %s lastApplied %d==>%d",n.address,lastApplied,n.stateMachine.lastApplied)
 		}
 		return nil
 	}
@@ -450,10 +470,10 @@ func (n *Node) Commit() error {
 		index:=lastLogIndexs[i]
 		if v,ok:=lastLogIndexCount[index];ok{
 			if v+1>=quorum{
-				if index>n.commitIndex{
-					n.commitIndex=index
+				if index>n.commitIndex.Id(){
+					n.commitIndex.Set(index)
 					//Tracef("Node.Commit %s commitIndex %d==>%d",n.address,commitIndex,n.commitIndex)
-					if n.commitIndex<=n.recoverLogIndex{
+					if n.commitIndex.Id()<=n.recoverLogIndex{
 						//var lastApplied=n.stateMachine.lastApplied
 						n.log.applyCommited()
 						//Tracef("Node.Commit %s lastApplied %d==>%d",n.address,lastApplied,n.stateMachine.lastApplied)

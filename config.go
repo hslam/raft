@@ -16,7 +16,7 @@ const (
 	DefaultElectionTimeout = 1000 * time.Millisecond
 	DefaultHearbeatTimeout = 100 * time.Millisecond
 	DefaultRequestVoteTimeout = 1000 * time.Millisecond
-	DefaultAppendEntriesTimeout = 1000 * time.Millisecond
+	DefaultAppendEntriesTimeout = 10*1000 * time.Millisecond
 	DefaultInstallSnapshotTimeout = 10*1000 * time.Millisecond
 
 	DefaultCommandTimeout = 60*1000 * time.Millisecond
@@ -34,6 +34,8 @@ const (
 	DefaultLog = "log"
 	DefaultCompaction = "compaction"
 	DefaultIndex = "index"
+	DefaultLastLogIndex = "lastlogindex"
+	DefaultCommitIndex = "commitindex"
 	DefaultTerm = "term"
 	DefaultVoteFor = "votefor"
 	DefaultSnapshot = "snapshot"

@@ -1,19 +1,52 @@
 package raft
 
+import (
+	"sync"
+)
+var (
+	metaBytesPool			*sync.Pool
+)
+func init() {
+	metaBytesPool= &sync.Pool{
+		New: func() interface{} {
+			return make([]byte,32)
+		},
+	}
+}
 type Index struct {
 	node			*Node
-	metas			[]*Meta
+	//metas			[]*Meta
 	ret				uint64
+	metaPool 		*sync.Pool
 }
 func newIndex(node *Node) *Index {
 	i:=&Index{
 		node:node,
-		metas:make([]*Meta,0),
+		//metas:make([]*Meta,0),
+	}
+	i.metaPool= &sync.Pool{
+		New: func() interface{} {
+			return &Meta{}
+		},
 	}
 	return i
 }
+func (i *Index) getEmtyMeta()*Meta {
+	return i.metaPool.Get().(*Meta)
+}
+func (i *Index) putEmtyMeta(meta *Meta) {
+	meta.Index=0
+	meta.Term=0
+	meta.Ret=0
+	meta.Offset=0
+	i.metaPool.Put(meta)
+}
+func (i *Index) putEmtyMetas(metas []*Meta) {
+	for _,meta:=range metas{
+		i.putEmtyMeta(meta)
+	}
+}
 func (i *Index) appendMetas(metas []*Meta) {
-	i.metas=append(i.metas,metas...)
 	data,_:=i.Encode(metas)
 	i.append(data)
 }
@@ -21,11 +54,11 @@ func (i *Index) checkIndex(index uint64)bool {
 	if index==0{
 		return false
 	}
-	length:=len(i.metas)
+	length:=i.length()
 	if length==0{
 		return false
 	}
-	if index<i.metas[0].Index||index>i.metas[length-1].Index{
+	if index<1||index>length{
 		return false
 	}
 	return true
@@ -34,160 +67,122 @@ func (i *Index) lookup(index uint64)*Meta {
 	if !i.checkIndex(index){
 		return nil
 	}
-	for j:=len(i.metas)-1;j>=0;j--{
-		meta:= i.metas[j]
-		if meta.Index==index{
-			return meta
-		}
-	}
-	return nil
+	return i.read(index)
 }
 func (i *Index) lookupLast(index uint64)*Meta {
-	if !i.checkIndex(index){
+	lastIndex:=index-1
+	if !i.checkIndex(lastIndex){
 		return nil
 	}
-	length:=len(i.metas)
-	if length<2{
-		return nil
-	}
-	var cur int
-	for j:=length-1;j>=0;j--{
-		meta:= i.metas[j]
-		if meta.Index==index{
-			cur=j
-			break
-		}
-	}
-	if cur<1{
-		return nil
-	}
-	return i.metas[cur-1]
+	return i.read(lastIndex)
 }
 func (i *Index) lookupNext(index uint64)*Meta {
-	if !i.checkIndex(index){
+	nextIndex:=index+1
+	if !i.checkIndex(nextIndex){
 		return nil
 	}
-	length:=len(i.metas)
-	if length<2{
-		return nil
-	}
-	var cur int
-	for j:=length-1;j>=0;j--{
-		meta:= i.metas[j]
-		if meta.Index==index{
-			cur=j
-			break
-		}
-	}
-	if cur>length-2{
-		return nil
-	}
-	return i.metas[cur+1]
+	return i.read(nextIndex)
 }
 func (i *Index) deleteAfter(index uint64){
-	length:=len(i.metas)
-	if length==0{
+	if index<=1{
+		i.node.lastLogIndex.Set(0)
 		return
 	}
-	if index<=1&&length>0{
-		i.metas=i.metas[length:]
-		return
-	}
-	for j:=length-1;j>=0;j--{
-		meta:= i.metas[j]
-		if meta.Index==index{
-			i.metas=i.metas[:j]
-			break
-		}
-	}
-	i.save()
+	i.node.lastLogIndex.Set(index)
 	Tracef("Index.deleteAfter %s delete %d and after",i.node.address, index)
 }
 func (i *Index) copyAfter(index uint64,max int)(metas []*Meta) {
-	length:=len(i.metas)
+	length:=i.length()
 	if length==0{
 		return
 	}
-	if index<=1&&length>0{
-		if max<=length{
-			metas=i.metas[0:max]
-		}else {
-			metas=i.metas[:]
-		}
-		return
+	var startIndex uint64
+	var endIndex uint64
+	if index<1{
+		startIndex=1
+	}else {
+		startIndex=index
 	}
-	for j:=len(i.metas)-1;j>=0;j--{
-		meta:= i.metas[j]
-		if meta.Index==index{
-			if j+max<=len(i.metas){
-				metas=i.metas[j:j+max]
-			}else {
-				metas=i.metas[j:]
-			}
-			break
-		}
+	if length<startIndex+uint64(max){
+		endIndex=length
+	}else {
+		endIndex=startIndex+uint64(max)
 	}
-	return
+	return i.copyRange(startIndex,endIndex)
 }
 func (i *Index) copyRange(startIndex uint64,endIndex uint64) []*Meta{
-	if startIndex>endIndex{
-		return nil
-	}
-	length:=len(i.metas)
-	if length==0{
-		return nil
-	}
-	if endIndex<i.metas[0].Index||startIndex>i.metas[length-1].Index{
-		return nil
-	}
-	var metas []*Meta
-	for j:=0;j<len(i.metas);j++{
-		meta:=i.metas[j]
-		if meta.Index<startIndex{
-			continue
-		}else if meta.Index>endIndex{
-			break
-		}
-		metas=append(metas, meta)
-	}
-	return metas
+	return i.batchRead(startIndex,endIndex)
 }
+func (i *Index) read(index uint64)*Meta {
+	if index<1{
+		return nil
+	}
+	ret:=(index-1)*32
+	b:=metaBytesPool.Get().([]byte)
+	err:=i.node.storage.SeekRead(DefaultIndex,ret,b)
+	if err!=nil{
+		return nil
+	}
+	meta:=i.getEmtyMeta()
+	meta.Decode(b)
+	metaBytesPool.Put(b)
+	return meta
+}
+func (i *Index) batchRead(startIndex uint64,endIndex uint64)[]*Meta {
+	if startIndex<1||endIndex<1||startIndex>endIndex{
+		return nil
+	}
+	length:=i.length()
+	if length<1||startIndex>length||endIndex>length{
+		return nil
+	}
+	cursor:=(startIndex-1)*32
+	offset:=endIndex*32
+	b:=make([]byte,offset-cursor)
+	if err:=i.node.storage.SeekRead(DefaultIndex,cursor,b);err!=nil{
+		return nil
+	}
+	if metas,err := i.Decode(b); err == nil {
+		return metas
+	}
+	return nil
+}
+
 func (i *Index) append(b []byte) {
 	i.node.storage.SeekWrite(DefaultIndex,i.ret,b)
 	i.ret+=uint64(len(b))
 }
-func (i *Index) save() {
-	b,_:=i.Encode(i.metas)
-	i.node.storage.SafeOverWrite(DefaultIndex,b)
-	i.ret=uint64(len(b))
-}
+
 func (i *Index) recover() error {
 	if !i.node.storage.Exists(DefaultIndex){
 		return nil
 	}
-	b, err := i.node.storage.Load(DefaultIndex)
-	if err != nil {
-		return err
+	i.node.lastLogIndex.load()
+	lastLogIndex:=i.node.lastLogIndex.Id()
+	if lastLogIndex>0{
+		i.ret=uint64(lastLogIndex*32)
 	}
-	if err = i.Decode(b); err != nil {
-		return err
-	}
-	i.ret=uint64(len(i.metas)*32)
 	return nil
 }
-func (i *Index)Decode(data []byte)error  {
-	cnt:=len(data)/32
-	for j:=0;j<cnt;j++{
+
+func (i *Index) length() uint64 {
+	return i.node.lastLogIndex.Id()
+}
+
+func (i *Index)Decode(data []byte)([]*Meta,error)  {
+	length:=len(data)/32
+	metas:=make([]*Meta,0,length)
+	for j:=0;j<length;j++{
 		b:=data[j*32:j*32+32]
-		meta:=&Meta{}
+		meta:=i.getEmtyMeta()
 		meta.Decode(b)
-		i.metas=append(i.metas, meta)
+		metas=append(metas, meta)
 	}
-	Tracef("Index.Decode %s Metas length %d",i.node.address,cnt)
-	return nil
+	//Tracef("Index.Decode %s Metas length %d",i.node.address,length)
+	return metas,nil
 }
 func (i *Index)Encode(metas []*Meta)([]byte,error)  {
-	var data=[]byte{}
+	var data=make([]byte,0,len(metas)*32)
 	for j:=0;j<len(metas);j++{
 		b:=metas[j].Encode()
 		data=append(data,b...)

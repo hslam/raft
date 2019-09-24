@@ -28,7 +28,7 @@ func newLeaderState(node *Node) State {
 func (state *LeaderState)Reset(){
 	if len(state.node.peers)>0{
 		for _,v:=range state.node.peers{
-			v.nextIndex=state.node.lastLogIndex+1
+			v.nextIndex=state.node.lastLogIndex.Id()+1
 			Debugf("%s LeaderState.Reset %s nextIndex :%d",state.node.address,v.address,v.nextIndex)
 		}
 	}
@@ -37,10 +37,10 @@ func (state *LeaderState)Reset(){
 }
 
 func (state *LeaderState) Update(){
-	if state.node.AliveCount()<state.node.Quorum(){
-		Tracef("%s LeaderState.Update AliveCount %d < Quorum %d",state.node.address,state.node.AliveCount(),state.node.Quorum())
-		state.node.stepDown()
-	}
+	//if state.node.AliveCount()<state.node.Quorum(){
+	//	Tracef("%s LeaderState.Update AliveCount %d < Quorum %d",state.node.address,state.node.AliveCount(),state.node.Quorum())
+	//	state.node.stepDown()
+	//}
 	state.node.Commit()
 }
 

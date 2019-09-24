@@ -78,13 +78,20 @@ func (log *Log) lookupNext(index uint64)*Entry {
 func (log *Log) deleteAfter(index uint64) {
 	log.mu.Lock()
 	defer log.mu.Unlock()
+	if index<=1{
+		log.node.lastLogIndex.Set(0)
+		return
+	}
+	log.node.lastLogIndex.Set(index)
 	log.indexs.deleteAfter(index)
-	length:=len(log.indexs.metas)
-	if length>0{
-		log.node.lastLogIndex=log.indexs.metas[length-1].Index
-		log.node.lastLogTerm=log.indexs.metas[length-1].Term
-		meta:=log.indexs.metas[len(log.indexs.metas)-1]
+	lastLogIndex:=log.node.lastLogIndex.Id()
+	if lastLogIndex>0{
+		meta:=log.indexs.lookup(lastLogIndex)
+		log.node.lastLogTerm=meta.Term
 		log.ret=meta.Ret+meta.Offset
+	}else {
+		log.node.lastLogTerm=0
+		log.ret=0
 	}
 }
 
@@ -95,18 +102,19 @@ func (log *Log) copyAfter(index uint64,max int)(entries []*Entry) {
 	return log.batchRead(metas)
 }
 func (log *Log) copyRange(startIndex uint64,endIndex uint64) []*Entry{
+
 	metas:=log.indexs.copyRange(startIndex,endIndex)
 	return log.batchRead(metas)
 }
 func (log *Log) applyCommited() {
 	log.mu.Lock()
 	defer log.mu.Unlock()
-	length:=len(log.indexs.metas)
-	if length==0{
+	lastLogIndex:=log.node.lastLogIndex.Id()
+	if lastLogIndex==0{
 		return
 	}
-	var startIndex =maxUint64(log.node.stateMachine.lastApplied,log.indexs.metas[0].Index)
-	var endIndex =log.node.commitIndex
+	var startIndex =maxUint64(log.node.stateMachine.lastApplied,1)
+	var endIndex =log.node.commitIndex.Id()
 
 	if endIndex-startIndex>DefaultMaxBatch{
 		index:=startIndex
@@ -143,12 +151,9 @@ func (log *Log) appendEntries(entries []*Entry) {
 	log.putEmtyEntries(entries)
 	log.append(data)
 	log.indexs.appendMetas(metas)
-	length:=len(log.indexs.metas)
-	if length>0{
-		log.node.lastLogIndex=log.indexs.metas[length-1].Index
-		log.node.lastLogTerm=log.indexs.metas[length-1].Term
-	}
-
+	log.node.lastLogIndex.Set(metas[len(metas)-1].Index)
+	log.node.lastLogTerm=metas[len(metas)-1].Term
+	log.indexs.putEmtyMetas(metas)
 }
 func (log *Log) read(meta *Meta)*Entry {
 	if meta==nil{
@@ -175,18 +180,13 @@ func (log *Log) batchRead(metas []*Meta)[]*Entry {
 	cursor:=metas[0].Ret
 	offset:=metas[len(metas)-1].Ret+metas[len(metas)-1].Offset
 	b:=make([]byte,offset-cursor)
-	err:=log.node.storage.SeekRead(DefaultLog,cursor,b)
-	if err!=nil{
+	if err:=log.node.storage.SeekRead(DefaultLog,cursor,b);err!=nil{
 		return nil
 	}
-	if err != nil {
-		return nil
+	if entries,_,err := log.Decode(b,metas,cursor); err == nil {
+		return entries
 	}
-	var entries []*Entry
-	if entries,_,err = log.Decode(b,metas,cursor); err != nil {
-		return nil
-	}
-	return entries
+	return nil
 }
 
 func (log *Log) append(b []byte) {
@@ -201,15 +201,16 @@ func (log *Log) recover() error {
 	if !log.node.storage.Exists(DefaultLog){
 		return nil
 	}
-	length:=len(log.indexs.metas)
-	if length>0{
-		log.node.lastLogIndex=log.indexs.metas[length-1].Index
-		log.node.lastLogTerm=log.indexs.metas[length-1].Term
-		log.node.recoverLogIndex=log.node.lastLogIndex
-		log.node.nextIndex=log.node.lastLogIndex+1
-		meta:=log.indexs.metas[len(log.indexs.metas)-1]
+	lastLogIndex:=log.node.lastLogIndex.Id()
+	if lastLogIndex>0{
+		meta:=log.indexs.lookup(lastLogIndex)
+		log.node.lastLogTerm=meta.Term
 		log.ret=meta.Ret+meta.Offset
+		log.node.recoverLogIndex=log.node.lastLogIndex.Id()
+		log.node.nextIndex=log.node.lastLogIndex.Id()+1
 	}
+	Tracef("Log.recover %s lastLogIndex %d",log.node.address,lastLogIndex)
+
 	return nil
 }
 
