@@ -63,6 +63,17 @@ func (log *Log) lookup(index uint64)*Entry {
 	meta:=log.indexs.lookup(index)
 	return log.read(meta)
 }
+func (log *Log)check(entries []*Entry)(bool)  {
+	lastIndex:=entries[0].Index
+	for i:=1;i<len(entries);i++{
+		if entries[i].Index==lastIndex+1{
+			lastIndex=entries[i].Index
+		}else {
+			return false
+		}
+	}
+	return true
+}
 func (log *Log) lookupLast(index uint64)*Entry {
 	log.mu.Lock()
 	defer log.mu.Unlock()
@@ -144,16 +155,27 @@ func (log *Log) applyCommitedRange(startIndex uint64,endIndex uint64) {
 	//Tracef("Log.applyCommitedRange %s apply %d==>%d",log.node.address,startIndex,endIndex)
 }
 
-func (log *Log) appendEntries(entries []*Entry) {
+func (log *Log) appendEntries(entries []*Entry)bool {
 	log.mu.Lock()
 	defer log.mu.Unlock()
+	if !log.node.isLeader(){
+		if !log.check(entries){
+			return false
+		}
+	}
 	data,metas,_:=log.Encode(entries,log.ret)
 	log.putEmtyEntries(entries)
+	if !log.node.isLeader(){
+		if !log.indexs.check(metas){
+			return false
+		}
+	}
 	log.append(data)
 	log.indexs.appendMetas(metas)
 	log.node.lastLogIndex.Set(metas[len(metas)-1].Index)
 	log.node.lastLogTerm=metas[len(metas)-1].Term
 	log.indexs.putEmtyMetas(metas)
+	return true
 }
 func (log *Log) read(meta *Meta)*Entry {
 	if meta==nil{
@@ -251,6 +273,8 @@ func (log *Log)Encode(entries []*Entry,ret uint64)([]byte,[]*Meta,error)  {
 	}
 	return data,metas,nil
 }
+
+
 func (log *Log) compaction() error {
 	//log.mu.Lock()
 	//defer log.mu.Unlock()

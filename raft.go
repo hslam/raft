@@ -248,8 +248,7 @@ func (r *raft) HandleAppendEntries(req *AppendEntriesRequest, res *AppendEntries
 	}
 	if len(req.Entries)>0&&req.PrevLogIndex==r.node.lastLogIndex.Id(){
 		if req.PrevLogIndex+1==req.Entries[0].Index{
-			res.Success=true
-			r.node.log.appendEntries(req.Entries)
+			res.Success=r.node.log.appendEntries(req.Entries)
 			r.node.nextIndex=r.node.lastLogIndex.Id()+1
 			res.NextIndex=r.node.nextIndex
 			return nil

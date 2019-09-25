@@ -229,18 +229,20 @@ func (n *Node) Leader()string {
 	return n.leader
 }
 func (n *Node) IsLeader()bool {
+	n.mu.RLock()
+	defer n.mu.RUnlock()
+	return n.isLeader()
+}
+func (n *Node) isLeader()bool {
 	if !n.running{
 		return false
 	}
-	n.mu.RLock()
-	defer n.mu.RUnlock()
 	if n.leader==n.address&&n.state.String()==Leader{
 		return true
 	}else{
 		return false
 	}
 }
-
 func (n *Node) SetCodec(codec Codec){
 	n.mu.RLock()
 	defer n.mu.RUnlock()

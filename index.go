@@ -63,6 +63,17 @@ func (i *Index) checkIndex(index uint64)bool {
 	}
 	return true
 }
+func (i *Index)check(metas []*Meta)(bool)  {
+	lastIndex:=metas[0].Index
+	for i:=1;i<len(metas);i++{
+		if metas[i].Index==lastIndex+1{
+			lastIndex=metas[i].Index
+		}else {
+			return false
+		}
+	}
+	return true
+}
 func (i *Index) lookup(index uint64)*Meta {
 	if !i.checkIndex(index){
 		return nil
