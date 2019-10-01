@@ -178,7 +178,9 @@ func (r *raft) HandleRequestVote(req *RequestVoteRequest, res *RequestVoteRespon
 		return nil
 	}else if req.Term>r.node.currentTerm.Id(){
 		r.node.currentTerm.Set(req.Term)
-		r.node.stepDown()
+		if req.LastLogIndex>=r.node.lastLogIndex.Id()&&req.LastLogTerm>=r.node.lastLogTerm{
+			r.node.stepDown()
+		}
 		if r.node.state.String()==Leader||r.node.state.String()==Candidate{
 			res.VoteGranted=false
 			return nil

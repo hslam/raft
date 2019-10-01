@@ -93,7 +93,7 @@ func (log *Log) deleteAfter(index uint64) {
 		log.node.lastLogIndex.Set(0)
 		return
 	}
-	log.node.lastLogIndex.Set(index)
+	log.node.lastLogIndex.Set(index-1)
 	log.indexs.deleteAfter(index)
 	lastLogIndex:=log.node.lastLogIndex.Id()
 	if lastLogIndex>0{
@@ -243,14 +243,24 @@ func (log *Log)Decode(data []byte,metas []*Meta,cursor uint64,)([]*Entry,uint64,
 	for j:=0;j<length;j++{
 		ret:=metas[j].Ret-cursor
 		offset:=metas[j].Offset
-		b:=data[ret:ret+offset]
-		entry:=log.getEmtyEntry()
-		err:=log.node.raftCodec.Decode(b,entry)
-		if err!=nil{
-			Errorf("Log.Decode %d %d %s",ret,offset,string(b))
-		}
-		entries=append(entries, entry)
-		log_ret=uint64(ret+offset)
+		//if ret+offset>uint64(len(data))||ret>uint64(len(data)){
+		//	break
+		//}
+		func(){
+			defer func() {
+				if err := recover(); err != nil {
+					Errorln("%s %d %d %d",err,len(data),ret,ret+offset)
+				}
+			}()
+			b:=data[ret:ret+offset]
+			entry:=log.getEmtyEntry()
+			err:=log.node.raftCodec.Decode(b,entry)
+			if err!=nil{
+				Errorf("Log.Decode %d %d %s",ret,offset,string(b))
+			}
+			entries=append(entries, entry)
+			log_ret=uint64(ret+offset)
+		}()
 	}
 	return entries,cursor+log_ret,nil
 }

@@ -165,7 +165,11 @@ func (n *Node) run() {
 	}
 endfor:
 }
-
+func (n *Node) GetAddress()string {
+	n.mu.RLock()
+	defer n.mu.RUnlock()
+	return n.address
+}
 func (n *Node)Running() bool{
 	n.mu.RLock()
 	defer n.mu.RUnlock()
@@ -209,15 +213,20 @@ func (n *Node) changeState(i int){
 }
 
 func (n *Node) State()string {
+	n.mu.RLock()
+	defer n.mu.RUnlock()
 	if n.state==nil{
 		return ""
 	}
-	n.mu.RLock()
-	defer n.mu.RUnlock()
 	return n.state.String()
 }
 
 func (n *Node) Term()uint64 {
+	n.mu.RLock()
+	defer n.mu.RUnlock()
+	return n.term()
+}
+func (n *Node) term()uint64 {
 	if !n.running{
 		return 0
 	}
@@ -287,7 +296,6 @@ func (n *Node)Do(command Command) (interface{},error){
 	if n.IsLeader(){
 		if n.commandType.exists(command){
 			invoker:=newInvoker(command,false,n.codec)
-
 			replyChan:=make(chan interface{},1)
 			errChan:=make(chan error,1)
 			ch:=NewPipelineCommand(invoker,replyChan,errChan)
@@ -310,7 +318,15 @@ func (n *Node)Do(command Command) (interface{},error){
 	<-n.pipelineChan
 	return reply,err
 }
-
+func (n *Node) GetPeers() []string {
+	n.nodesMut.Lock()
+	defer n.nodesMut.Unlock()
+	peers:=make([]string,0,len(n.peers))
+	for _,v:=range n.peers{
+		peers=append(peers,v.address)
+	}
+	return peers
+}
 func (n *Node) SetNode(addrs []string) error {
 	if !n.configuration.isPeersChanged(addrs){
 		return nil
@@ -347,7 +363,7 @@ func (n *Node) Quorum() int {
 	return n.quorum()
 }
 func (n *Node) quorum() int {
-	return (len(n.peers)+1)/2+1
+	return len(n.peers)/2+1
 }
 func (n *Node) AliveCount() int {
 	n.nodesMut.RLock()
@@ -468,18 +484,18 @@ func (n *Node) Commit() error {
 		}
 	}
 	quickSort(lastLogIndexs,-999,-999)
-	for i:=0;i<len(lastLogIndexs);i++{
+	for i:=len(lastLogIndexs)-1;i>=0;i--{
 		index:=lastLogIndexs[i]
 		if v,ok:=lastLogIndexCount[index];ok{
 			if v+1>=quorum{
 				if index>n.commitIndex.Id(){
 					n.commitIndex.Set(index)
 					//Tracef("Node.Commit %s commitIndex %d==>%d",n.address,commitIndex,n.commitIndex)
-					if n.commitIndex.Id()<=n.recoverLogIndex{
-						//var lastApplied=n.stateMachine.lastApplied
-						n.log.applyCommited()
-						//Tracef("Node.Commit %s lastApplied %d==>%d",n.address,lastApplied,n.stateMachine.lastApplied)
-					}
+				}
+				if n.commitIndex.Id()<=n.recoverLogIndex{
+					//var lastApplied=n.stateMachine.lastApplied
+					n.log.applyCommited()
+					//Tracef("Node.Commit %s lastApplied %d==>%d",n.address,lastApplied,n.stateMachine.lastApplied)
 				}
 				break
 			}

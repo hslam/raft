@@ -99,7 +99,7 @@ func (i *Index) deleteAfter(index uint64){
 		i.node.lastLogIndex.Set(0)
 		return
 	}
-	i.node.lastLogIndex.Set(index)
+	i.node.lastLogIndex.Set(index-1)
 	Tracef("Index.deleteAfter %s delete %d and after",i.node.address, index)
 }
 func (i *Index) copyAfter(index uint64,max int)(metas []*Meta) {

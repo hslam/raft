@@ -33,6 +33,7 @@ func (state *LeaderState)Reset(){
 		}
 	}
 	state.node.leader=state.node.address
+	state.node.election.Reset()
 	Allf("%s LeaderState.Reset Term :%d",state.node.address,state.node.currentTerm.Id())
 }
 
@@ -41,6 +42,12 @@ func (state *LeaderState) Update(){
 	//	Tracef("%s LeaderState.Update AliveCount %d < Quorum %d",state.node.address,state.node.AliveCount(),state.node.Quorum())
 	//	state.node.stepDown()
 	//}
+	if state.node.election.Timeout(){
+		state.node.stepDown()
+		return
+	}else if state.node.AliveCount()>=state.node.Quorum(){
+		state.node.election.Reset()
+	}
 	state.node.Commit()
 }
 

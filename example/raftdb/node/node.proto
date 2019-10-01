@@ -16,3 +16,10 @@ message Response {
     bool  ok     = 1;
     string  leader = 2;
 }
+
+message Status {
+    bool IsLeader = 1;
+    string Leader = 2;
+    string Node = 3;
+    repeated string Peers = 4;
+}
