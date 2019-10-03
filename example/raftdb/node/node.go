@@ -62,7 +62,14 @@ func NewNode(data_dir string, host string, port ,rpc_port,raft_port int,peers []
 		Addr:    fmt.Sprintf(":%d", n.port),
 		Handler: n.router,
 	}
-	n.router.HandleFunc("/status", n.statusHandler).All()
+	n.router.Group("/cluster", func(router *mux.Router) {
+		router.HandleFunc("/status", n.statusHandler).All()
+		router.HandleFunc("/leader", n.leaderHandler).All()
+		router.HandleFunc("/address", n.addressHandler).All()
+		router.HandleFunc("/isleader", n.isLeaderHandler).All()
+		router.HandleFunc("/peers", n.peersHandler).All()
+		router.HandleFunc("/nodes", n.nodesHandler).All()
+	})
 	n.router.HandleFunc("/db/:key", n.handle(n.getHandler)).GET()
 	n.router.HandleFunc("/db/:key",n.handle(n.setHandler)).POST()
 	return n
@@ -156,8 +163,45 @@ func (n *Node) statusHandler(w http.ResponseWriter, req *http.Request) {
 	status:=&Status{
 		IsLeader:n.raft_node.IsLeader(),
 		Leader:n.raft_node.Leader(),
-		Node:n.raft_node.GetAddress(),
-		Peers:n.raft_node.GetPeers(),
+		Node:n.raft_node.Address(),
+		Peers:n.raft_node.Peers(),
 	}
 	render.WriteJson(w,req,http.StatusOK,status)
+}
+func (n *Node) leaderHandler(w http.ResponseWriter, req *http.Request) {
+	defer func() {
+		if err := recover(); err != nil {
+		}
+	}()
+	w.Write([]byte(n.raft_node.Leader()))
+}
+func (n *Node) isLeaderHandler(w http.ResponseWriter, req *http.Request) {
+	defer func() {
+		if err := recover(); err != nil {
+		}
+	}()
+	render.WriteJson(w,req,http.StatusOK,n.raft_node.IsLeader())
+}
+func (n *Node) addressHandler(w http.ResponseWriter, req *http.Request) {
+	defer func() {
+		if err := recover(); err != nil {
+		}
+	}()
+	w.Write([]byte(n.raft_node.Address()))
+}
+func (n *Node) peersHandler(w http.ResponseWriter, req *http.Request) {
+	defer func() {
+		if err := recover(); err != nil {
+		}
+	}()
+	render.WriteJson(w,req,http.StatusOK,n.raft_node.Peers())
+}
+func (n *Node) nodesHandler(w http.ResponseWriter, req *http.Request) {
+	defer func() {
+		if err := recover(); err != nil {
+		}
+	}()
+	nodes:=n.raft_node.Peers()
+	nodes=append(nodes,n.raft_node.Address())
+	render.WriteJson(w,req,http.StatusOK,nodes)
 }

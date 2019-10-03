@@ -165,11 +165,7 @@ func (n *Node) run() {
 	}
 endfor:
 }
-func (n *Node) GetAddress()string {
-	n.mu.RLock()
-	defer n.mu.RUnlock()
-	return n.address
-}
+
 func (n *Node)Running() bool{
 	n.mu.RLock()
 	defer n.mu.RUnlock()
@@ -252,6 +248,11 @@ func (n *Node) isLeader()bool {
 		return false
 	}
 }
+func (n *Node) Address()string {
+	n.mu.RLock()
+	defer n.mu.RUnlock()
+	return n.address
+}
 func (n *Node) SetCodec(codec Codec){
 	n.mu.RLock()
 	defer n.mu.RUnlock()
@@ -318,7 +319,7 @@ func (n *Node)Do(command Command) (interface{},error){
 	<-n.pipelineChan
 	return reply,err
 }
-func (n *Node) GetPeers() []string {
+func (n *Node) Peers() []string {
 	n.nodesMut.Lock()
 	defer n.nodesMut.Unlock()
 	peers:=make([]string,0,len(n.peers))
@@ -423,7 +424,7 @@ func (n *Node) check() error {
 	defer n.nodesMut.RUnlock()
 	for _,v :=range n.peers{
 		if v.alive==true{
-			go v.check()
+			v.check()
 		}
 	}
 	return nil
@@ -492,7 +493,7 @@ func (n *Node) Commit() error {
 					n.commitIndex.Set(index)
 					//Tracef("Node.Commit %s commitIndex %d==>%d",n.address,commitIndex,n.commitIndex)
 				}
-				if n.commitIndex.Id()<=n.recoverLogIndex{
+				if n.commitIndex.Id()<=n.recoverLogIndex&&n.commitIndex.Id()>n.stateMachine.lastApplied{
 					//var lastApplied=n.stateMachine.lastApplied
 					n.log.applyCommited()
 					//Tracef("Node.Commit %s lastApplied %d==>%d",n.address,lastApplied,n.stateMachine.lastApplied)

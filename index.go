@@ -2,6 +2,7 @@ package raft
 
 import (
 	"sync"
+	//"fmt"
 )
 var (
 	metaBytesPool			*sync.Pool
@@ -15,8 +16,6 @@ func init() {
 }
 type Index struct {
 	node			*Node
-	//metas			[]*Meta
-	ret				uint64
 	metaPool 		*sync.Pool
 }
 func newIndex(node *Node) *Index {
@@ -69,6 +68,7 @@ func (i *Index)check(metas []*Meta)(bool)  {
 		if metas[i].Index==lastIndex+1{
 			lastIndex=metas[i].Index
 		}else {
+			//fmt.Println(lastIndex,metas[i].Index)
 			return false
 		}
 	}
@@ -154,14 +154,25 @@ func (i *Index) batchRead(startIndex uint64,endIndex uint64)[]*Meta {
 		return nil
 	}
 	if metas,err := i.Decode(b); err == nil {
+		//if metas[0].Index!=startIndex||metas[len(metas)-1].Index!=endIndex{
+		//	fmt.Printf("%d %d, %d %d %t",startIndex,metas[0].Index,endIndex,metas[len(metas)-1].Index,i.check(metas))
+		//	panic("err")
+		//}
+		//Tracef("Index.batchRead %s startIndex %d endIndex %d",i.node.address,metas[0].Index,metas[len(metas)-1].Index)
 		return metas
 	}
 	return nil
 }
 
 func (i *Index) append(b []byte) {
-	i.node.storage.SeekWrite(DefaultIndex,i.ret,b)
-	i.ret+=uint64(len(b))
+	lastLogIndex:=i.node.lastLogIndex.Id()
+	var ret uint64=0
+	if lastLogIndex>0{
+		ret=uint64(lastLogIndex*32)
+	}else {
+		ret=0
+	}
+	i.node.storage.SeekWrite(DefaultIndex,ret,b)
 }
 
 func (i *Index) recover() error {
@@ -169,10 +180,6 @@ func (i *Index) recover() error {
 		return nil
 	}
 	i.node.lastLogIndex.load()
-	lastLogIndex:=i.node.lastLogIndex.Id()
-	if lastLogIndex>0{
-		i.ret=uint64(lastLogIndex*32)
-	}
 	return nil
 }
 

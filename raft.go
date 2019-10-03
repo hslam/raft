@@ -178,6 +178,7 @@ func (r *raft) HandleRequestVote(req *RequestVoteRequest, res *RequestVoteRespon
 		return nil
 	}else if req.Term>r.node.currentTerm.Id(){
 		r.node.currentTerm.Set(req.Term)
+		r.node.votedFor.Reset()
 		if req.LastLogIndex>=r.node.lastLogIndex.Id()&&req.LastLogTerm>=r.node.lastLogTerm{
 			r.node.stepDown()
 		}

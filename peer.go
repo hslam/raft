@@ -92,23 +92,24 @@ func (p *Peer) ping() {
 	//Debugf("Peer.ping %s %t",p.address,p.alive)
 }
 func (p *Peer) check() {
-	if p.send{
-		p.send=false
-		if p.node.lastLogIndex.Id()>p.nextIndex-1&&p.nextIndex>0{
-			entries:=p.node.log.copyAfter(p.nextIndex,DefaultMaxBatch)
-			if len(entries)>0{
-				nextIndex,term,success,ok:=p.appendEntries(entries)
-				if success&&ok{
-					//Tracef("Peer.run %s nextIndex %d==>%d",p.address,p.nextIndex,nextIndex)
-					p.nextIndex=nextIndex
-				}else if ok&&term==p.node.currentTerm.Id(){
-					p.nextIndex=nextIndex
-				}else if !ok{
-					p.alive=false
+	if p.node.lastLogIndex.Id()>p.nextIndex-1&&p.nextIndex>0{
+		if p.send{
+			p.send=false
+			go func() {
+				entries:=p.node.log.copyAfter(p.nextIndex,DefaultMaxBatch)
+				if len(entries)>0{
+					nextIndex,term,success,ok:=p.appendEntries(entries)
+					if success&&ok{
+						//Tracef("Peer.run %s nextIndex %d==>%d",p.address,p.nextIndex,nextIndex)
+						p.nextIndex=nextIndex
+					}else if ok&&term==p.node.currentTerm.Id(){
+						p.nextIndex=nextIndex
+					}else if !ok{
+						p.alive=false
+					}
 				}
-			}
-
+				p.send=true
+			}()
 		}
-		p.send=true
 	}
 }

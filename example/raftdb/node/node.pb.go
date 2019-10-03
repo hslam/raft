@@ -162,10 +162,10 @@ func (m *Response) GetLeader() string {
 }
 
 type Status struct {
-	IsLeader             bool     `protobuf:"varint,1,opt,name=IsLeader,proto3" json:"IsLeader,omitempty"`
-	Leader               string   `protobuf:"bytes,2,opt,name=Leader,proto3" json:"Leader,omitempty"`
-	Node                 string   `protobuf:"bytes,3,opt,name=Node,proto3" json:"Node,omitempty"`
-	Peers                []string `protobuf:"bytes,4,rep,name=Peers,proto3" json:"Peers,omitempty"`
+	IsLeader             bool     `protobuf:"varint,1,opt,name=IsLeader,proto3" json:"IsLeader"`
+	Leader               string   `protobuf:"bytes,2,opt,name=Leader,proto3" json:"Leader"`
+	Node                 string   `protobuf:"bytes,3,opt,name=Node,proto3" json:"Node"`
+	Peers                []string `protobuf:"bytes,4,rep,name=Peers,proto3" json:"Peers"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`

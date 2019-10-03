@@ -113,8 +113,8 @@ func (log *Log) copyAfter(index uint64,max int)(entries []*Entry) {
 	return log.batchRead(metas)
 }
 func (log *Log) copyRange(startIndex uint64,endIndex uint64) []*Entry{
-
 	metas:=log.indexs.copyRange(startIndex,endIndex)
+	//Tracef("Log.copyRange %s startIndex %d endIndex %d",log.node.address,metas[0].Index,metas[len(metas)-1].Index)
 	return log.batchRead(metas)
 }
 func (log *Log) applyCommited() {
@@ -145,6 +145,7 @@ func (log *Log) applyCommited() {
 func (log *Log) applyCommitedRange(startIndex uint64,endIndex uint64) {
 	entries:=log.copyRange(startIndex,endIndex)
 	for i:=0;i<len(entries);i++{
+		//Tracef("Log.applyCommitedRange %s Index %d",log.node.address,entries[i].Index)
 		command:=log.node.commandType.clone(entries[i].CommandType)
 		err:=log.node.raftCodec.Decode(entries[i].Command,command)
 		if err==nil{
@@ -152,7 +153,7 @@ func (log *Log) applyCommitedRange(startIndex uint64,endIndex uint64) {
 		}
 	}
 	log.putEmtyEntries(entries)
-	//Tracef("Log.applyCommitedRange %s apply %d==>%d",log.node.address,startIndex,endIndex)
+	//Tracef("Log.applyCommitedRange %s startIndex %d endIndex %d",log.node.address,startIndex,endIndex)
 }
 
 func (log *Log) appendEntries(entries []*Entry)bool {
@@ -169,6 +170,9 @@ func (log *Log) appendEntries(entries []*Entry)bool {
 		if !log.indexs.check(metas){
 			return false
 		}
+	}
+	if log.node.lastLogIndex.Id()!=metas[0].Index-1{
+		return false
 	}
 	log.append(data)
 	log.indexs.appendMetas(metas)

@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	f:=comparefile("/Users/huangmeng/go/src/defalut.raft.2/log","/Users/huangmeng/go/src/defalut.raft.3/log")
+	f:=comparefile("/Users/huangmeng/go/src/defalut.raft.1/log","/Users/huangmeng/go/src/defalut.raft.2/log")
 	fmt.Println(f)
 }
 
