@@ -70,8 +70,9 @@ func NewNode(data_dir string, host string, port ,rpc_port,raft_port int,peers []
 		router.HandleFunc("/peers", n.peersHandler).All()
 		router.HandleFunc("/nodes", n.nodesHandler).All()
 	})
-	n.router.HandleFunc("/db/:key", n.handle(n.getHandler)).GET()
-	n.router.HandleFunc("/db/:key",n.handle(n.setHandler)).POST()
+	n.router.HandleFunc("/db/:key", n.leaderHandle(n.getHandler)).GET()
+	n.router.HandleFunc("/db/:key",n.leaderHandle(n.setHandler)).POST()
+	n.router.Once()
 	return n
 }
 
@@ -93,28 +94,27 @@ func (n *Node) uri() string {
 	return fmt.Sprintf("http://%s:%d",  n.host, n.port)
 }
 
-func (n *Node) handle(hander http.HandlerFunc) http.HandlerFunc{
+func (n *Node) leaderHandle(hander http.HandlerFunc) http.HandlerFunc{
 	defer func() {
 		if err := recover(); err != nil {
 		}
 	}()
+	if n.raft_node.IsLeader(){
+		return hander
+	}
 	return func(w http.ResponseWriter, r *http.Request) {
-		if n.raft_node.IsLeader(){
-			hander(w,r)
-		}else {
-			leader:=n.raft_node.Leader()
-			if leader!=""{
-				leader_url, err := url.Parse("http://" + leader)
-				if err!=nil{
-					panic(err)
-				}
-				port,err:=strconv.Atoi(leader_url.Port())
-				if err!=nil{
-					panic(err)
-				}
-				leader_url.Host=leader_url.Hostname() + ":" + strconv.Itoa(port-2000)
-				proxy.Proxy(w,r,leader_url.String()+r.URL.Path)
+		leader:=n.raft_node.Leader()
+		if leader!=""{
+			leader_url, err := url.Parse("http://" + leader)
+			if err!=nil{
+				panic(err)
 			}
+			port,err:=strconv.Atoi(leader_url.Port())
+			if err!=nil{
+				panic(err)
+			}
+			leader_url.Host=leader_url.Hostname() + ":" + strconv.Itoa(port-2000)
+			proxy.Proxy(w,r,leader_url.String()+r.URL.Path)
 		}
 	}
 }
