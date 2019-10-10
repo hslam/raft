@@ -18,6 +18,7 @@ var compress string
 var host string
 var port int
 var addr string
+var parallel int
 var batch bool
 var batch_async bool
 var pipelining bool
@@ -33,7 +34,8 @@ func init()  {
 	flag.StringVar(&compress, "compress", "gzip", "compress: -compress=no|flate|zlib|gzip")
 	flag.StringVar(&host, "h", "127.0.0.1", "host: -h=127.0.0.1")
 	flag.IntVar(&port, "p", 8003, "port: -p=8001")
-	flag.IntVar(&total_calls, "total", 500000, "total_calls: -total=10000")
+	flag.IntVar(&parallel, "parallel", 512, "parallel: -parallel=512")
+	flag.IntVar(&total_calls, "total", 100000, "total_calls: -total=10000")
 	flag.BoolVar(&batch, "batch", true, "batch: -batch=false")
 	flag.BoolVar(&batch_async, "batch_async", true, "batch_async: -batch_async=false")
 	flag.BoolVar(&pipelining, "pipelining", true, "pipelining: -pipelining=false")
@@ -51,7 +53,7 @@ func main()  {
 	var wrkClients []stats.Client
 	parallel:=1
 	if clients>1{
-		pool,err := rpc.DialsWithMaxRequests(clients,network,addr,codec,512)
+		pool,err := rpc.DialsWithMaxRequests(clients,network,addr,codec,parallel)
 		if err != nil {
 			log.Fatalln("dailing error: ", err)
 		}
@@ -65,7 +67,7 @@ func main()  {
 		}
 		parallel=pool.GetMaxRequests()
 	}else if clients==1 {
-		conn, err:= rpc.DialWithMaxRequests(network,addr,codec,512)
+		conn, err:= rpc.DialWithMaxRequests(network,addr,codec,parallel)
 		if err != nil {
 			log.Fatalln("dailing error: ", err)
 		}

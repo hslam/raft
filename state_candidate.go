@@ -13,6 +13,7 @@ func newCandidateState(node *Node) State {
 }
 
 func (state *CandidateState)Reset(){
+	state.node.election.Random(true)
 	state.node.election.Reset()
 	state.node.currentTerm.Incre()
 	state.node.votedFor.Set(state.node.address)

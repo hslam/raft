@@ -28,7 +28,7 @@ func init() {
 }
 
 func main() {
-	go func() {log.Println(http.ListenAndServe(":6060", nil))}()
+	go func() {log.Println(http.ListenAndServe(":6061", nil))}()
 	flag.Parse()
 	var peers []string
 	if addrs != "" {

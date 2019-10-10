@@ -16,6 +16,7 @@ func newFollowerState(node *Node) State {
 
 func (state *FollowerState)Reset(){
 	state.node.leader=""
+	state.node.election.Random(true)
 	state.node.election.Reset()
 	Debugf("%s FollowerState.Reset Term :%d",state.node.address,state.node.currentTerm.Id())
 }

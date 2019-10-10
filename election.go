@@ -9,15 +9,17 @@ type Election struct{
 	node					*Node
 	once 					sync.Once
 	onceDisabled 			bool
+	random 					bool
 	startTime 				time.Time
+	defaultElectionTimeout	time.Duration
 	electionTimeout			time.Duration
-	randomElectionTimeout	time.Duration
 }
 
 func newElection(node *Node,electionTimeout time.Duration) *Election {
 	election:=&Election{
 		node:node,
-		electionTimeout:electionTimeout,
+		defaultElectionTimeout:electionTimeout,
+		random:true,
 	}
 	return election
 }
@@ -25,15 +27,21 @@ func newElection(node *Node,electionTimeout time.Duration) *Election {
 func (election *Election)Reset(){
 	election.startTime=time.Now()
 	if election.onceDisabled{
-		election.randomElectionTimeout=election.electionTimeout+randomDurationTime(election.electionTimeout)
+		if election.random{
+			election.electionTimeout=election.defaultElectionTimeout+randomDurationTime(election.defaultElectionTimeout)
+		}else{
+			election.electionTimeout=election.defaultElectionTimeout
+		}
 	}
 	election.once.Do(func() {
-		election.randomElectionTimeout=DefaultStartWait 
+		election.electionTimeout=DefaultStartWait
 	})
 }
-
+func (election *Election)Random(random bool){
+	election.random=random
+}
 func (election *Election)Timeout()bool{
-	if election.startTime.Add(election.randomElectionTimeout).Before(time.Now()){
+	if election.startTime.Add(election.electionTimeout).Before(time.Now()){
 		election.onceDisabled=true
 		return true
 	}

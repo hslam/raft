@@ -4,12 +4,14 @@ import (
 	"hslam.com/mgit/Mort/rpc"
 	"errors"
 	"sync"
+	"time"
 )
 
 const (
 	network = "tcp"
 	codec = "pb"
 	MaxConnsPerHost=8
+	keepAlive=time.Minute
 )
 var rpcsPool []*RPCs
 var rpcsMut sync.Mutex
@@ -17,6 +19,15 @@ var rpcsMut sync.Mutex
 func init() {
 	for i:=0;i<MaxConnsPerHost ;i++  {
 		rpcsPool=append(rpcsPool,newRPCs([]string{}) )
+	}
+	go run()
+}
+func run(){
+	ticker:=time.NewTicker(keepAlive/2)
+	for range ticker.C {
+		for _,r:=range rpcsPool{
+			r.check()
+		}
 	}
 }
 func getRPCs() (*RPCs) {
@@ -32,11 +43,16 @@ func getRPCs() (*RPCs) {
 
 type RPCs struct {
 	mu				sync.RWMutex
-	conns			map[string]rpc.Client
+	conns			map[string]*Client
+}
+type Client struct {
+	rpc.Client
+	startTime 				time.Time
+	keepAlive				time.Duration
 }
 func newRPCs(addrs []string) *RPCs{
 	r :=&RPCs{
-		conns:make(map[string]rpc.Client),
+		conns:make(map[string]*Client),
 	}
 	for _, addr:= range addrs {
 		conn, err := r.NewConn(addr)
@@ -45,13 +61,21 @@ func newRPCs(addrs []string) *RPCs{
 			conn.SetCompressType("gzip")
 			conn.EnableBatch()
 			conn.EnableBatchAsync()
-			r.conns[addr] = conn
+			c:=&Client{conn,time.Now(),keepAlive}
+			r.conns[addr] = c
 		}
 	}
 	return r
 }
 
-func (r *RPCs) GetConn(addr string) rpc.Client {
+func (r *RPCs) check(){
+	for addr,conn:=range r.conns{
+		if conn.startTime.Add(conn.keepAlive).Before(time.Now()){
+			r.RemoveConn(addr)
+		}
+	}
+}
+func (r *RPCs) GetConn(addr string) *Client {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if _,ok:=r.conns[addr];ok{
@@ -63,7 +87,9 @@ func (r *RPCs) GetConn(addr string) rpc.Client {
 		conn.SetCompressType("gzip")
 		conn.EnableBatch()
 		conn.EnableBatchAsync()
-		r.conns[addr] = conn
+		c:=&Client{conn,time.Now(),keepAlive}
+		r.conns[addr] = c
+		r.conns[addr] = c
 		return r.conns[addr]
 	}
 	return nil
@@ -89,6 +115,7 @@ func (r *RPCs) Call(addr string,req *Request, res *Response)error {
 			r.RemoveConn(addr)
 			return err
 		}
+		conn.startTime=time.Now()
 		return nil
 	}
 	return errors.New("RPCs.Call can not connect to "+addr)

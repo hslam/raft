@@ -5,6 +5,8 @@ import (
 	"hslam.com/mgit/Mort/raft/example/raftdb/node"
 	"log"
 	"strings"
+	"net/http"
+	_ "net/http/pprof"
 )
 
 var(
@@ -26,6 +28,7 @@ func init() {
 }
 
 func main() {
+	go func() {log.Println(http.ListenAndServe(":6062", nil))}()
 	flag.Parse()
 	var peers []string
 	if addrs != "" {

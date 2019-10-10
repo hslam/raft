@@ -176,18 +176,15 @@ func (r *raft) HandleRequestVote(req *RequestVoteRequest, res *RequestVoteRespon
 	if req.Term<r.node.currentTerm.Id(){
 		res.VoteGranted=false
 		return nil
-	}else if req.Term>r.node.currentTerm.Id(){
+	}else if req.Term>r.node.currentTerm.Id()&&req.LastLogIndex>=r.node.lastLogIndex.Id()&&req.LastLogTerm>=r.node.lastLogTerm{
 		r.node.currentTerm.Set(req.Term)
 		r.node.votedFor.Reset()
-		if req.LastLogIndex>=r.node.lastLogIndex.Id()&&req.LastLogTerm>=r.node.lastLogTerm{
-			r.node.stepDown()
-		}
-		if r.node.state.String()==Leader||r.node.state.String()==Candidate{
-			res.VoteGranted=false
-			return nil
-		}
+		r.node.stepDown()
 	}
-	if (r.node.votedFor.String()==""||r.node.votedFor.String()==req.CandidateId)&&req.LastLogIndex>=r.node.lastLogIndex.Id()&&req.LastLogTerm>=r.node.lastLogTerm{
+	if r.node.state.String()==Leader||r.node.state.String()==Candidate{
+		res.VoteGranted=false
+		return nil
+	} else if (r.node.votedFor.String()==""||r.node.votedFor.String()==req.CandidateId)&&req.LastLogIndex>=r.node.lastLogIndex.Id()&&req.LastLogTerm>=r.node.lastLogTerm{
 		res.VoteGranted=true
 		r.node.votedFor.Set(req.CandidateId)
 		r.node.stepDown()
@@ -210,6 +207,7 @@ func (r *raft) HandleAppendEntries(req *AppendEntriesRequest, res *AppendEntries
 		}
 	}
 	if 	r.node.leader==""{
+		r.node.votedFor.Set(req.LeaderId)
 		r.node.leader=req.LeaderId
 		Tracef("raft.HandleAppendEntries %s State %s leader %s Term %d",r.node.address, r.node.State(),r.node.leader,r.node.currentTerm.Id())
 	}

@@ -9,16 +9,16 @@ type LeaderState struct{
 	once 					sync.Once
 	node					*Node
 	stop					chan bool
-	heartbeatTicker			*timer.Ticker
-	checkTicker				*timer.Ticker
+	heartbeatTicker			*timer.FuncTicker
+	checkTicker				*timer.FuncTicker
 }
 func newLeaderState(node *Node) State {
 	//Tracef("%s newLeaderState",node.address)
 	state:=&LeaderState{
 		node:					node,
 		stop:					make(chan bool,1),
-		heartbeatTicker:		timer.NewFuncTicker(node.hearbeatTick),
-		checkTicker:			timer.NewFuncTicker(DefaultCheckDelay),
+		heartbeatTicker:		timer.NewFuncTicker(node.heartbeatTick,nil),
+		checkTicker:			timer.NewFuncTicker(DefaultCheckDelay,nil),
 	}
 	state.Reset()
 	go state.run()
@@ -33,22 +33,22 @@ func (state *LeaderState)Reset(){
 		}
 	}
 	state.node.leader=state.node.address
+	state.node.lease=true
+	state.node.election.Random(false)
 	state.node.election.Reset()
 	Allf("%s LeaderState.Reset Term :%d",state.node.address,state.node.currentTerm.Id())
 }
 
 func (state *LeaderState) Update(){
-	//if state.node.AliveCount()<state.node.Quorum(){
-	//	Tracef("%s LeaderState.Update AliveCount %d < Quorum %d",state.node.address,state.node.AliveCount(),state.node.Quorum())
-	//	state.node.stepDown()
-	//}
 	if state.node.election.Timeout(){
+		state.node.lease=false
 		state.node.stepDown()
 		return
 	}else if state.node.AliveCount()>=state.node.Quorum(){
+		state.node.lease=true
 		state.node.election.Reset()
+		state.node.Commit()
 	}
-	state.node.Commit()
 }
 
 func (state *LeaderState) String()string{
@@ -56,10 +56,18 @@ func (state *LeaderState) String()string{
 }
 
 func (state *LeaderState)StepDown()State{
+	defer func() {
+		if err := recover(); err != nil {
+		}
+	}()
 	state.stop<-true
 	return newFollowerState(state.node)
 }
 func (state *LeaderState)NextState()State{
+	defer func() {
+		if err := recover(); err != nil {
+		}
+	}()
 	state.stop<-true
 	return newFollowerState(state.node)
 }

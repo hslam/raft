@@ -8,10 +8,9 @@ import (
 
 func main() {
 	raft.SetLogLevel(raft.DebugLevel)
-	node,_:=raft.NewNode("localhost",8003,"raft3",nil)
+	node,_:=raft.NewNode("localhost",9003,"raft3",nil)
 	fmt.Println("State:",node.State())
-	node.SetNode([]string{"localhost:8001","localhost:8002","localhost:8003"})
-
+	node.SetNode([]string{"localhost:9001","localhost:9002","localhost:9003"})
 	node.Start()
 	for{
 		time.Sleep(time.Second*3)

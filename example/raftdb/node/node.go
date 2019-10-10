@@ -8,8 +8,8 @@ import (
 	"sync"
 	"hslam.com/mgit/Mort/raft"
 	"hslam.com/mgit/Mort/mux"
-	"hslam.com/mgit/Mort/mux-x/proxy"
-	"hslam.com/mgit/Mort/mux-x/render"
+	"hslam.com/mgit/Mort/handler/proxy"
+	"hslam.com/mgit/Mort/handler/render"
 	"hslam.com/mgit/Mort/rpc"
 	"net/url"
 	"strconv"
@@ -33,6 +33,7 @@ type Node struct {
 	rpc_port	int
 	data_dir	string
 	router		*mux.Router
+	render 		*render.Render
 	raft_node 	*raft.Node
 	http_server	*http.Server
 	db			*DB
@@ -47,6 +48,7 @@ func NewNode(data_dir string, host string, port ,rpc_port,raft_port int,peers []
 		data_dir:   data_dir,
 		db:     	newDB(),
 		router: 	mux.New(),
+		render:		render.NewRender(),
 	}
 	var err error
 	n.raft_node, err = raft.NewNode(host,raft_port,n.data_dir,n.db)
@@ -99,22 +101,23 @@ func (n *Node) leaderHandle(hander http.HandlerFunc) http.HandlerFunc{
 		if err := recover(); err != nil {
 		}
 	}()
-	if n.raft_node.IsLeader(){
-		return hander
-	}
 	return func(w http.ResponseWriter, r *http.Request) {
-		leader:=n.raft_node.Leader()
-		if leader!=""{
-			leader_url, err := url.Parse("http://" + leader)
-			if err!=nil{
-				panic(err)
+		if n.raft_node.IsLeader(){
+			hander(w,r)
+		}else {
+			leader:=n.raft_node.Leader()
+			if leader!=""{
+				leader_url, err := url.Parse("http://" + leader)
+				if err!=nil{
+					panic(err)
+				}
+				port,err:=strconv.Atoi(leader_url.Port())
+				if err!=nil{
+					panic(err)
+				}
+				leader_url.Host=leader_url.Hostname() + ":" + strconv.Itoa(port-2000)
+				proxy.Proxy(w,r,leader_url.String()+r.URL.Path)
 			}
-			port,err:=strconv.Atoi(leader_url.Port())
-			if err!=nil{
-				panic(err)
-			}
-			leader_url.Host=leader_url.Hostname() + ":" + strconv.Itoa(port-2000)
-			proxy.Proxy(w,r,leader_url.String()+r.URL.Path)
 		}
 	}
 }
@@ -166,7 +169,7 @@ func (n *Node) statusHandler(w http.ResponseWriter, req *http.Request) {
 		Node:n.raft_node.Address(),
 		Peers:n.raft_node.Peers(),
 	}
-	render.WriteJson(w,req,http.StatusOK,status)
+	n.render.JSON(w,req,status,http.StatusOK)
 }
 func (n *Node) leaderHandler(w http.ResponseWriter, req *http.Request) {
 	defer func() {
@@ -180,7 +183,7 @@ func (n *Node) isLeaderHandler(w http.ResponseWriter, req *http.Request) {
 		if err := recover(); err != nil {
 		}
 	}()
-	render.WriteJson(w,req,http.StatusOK,n.raft_node.IsLeader())
+	n.render.JSON(w,req,n.raft_node.IsLeader(),http.StatusOK)
 }
 func (n *Node) addressHandler(w http.ResponseWriter, req *http.Request) {
 	defer func() {
@@ -194,7 +197,7 @@ func (n *Node) peersHandler(w http.ResponseWriter, req *http.Request) {
 		if err := recover(); err != nil {
 		}
 	}()
-	render.WriteJson(w,req,http.StatusOK,n.raft_node.Peers())
+	n.render.JSON(w,req,n.raft_node.Peers(),http.StatusOK)
 }
 func (n *Node) nodesHandler(w http.ResponseWriter, req *http.Request) {
 	defer func() {
@@ -203,5 +206,5 @@ func (n *Node) nodesHandler(w http.ResponseWriter, req *http.Request) {
 	}()
 	nodes:=n.raft_node.Peers()
 	nodes=append(nodes,n.raft_node.Address())
-	render.WriteJson(w,req,http.StatusOK,nodes)
+	n.render.JSON(w,req,nodes,http.StatusOK)
 }

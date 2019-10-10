@@ -26,7 +26,7 @@ type Node struct {
 	leader							string
 
 	//config
-	hearbeatTick					time.Duration
+	heartbeatTick					time.Duration
 	storage 						*Storage
 	raft 							Raft
 	rpcs							*RPCs
@@ -36,13 +36,13 @@ type Node struct {
 
 	stateMachine					*StateMachine
 	peers      						map[string]*Peer
-	detectTicker					*timer.Ticker
+	detectTicker					*timer.FuncTicker
 
-	keepAliveTicker					*timer.Ticker
+	keepAliveTicker					*timer.FuncTicker
 
 	state							State
 	changeStateChan 				chan int
-	ticker							*timer.Ticker
+	ticker							*timer.FuncTicker
 
 	//persistent state on all servers
 	currentTerm						*PersistentUint64
@@ -50,8 +50,6 @@ type Node struct {
 
 	//volatile state on all servers
 	commitIndex						*PersistentUint64
-
-
 
 	lastLogIndex					*PersistentUint64
 	lastLogTerm						uint64
@@ -67,6 +65,9 @@ type Node struct {
 	votes	 						*Votes
 	election						*Election
 
+	//leader
+	lease 							bool
+
 	raftCodec						Codec
 	codec							Codec
 
@@ -74,7 +75,6 @@ type Node struct {
 	commandType						*CommandType
 	pipeline						*Pipeline
 	pipelineChan					chan bool
-
 
 }
 
@@ -90,12 +90,12 @@ func NewNode(host string, port int,data_dir string,context interface{})(*Node,er
 		storage:newStorage(data_dir),
 		rpcs:newRPCs([]string{}),
 		peers:make(map[string]*Peer),
-		detectTicker:timer.NewFuncTicker(DefaultDetectTick),
-		keepAliveTicker:timer.NewFuncTicker(DefaultKeepAliveTick),
-		ticker:timer.NewFuncTicker(DefaultNodeTick),
+		detectTicker:timer.NewFuncTicker(DefaultDetectTick,nil),
+		keepAliveTicker:timer.NewFuncTicker(DefaultKeepAliveTick,nil),
+		ticker:timer.NewFuncTicker(DefaultNodeTick,nil),
 		stop:make(chan bool,1),
 		changeStateChan: make(chan int,1),
-		hearbeatTick:DefaultHearbeatTick,
+		heartbeatTick:DefaultHeartbeatTick,
 		raftCodec:new(ProtoCodec),
 		codec:new(JsonCodec),
 		context:context,
@@ -233,6 +233,11 @@ func (n *Node) Leader()string {
 	defer n.mu.RUnlock()
 	return n.leader
 }
+func (n *Node) Lease()bool {
+	n.mu.RLock()
+	defer n.mu.RUnlock()
+	return n.lease
+}
 func (n *Node) IsLeader()bool {
 	n.mu.RLock()
 	defer n.mu.RUnlock()
@@ -242,7 +247,7 @@ func (n *Node) isLeader()bool {
 	if !n.running{
 		return false
 	}
-	if n.leader==n.address&&n.state.String()==Leader{
+	if n.leader==n.address&&n.state.String()==Leader&&n.lease{
 		return true
 	}else{
 		return false
@@ -377,7 +382,6 @@ func (n *Node) AliveCount() int {
 	}
 	return cnt
 }
-
 
 func (n *Node) requestVotes() error {
 	n.nodesMut.RLock()

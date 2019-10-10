@@ -15,8 +15,8 @@ type Log struct {
 	entryChan             	chan *Entry
 	readyEntries			[]*Entry
 	maxBatch				int
-	appendEntriesTicker		*timer.Ticker
-	compactionTicker		*timer.Ticker
+	appendEntriesTicker		*timer.FuncTicker
+	compactionTicker		*timer.FuncTicker
 	entryPool 				*sync.Pool
 }
 
@@ -27,8 +27,8 @@ func newLog(node *Node) *Log {
 		entryChan:				make(chan *Entry,DefaultMaxCacheEntries),
 		readyEntries:			make([]*Entry,0),
 		maxBatch:				DefaultMaxBatch,
-		appendEntriesTicker:	timer.NewFuncTicker(DefaultMaxDelay),
-		compactionTicker:	timer.NewTicker(DefaultCompactionTick),
+		appendEntriesTicker:	timer.NewFuncTicker(DefaultMaxDelay,nil),
+		compactionTicker:		timer.NewFuncTicker(DefaultCompactionTick,nil),
 	}
 	log.entryPool= &sync.Pool{
 		New: func() interface{} {
@@ -348,19 +348,6 @@ func (log *Log) loadMd5() (string,error) {
 }
 
 func (log *Log) run()  {
-	go func() {
-		for entry := range log.entryChan {
-			log.batchMu.Lock()
-			log.readyEntries=append(log.readyEntries, entry)
-			if len(log.readyEntries)>=log.maxBatch{
-				entries:=log.readyEntries[:]
-				log.readyEntries=nil
-				log.readyEntries=make([]*Entry,0)
-				log.ticker(entries)
-			}
-			log.batchMu.Unlock()
-		}
-	}()
 	log.appendEntriesTicker.Tick(func() {
 		log.batchMu.Lock()
 		if len(log.readyEntries)>log.maxBatch{
@@ -374,11 +361,19 @@ func (log *Log) run()  {
 		}
 		log.batchMu.Unlock()
 	})
-	for{
-		select {
-		case <-log.compactionTicker.C:
-			//log.compaction()
+	log.compactionTicker.Tick(func() {
+		//log.compaction()
+	})
+	for entry := range log.entryChan {
+		log.batchMu.Lock()
+		log.readyEntries=append(log.readyEntries, entry)
+		if len(log.readyEntries)>=log.maxBatch{
+			entries:=log.readyEntries[:]
+			log.readyEntries=nil
+			log.readyEntries=make([]*Entry,0)
+			log.ticker(entries)
 		}
+		log.batchMu.Unlock()
 	}
 }
 func (log *Log) ticker(entries []*Entry) {
