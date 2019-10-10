@@ -49,9 +49,8 @@ func init()  {
 }
 
 func main()  {
-	fmt.Printf("./client -network=%s -codec=%s -compress=%s -h=%s -p=%d -total=%d -pipelining=%t -multiplexing=%t -batch=%t -batch_async=%t -clients=%d\n",network,codec,compress,host,port,total_calls,pipelining,multiplexing,batch,batch_async,clients)
+	fmt.Printf("./client -network=%s -codec=%s -compress=%s -h=%s -p=%d -parallel=%d -total=%d -pipelining=%t -multiplexing=%t -batch=%t -batch_async=%t -clients=%d\n",network,codec,compress,host,port,parallel,total_calls,pipelining,multiplexing,batch,batch_async,clients)
 	var wrkClients []stats.Client
-	parallel:=1
 	if clients>1{
 		pool,err := rpc.DialsWithMaxRequests(clients,network,addr,codec,parallel)
 		if err != nil {

@@ -88,6 +88,9 @@ func (n *Node) ListenAndServe() error {
 	server.RegisterName("S",service)
 	server.EnableAsyncHandleWithSize(1024)
 	rpc.SetLogLevel(99)
+	if len(rpcsPool)==0{
+		InitRPCProxy(MaxConnsPerHost)
+	}
 	go server.ListenAndServe("tcp", fmt.Sprintf(":%d", n.rpc_port))
 	return n.http_server.ListenAndServe()
 }

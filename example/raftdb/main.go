@@ -15,6 +15,7 @@ var(
 	raft_port int
 	addrs string
 	data_dir string
+	max int
 )
 
 func init() {
@@ -24,6 +25,7 @@ func init() {
 	flag.IntVar(&raft_port, "f", 9001, "port")
 	flag.StringVar(&addrs, "peers", "", "host:port,host:port")
 	flag.StringVar(&data_dir, "path", "raft.1", "path")
+	flag.IntVar(&max, "m", 8, "MaxConnsPerHost: -m=8")
 	runtime.GOMAXPROCS(runtime.NumCPU())
 }
 
@@ -34,5 +36,6 @@ func main() {
 		peers = strings.Split(addrs, ",")
 	}
 	s := node.NewNode(data_dir, host, port,rpc_port,raft_port,peers)
+	node.InitRPCProxy(max)
 	log.Fatal(s.ListenAndServe())
 }

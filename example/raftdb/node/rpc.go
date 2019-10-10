@@ -16,14 +16,14 @@ const (
 var rpcsPool []*RPCs
 var rpcsMut sync.Mutex
 
-func init() {
-	for i:=0;i<MaxConnsPerHost ;i++  {
+func InitRPCProxy(maxConnsPerHost int) {
+	for i:=0;i<maxConnsPerHost ;i++  {
 		rpcsPool=append(rpcsPool,newRPCs([]string{}) )
 	}
 	go run()
 }
 func run(){
-	ticker:=time.NewTicker(keepAlive/2)
+	ticker:=time.NewTicker(time.Second)
 	for range ticker.C {
 		for _,r:=range rpcsPool{
 			r.check()
