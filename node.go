@@ -36,13 +36,13 @@ type Node struct {
 
 	stateMachine					*StateMachine
 	peers      						map[string]*Peer
-	detectTicker					*timer.Ticker
+	detectTicker					*time.Ticker
 	keepAliveTicker					*time.Ticker
 	printTicker						*time.Ticker
 
 	state							State
 	changeStateChan 				chan int
-	ticker							*timer.Ticker
+	ticker							*timer.FuncTicker
 
 	//persistent state on all servers
 	currentTerm						*PersistentUint64
@@ -92,9 +92,9 @@ func NewNode(host string, port int,data_dir string,context interface{})(*Node,er
 		rpcs:newRPCs([]string{}),
 		peers:make(map[string]*Peer),
 		printTicker:time.NewTicker(DefaultNodeTracePrintTick),
-		detectTicker:timer.NewTicker(DefaultDetectTick),
+		detectTicker:time.NewTicker(DefaultDetectTick),
 		keepAliveTicker:time.NewTicker(DefaultKeepAliveTick),
-		ticker:timer.NewTicker(DefaultNodeTick),
+		ticker:timer.NewFuncTicker(DefaultNodeTick,nil),
 		stop:make(chan bool,1),
 		changeStateChan: make(chan int,1),
 		heartbeatTick:DefaultHeartbeatTick,
@@ -147,6 +147,26 @@ func (n *Node) Start() {
 	n.running=true
 }
 func (n *Node) run() {
+	n.ticker.Tick(func() {
+		if !n.running{
+			return
+		}
+		func(){
+			defer func() {if err := recover(); err != nil {}}()
+			select {
+			case i := <-n.changeStateChan:
+				if i == 1 {
+					n.setState(n.state.NextState())
+				} else if i == -1 {
+					n.setState(n.state.StepDown())
+				}else if i == 0 {
+					n.state.Reset()
+				}
+			default:
+				n.state.Update()
+			}
+		}()
+	})
 	for {
 		select {
 		case <-n.printTicker.C:
@@ -168,22 +188,6 @@ func (n *Node) run() {
 			func(){
 				defer func() {if err := recover(); err != nil {}}()
 				n.votes.AddVote(v)
-			}()
-		case <-n.ticker.C:
-			func(){
-				defer func() {if err := recover(); err != nil {}}()
-				select {
-				case i := <-n.changeStateChan:
-					if i == 1 {
-						n.setState(n.state.NextState())
-					} else if i == -1 {
-						n.setState(n.state.StepDown())
-					}else if i == 0 {
-						n.state.Reset()
-					}
-				default:
-					n.state.Update()
-				}
 			}()
 		case <-n.stop:
 			goto endfor

@@ -16,7 +16,7 @@ type Log struct {
 	entryChan             	chan *Entry
 	readyEntries			[]*Entry
 	maxBatch				int
-	appendEntriesTicker		*timer.Ticker
+	appendEntriesTicker		*timer.FuncTicker
 	compactionTicker		*time.Ticker
 	entryPool 				*sync.Pool
 	stop					chan bool
@@ -29,7 +29,7 @@ func newLog(node *Node) *Log {
 		entryChan:				make(chan *Entry,DefaultMaxCacheEntries),
 		readyEntries:			make([]*Entry,0),
 		maxBatch:				DefaultMaxBatch,
-		appendEntriesTicker:	timer.NewTicker(DefaultMaxDelay),
+		appendEntriesTicker:	timer.NewFuncTicker(DefaultMaxDelay,nil),
 		compactionTicker:		time.NewTicker(DefaultCompactionTick),
 		stop:make(chan bool,1),
 	}
@@ -129,7 +129,6 @@ func (log *Log) applyCommited() {
 	}
 	var startIndex =maxUint64(log.node.stateMachine.lastApplied,1)
 	var endIndex =log.node.commitIndex.Id()
-
 	if endIndex-startIndex>DefaultMaxBatch{
 		index:=startIndex
 		for {
@@ -355,34 +354,37 @@ func (log *Log) loadMd5() (string,error) {
 func (log *Log) run()  {
 	go func() {
 		for entry := range log.entryChan {
-			log.batchMu.Lock()
-			log.readyEntries=append(log.readyEntries, entry)
-			if len(log.readyEntries)>=log.maxBatch{
-				entries:=log.readyEntries[:]
-				log.readyEntries=nil
-				log.readyEntries=make([]*Entry,0)
-				log.ticker(entries)
-			}
-			log.batchMu.Unlock()
-		}
-	}()
-	for {
-		select {
-		case <-log.appendEntriesTicker.C:
 			func(){
-				defer func() {if err := recover(); err != nil {}}()
 				log.batchMu.Lock()
-				if len(log.readyEntries)>log.maxBatch{
-					entries:=log.readyEntries[:log.maxBatch]
-					log.readyEntries=log.readyEntries[log.maxBatch:]
-					log.ticker(entries)
-				}else  if len(log.readyEntries)>0{
+				defer log.batchMu.Unlock()
+				log.readyEntries=append(log.readyEntries, entry)
+				if len(log.readyEntries)>=log.maxBatch{
 					entries:=log.readyEntries[:]
-					log.readyEntries=log.readyEntries[len(log.readyEntries):]
+					log.readyEntries=nil
+					log.readyEntries=make([]*Entry,0)
 					log.ticker(entries)
 				}
-				log.batchMu.Unlock()
+
 			}()
+		}
+	}()
+	log.appendEntriesTicker.Tick(func(){
+		defer func() {if err := recover(); err != nil {}}()
+		log.batchMu.Lock()
+		defer log.batchMu.Unlock()
+		if len(log.readyEntries)>log.maxBatch{
+			entries:=log.readyEntries[:log.maxBatch]
+			log.readyEntries=log.readyEntries[log.maxBatch:]
+			log.ticker(entries)
+		}else  if len(log.readyEntries)>0{
+			entries:=log.readyEntries[:]
+			log.readyEntries=log.readyEntries[len(log.readyEntries):]
+			log.ticker(entries)
+		}
+
+	})
+	for {
+		select {
 		case <-log.compactionTicker.C:
 			func(){
 				defer func() {if err := recover(); err != nil {}}()

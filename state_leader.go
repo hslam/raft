@@ -12,8 +12,8 @@ type LeaderState struct{
 	stop					chan bool
 	notice 					chan bool
 	heartbeatTicker			*time.Ticker
-	checkTicker				*timer.Ticker
-	commitTicker			*timer.Ticker
+	checkTicker				*timer.FuncTicker
+	commitTicker			*timer.FuncTicker
 }
 func newLeaderState(node *Node) State {
 	//Tracef("%s newLeaderState",node.address)
@@ -23,8 +23,8 @@ func newLeaderState(node *Node) State {
 		stop:					make(chan bool,1),
 		notice:					make(chan bool,1),
 		heartbeatTicker:		time.NewTicker(node.heartbeatTick),
-		checkTicker:			timer.NewTicker(DefaultCheckDelay),
-		commitTicker:			timer.NewTicker(DefaultCommitDelay),
+		checkTicker:			timer.NewFuncTicker(DefaultCheckDelay,nil),
+		commitTicker:			timer.NewFuncTicker(DefaultCommitDelay,nil),
 	}
 	state.Reset()
 	go state.run()
@@ -88,26 +88,24 @@ func (state *LeaderState)NextState()State{
 }
 
 func (state *LeaderState) run() {
+	state.checkTicker.Tick(func(){
+		defer func() {if err := recover(); err != nil {}}()
+		state.node.check()
+	})
+	state.commitTicker.Tick(func() {
+		defer func() {if err := recover(); err != nil {}}()
+		if state.node.AliveCount()>=state.node.Quorum(){
+			state.node.lease=true
+			state.node.election.Reset()
+			state.node.Commit()
+		}
+	})
 	for {
 		select {
-		case <-state.checkTicker.C:
-			func(){
-				defer func() {if err := recover(); err != nil {}}()
-				state.node.check()
-			}()
 		case <-state.heartbeatTicker.C:
 			func(){
 				defer func() {if err := recover(); err != nil {}}()
 				state.node.heartbeats()
-			}()
-		case <-state.commitTicker.C:
-			func(){
-				defer func() {if err := recover(); err != nil {}}()
-				if state.node.AliveCount()>=state.node.Quorum(){
-					state.node.lease=true
-					state.node.election.Reset()
-					state.node.Commit()
-				}
 			}()
 		case <-state.stop:
 			goto endfor
