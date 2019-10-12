@@ -2,6 +2,7 @@ package raft
 
 import (
 	"sync"
+	"errors"
 	//"fmt"
 )
 var (
@@ -21,7 +22,6 @@ type Index struct {
 func newIndex(node *Node) *Index {
 	i:=&Index{
 		node:node,
-		//metas:make([]*Meta,0),
 	}
 	i.metaPool= &sync.Pool{
 		New: func() interface{} {
@@ -177,10 +177,9 @@ func (i *Index) append(b []byte) {
 
 func (i *Index) recover() error {
 	if !i.node.storage.Exists(DefaultIndex){
-		return nil
+		return errors.New(DefaultIndex+" file is not existed")
 	}
-	i.node.lastLogIndex.load()
-	return nil
+	return i.node.lastLogIndex.load()
 }
 
 func (i *Index) length() uint64 {

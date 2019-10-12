@@ -39,28 +39,27 @@ func (r *raft) Hearbeat(addr string,prevLogIndex,prevLogTerm uint64)  (nextIndex
 	req.PrevLogIndex=prevLogIndex
 	req.PrevLogTerm=prevLogTerm
 	req.Entries=[]*Entry{}
-	var ch =make(chan *AppendEntriesResponse)
-	go func (rpcs *RPCs,addr string,req *AppendEntriesRequest, ch chan *AppendEntriesResponse) {
+	var ch =make(chan *AppendEntriesResponse,1)
+	var errCh =make(chan error,1)
+	go func (rpcs *RPCs,addr string,req *AppendEntriesRequest, ch chan *AppendEntriesResponse,errCh chan error) {
 		var res =&AppendEntriesResponse{}
 		if err := r.node.rpcs.CallAppendEntries(addr,req, res); err != nil {
-			ch<-nil
+			errCh<-err
 		} else {
 			ch <- res
 		}
-	}(r.node.rpcs,addr,req,ch)
+	}(r.node.rpcs,addr,req,ch,errCh)
 	select {
 	case res:=<-ch:
-		if res==nil{
-			Tracef("raft.Hearbeat %s -> %s error",r.node.address,addr)
-			return 0,0,false,false
-		}
 		if res.Term>r.node.currentTerm.Id(){
 			r.node.currentTerm.Set(res.Term)
 			r.node.stepDown()
-
 		}
 		//Tracef("raft.Hearbeat %s -> %s",r.node.address,addr)
 		return res.NextIndex,res.Term,res.Success,true
+	case err:=<-errCh:
+		Tracef("raft.Hearbeat %s -> %s error %s",r.node.address,addr,err.Error())
+		return 0,0,false,false
 	case <-time.After(r.hearbeatTimeout):
 		Tracef("raft.Hearbeat %s -> %s time out",r.node.address,addr)
 	}
@@ -72,21 +71,18 @@ func (r *raft) RequestVote(addr string) (ok bool){
 	req.CandidateId=r.node.address
 	req.LastLogIndex=r.node.lastLogIndex.Id()
 	req.LastLogTerm=r.node.lastLogTerm
-	var ch =make(chan *RequestVoteResponse)
-	go func (rpcs *RPCs,addr string,req *RequestVoteRequest, ch chan *RequestVoteResponse) {
+	var ch =make(chan *RequestVoteResponse,1)
+	var errCh =make(chan error,1)
+	go func (rpcs *RPCs,addr string,req *RequestVoteRequest, ch chan *RequestVoteResponse,errCh chan error) {
 		var res =&RequestVoteResponse{}
 		if err := rpcs.CallRequestVote(addr,req, res); err != nil {
-			ch<-nil
+			errCh<-err
 		}else {
 			ch <- res
 		}
-	}(r.node.rpcs,addr,req,ch)
+	}(r.node.rpcs,addr,req,ch,errCh)
 	select {
 	case res:=<-ch:
-		if res==nil{
-			Tracef("raft.RequestVote %s recv %s vote error",r.node.address,addr)
-			return false
-		}
 		if res.Term>r.node.currentTerm.Id(){
 			r.node.currentTerm.Set(res.Term)
 			r.node.stepDown()
@@ -98,6 +94,9 @@ func (r *raft) RequestVote(addr string) (ok bool){
 			r.node.votes.vote<-newVote(addr,req.Term,0)
 		}
 		return true
+	case err:=<-errCh:
+		Tracef("raft.RequestVote %s recv %s vote error %s",r.node.address,addr,err.Error())
+		return false
 	case <-time.After(r.requestVoteTimeout):
 		Tracef("raft.RequestVote %s recv %s vote time out",r.node.address,addr)
 		r.node.votes.vote<-newVote(addr,req.Term,0)
@@ -112,21 +111,18 @@ func (r *raft) AppendEntries(addr string,prevLogIndex,prevLogTerm uint64,entries
 	req.PrevLogIndex=prevLogIndex
 	req.PrevLogTerm=prevLogTerm
 	req.Entries=entries
-	var ch =make(chan *AppendEntriesResponse)
-	go func (rpcs *RPCs,addr string,req *AppendEntriesRequest, ch chan *AppendEntriesResponse) {
+	var ch =make(chan *AppendEntriesResponse,1)
+	var errCh =make(chan error,1)
+	go func (rpcs *RPCs,addr string,req *AppendEntriesRequest, ch chan *AppendEntriesResponse,errCh chan error) {
 		var res =&AppendEntriesResponse{}
 		if err := r.node.rpcs.CallAppendEntries(addr,req, res); err != nil {
-			ch<-nil
+			errCh<-err
 		} else {
 			ch <- res
 		}
-	}(r.node.rpcs,addr,req,ch)
+	}(r.node.rpcs,addr,req,ch,errCh)
 	select {
 	case res:=<-ch:
-		if res==nil{
-			Tracef("raft.AppendEntries %s -> %s error",r.node.address,addr)
-			return 0,0,false,false
-		}
 		if res.Term>r.node.currentTerm.Id(){
 			r.node.currentTerm.Set(res.Term)
 			r.node.stepDown()
@@ -136,6 +132,9 @@ func (r *raft) AppendEntries(addr string,prevLogIndex,prevLogTerm uint64,entries
 		}
 		//Tracef("raft.AppendEntries %s -> %s",r.node.address,addr)
 		return res.NextIndex,res.Term,res.Success,true
+	case err:=<-errCh:
+		Tracef("raft.AppendEntries %s -> %s error %s",r.node.address,addr,err.Error())
+		return 0,0,false,false
 	case <-time.After(r.appendEntriesTimeout):
 		Tracef("raft.AppendEntries %s -> %s time out",r.node.address,addr)
 	}
@@ -144,27 +143,27 @@ func (r *raft) AppendEntries(addr string,prevLogIndex,prevLogTerm uint64,entries
 func (r *raft) InstallSnapshot(addr string) bool{
 	var req =&InstallSnapshotRequest{}
 	req.Term=r.node.currentTerm.Id()
-	var ch =make(chan *InstallSnapshotResponse)
-	go func (rpcs *RPCs,addr string,req *InstallSnapshotRequest, ch chan *InstallSnapshotResponse) {
+	var ch =make(chan *InstallSnapshotResponse,1)
+	var errCh =make(chan error,1)
+	go func (rpcs *RPCs,addr string,req *InstallSnapshotRequest, ch chan *InstallSnapshotResponse,errCh chan error) {
 		var res =&InstallSnapshotResponse{}
 		if err := r.node.rpcs.CallInstallSnapshot(addr,req, res); err != nil {
-			ch<-nil
+			errCh<-err
 		}else {
 			ch <- res
 		}
-	}(r.node.rpcs,addr,req,ch)
+	}(r.node.rpcs,addr,req,ch,errCh)
 	select {
 	case res:=<-ch:
-		if res==nil{
-			Tracef("raft.InstallSnapshot %s -> %s error",r.node.address,addr)
-			return false
-		}
 		if res.Term>r.node.currentTerm.Id(){
 			r.node.currentTerm.Set(res.Term)
 			r.node.stepDown()
 		}
 		Tracef("raft.InstallSnapshot %s -> %s",r.node.address,addr)
 		return true
+	case err:=<-errCh:
+		Tracef("raft.InstallSnapshot %s -> %s error %s",r.node.address,addr,err.Error())
+		return false
 	case <-time.After(r.installSnapshotTimeout):
 		Tracef("raft.InstallSnapshot %s -> %s time out",r.node.address,addr)
 	}
@@ -209,7 +208,7 @@ func (r *raft) HandleAppendEntries(req *AppendEntriesRequest, res *AppendEntries
 	if 	r.node.leader==""{
 		r.node.votedFor.Set(req.LeaderId)
 		r.node.leader=req.LeaderId
-		Tracef("raft.HandleAppendEntries %s State %s leader %s Term %d",r.node.address, r.node.State(),r.node.leader,r.node.currentTerm.Id())
+		Tracef("raft.HandleAppendEntries %s State:%s leader-%s Term:%d",r.node.address, r.node.State(),r.node.leader,r.node.currentTerm.Id())
 	}
 	if r.node.leader!=req.LeaderId{
 		res.Success=false
@@ -218,7 +217,7 @@ func (r *raft) HandleAppendEntries(req *AppendEntriesRequest, res *AppendEntries
 	}
 	if r.node.state.String()==Leader||r.node.state.String()==Candidate{
 		r.node.stepDown()
-		Tracef("raft.HandleAppendEntries %s State %s Term %d",r.node.address, r.node.State(),r.node.currentTerm.Id())
+		Tracef("raft.HandleAppendEntries %s State:%s Term:%d",r.node.address, r.node.State(),r.node.currentTerm.Id())
 	}
 	r.node.election.Reset()
 	if req.PrevLogIndex==0&&req.PrevLogTerm==0&&len(req.Entries)==0{

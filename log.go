@@ -1,9 +1,10 @@
 package raft
 
 import (
-	"hslam.com/mgit/Mort/timer"
 	"errors"
 	"sync"
+	"time"
+	"hslam.com/mgit/Mort/timer"
 )
 
 type Log struct {
@@ -15,9 +16,10 @@ type Log struct {
 	entryChan             	chan *Entry
 	readyEntries			[]*Entry
 	maxBatch				int
-	appendEntriesTicker		*timer.FuncTicker
-	compactionTicker		*timer.FuncTicker
+	appendEntriesTicker		*timer.Ticker
+	compactionTicker		*time.Ticker
 	entryPool 				*sync.Pool
+	stop					chan bool
 }
 
 func newLog(node *Node) *Log {
@@ -27,8 +29,9 @@ func newLog(node *Node) *Log {
 		entryChan:				make(chan *Entry,DefaultMaxCacheEntries),
 		readyEntries:			make([]*Entry,0),
 		maxBatch:				DefaultMaxBatch,
-		appendEntriesTicker:	timer.NewFuncTicker(DefaultMaxDelay,nil),
-		compactionTicker:		timer.NewFuncTicker(DefaultCompactionTick,nil),
+		appendEntriesTicker:	timer.NewTicker(DefaultMaxDelay),
+		compactionTicker:		time.NewTicker(DefaultCompactionTick),
+		stop:make(chan bool,1),
 	}
 	log.entryPool= &sync.Pool{
 		New: func() interface{} {
@@ -223,9 +226,12 @@ func (log *Log) append(b []byte) {
 func (log *Log) recover() error {
 	log.mu.Lock()
 	defer log.mu.Unlock()
-	log.indexs.recover()
+	err:=log.indexs.recover()
+	if err!=nil{
+		return err
+	}
 	if !log.node.storage.Exists(DefaultLog){
-		return nil
+		return errors.New(DefaultLog+" file is not existed")
 	}
 	lastLogIndex:=log.node.lastLogIndex.Id()
 	if lastLogIndex>0{
@@ -236,7 +242,6 @@ func (log *Log) recover() error {
 		log.node.nextIndex=log.node.lastLogIndex.Id()+1
 	}
 	Tracef("Log.recover %s lastLogIndex %d",log.node.address,lastLogIndex)
-
 	return nil
 }
 
@@ -348,34 +353,55 @@ func (log *Log) loadMd5() (string,error) {
 }
 
 func (log *Log) run()  {
-	log.appendEntriesTicker.Tick(func() {
-		log.batchMu.Lock()
-		if len(log.readyEntries)>log.maxBatch{
-			entries:=log.readyEntries[:log.maxBatch]
-			log.readyEntries=log.readyEntries[log.maxBatch:]
-			log.ticker(entries)
-		}else  if len(log.readyEntries)>0{
-			entries:=log.readyEntries[:]
-			log.readyEntries=log.readyEntries[len(log.readyEntries):]
-			log.ticker(entries)
+	go func() {
+		for entry := range log.entryChan {
+			log.batchMu.Lock()
+			log.readyEntries=append(log.readyEntries, entry)
+			if len(log.readyEntries)>=log.maxBatch{
+				entries:=log.readyEntries[:]
+				log.readyEntries=nil
+				log.readyEntries=make([]*Entry,0)
+				log.ticker(entries)
+			}
+			log.batchMu.Unlock()
 		}
-		log.batchMu.Unlock()
-	})
-	log.compactionTicker.Tick(func() {
-		//log.compaction()
-	})
-	for entry := range log.entryChan {
-		log.batchMu.Lock()
-		log.readyEntries=append(log.readyEntries, entry)
-		if len(log.readyEntries)>=log.maxBatch{
-			entries:=log.readyEntries[:]
-			log.readyEntries=nil
-			log.readyEntries=make([]*Entry,0)
-			log.ticker(entries)
+	}()
+	for {
+		select {
+		case <-log.appendEntriesTicker.C:
+			func(){
+				defer func() {if err := recover(); err != nil {}}()
+				log.batchMu.Lock()
+				if len(log.readyEntries)>log.maxBatch{
+					entries:=log.readyEntries[:log.maxBatch]
+					log.readyEntries=log.readyEntries[log.maxBatch:]
+					log.ticker(entries)
+				}else  if len(log.readyEntries)>0{
+					entries:=log.readyEntries[:]
+					log.readyEntries=log.readyEntries[len(log.readyEntries):]
+					log.ticker(entries)
+				}
+				log.batchMu.Unlock()
+			}()
+		case <-log.compactionTicker.C:
+			func(){
+				defer func() {if err := recover(); err != nil {}}()
+				//log.compaction()
+			}()
+		case <-log.stop:
+			goto endfor
 		}
-		log.batchMu.Unlock()
 	}
+endfor:
+	close(log.stop)
+	close(log.entryChan)
+	log.appendEntriesTicker.Stop()
+	log.compactionTicker.Stop()
 }
 func (log *Log) ticker(entries []*Entry) {
 	log.appendEntries(entries)
+}
+func (log *Log)Stop()  {
+	defer func() {if err := recover(); err != nil {}}()
+	log.stop<-true
 }

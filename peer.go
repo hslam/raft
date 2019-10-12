@@ -12,7 +12,7 @@ type Peer struct {
 	alive					bool
 	appendEntriesTicker		*time.Ticker
 	nextIndex				uint64
-	matchIndex				uint64
+	lastPrintNextIndex		uint64
 	send 					bool
 }
 

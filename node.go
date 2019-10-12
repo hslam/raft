@@ -36,13 +36,13 @@ type Node struct {
 
 	stateMachine					*StateMachine
 	peers      						map[string]*Peer
-	detectTicker					*timer.FuncTicker
-
-	keepAliveTicker					*timer.FuncTicker
+	detectTicker					*timer.Ticker
+	keepAliveTicker					*time.Ticker
+	printTicker						*time.Ticker
 
 	state							State
 	changeStateChan 				chan int
-	ticker							*timer.FuncTicker
+	ticker							*timer.Ticker
 
 	//persistent state on all servers
 	currentTerm						*PersistentUint64
@@ -60,6 +60,7 @@ type Node struct {
 	lastPrintLastLogIndex			uint64
 	lastPrintCommitIndex			uint64
 	lastPrintLastApplied			uint64
+	lastPrintNextIndex				uint64
 
 	//candidate
 	votes	 						*Votes
@@ -90,9 +91,10 @@ func NewNode(host string, port int,data_dir string,context interface{})(*Node,er
 		storage:newStorage(data_dir),
 		rpcs:newRPCs([]string{}),
 		peers:make(map[string]*Peer),
-		detectTicker:timer.NewFuncTicker(DefaultDetectTick,nil),
-		keepAliveTicker:timer.NewFuncTicker(DefaultKeepAliveTick,nil),
-		ticker:timer.NewFuncTicker(DefaultNodeTick,nil),
+		printTicker:time.NewTicker(DefaultNodeTracePrintTick),
+		detectTicker:timer.NewTicker(DefaultDetectTick),
+		keepAliveTicker:time.NewTicker(DefaultKeepAliveTick),
+		ticker:timer.NewTicker(DefaultNodeTick),
 		stop:make(chan bool,1),
 		changeStateChan: make(chan int,1),
 		heartbeatTick:DefaultHeartbeatTick,
@@ -120,50 +122,83 @@ func NewNode(host string, port int,data_dir string,context interface{})(*Node,er
 	return n,nil
 }
 func (n *Node) Start() {
-	n.log.recover()
-	n.election.Reset()
 	n.onceStart.Do(func() {
+		n.log.recover()
+		recoverApplyTicker:=time.NewTicker(time.Second)
+		recoverApplyStop:=make(chan bool,1)
+		go func() {
+			for{
+				select {
+				case <-recoverApplyTicker.C:
+					n.print()
+				case <-recoverApplyStop:
+					goto endfor
+				}
+			}
+		endfor:
+		}()
+		n.log.applyCommited()
+		n.print()
+		recoverApplyStop<-true
 		n.server.listenAndServe()
 		go n.run()
 	})
+	n.election.Reset()
 	n.running=true
 }
 func (n *Node) run() {
-	timer.NewFuncTicker(DefaultNodeTracePrintTick, func() {
-		n.print()
-	})
-	n.ticker.Tick(func() {
-		if !n.running{
-			return
-		}
+	for {
 		select {
-		case i := <-n.changeStateChan:
-			if i == 1 {
-				n.setState(n.state.NextState())
-			} else if i == -1 {
-				n.setState(n.state.StepDown())
-			}else if i == 0 {
-				n.state.Reset()
-			}
-		default:
-			n.state.Update()
-		}
-	})
-	n.detectTicker.Tick(func() {
-		n.detectNodes()
-	})
-	n.keepAliveTicker.Tick(func() {
-		n.keepAliveNodes()
-	})
-	for{
-		select {
+		case <-n.printTicker.C:
+			func(){
+				defer func() {if err := recover(); err != nil {}}()
+				n.print()
+			}()
+		case <-n.keepAliveTicker.C:
+			func(){
+				defer func() {if err := recover(); err != nil {}}()
+				n.keepAliveNodes()
+			}()
+		case <-n.detectTicker.C:
+			func(){
+				defer func() {if err := recover(); err != nil {}}()
+				n.detectNodes()
+			}()
+		case v:=<-n.votes.vote:
+			func(){
+				defer func() {if err := recover(); err != nil {}}()
+				n.votes.AddVote(v)
+			}()
+		case <-n.ticker.C:
+			func(){
+				defer func() {if err := recover(); err != nil {}}()
+				select {
+				case i := <-n.changeStateChan:
+					if i == 1 {
+						n.setState(n.state.NextState())
+					} else if i == -1 {
+						n.setState(n.state.StepDown())
+					}else if i == 0 {
+						n.state.Reset()
+					}
+				default:
+					n.state.Update()
+				}
+			}()
 		case <-n.stop:
 			goto endfor
-		case v:=<-n.votes.vote:
-			n.votes.AddVote(v)
 		}
 	}
 endfor:
+	close(n.stop)
+	n.printTicker.Stop()
+	n.printTicker=nil
+	n.keepAliveTicker.Stop()
+	n.keepAliveTicker=nil
+	n.detectTicker.Stop()
+	n.detectTicker=nil
+	n.ticker.Stop()
+	n.ticker=nil
 }
 
 func (n *Node)Running() bool{
@@ -205,6 +240,9 @@ func (n *Node) stay(){
 }
 
 func (n *Node) changeState(i int){
+	if len(n.changeStateChan)==1{
+		return
+	}
 	n.changeStateChan<-i
 }
 
@@ -435,13 +473,16 @@ func (n *Node) check() error {
 }
 
 func (n *Node) printPeers(){
-	if !n.IsLeader(){
+	if !n.isLeader(){
 		return
 	}
 	n.nodesMut.RLock()
 	defer n.nodesMut.RUnlock()
 	for _,v :=range n.peers{
-		Tracef("Node.printPeers %s %d",v.address,v.nextIndex)
+		if v.nextIndex>v.lastPrintNextIndex{
+			Tracef("Node.printPeers %s nextIndex %d==>%d",v.address,v.lastPrintNextIndex,v.nextIndex)
+			v.lastPrintNextIndex=v.nextIndex
+		}
 	}
 }
 
@@ -458,7 +499,11 @@ func (n *Node) print(){
 		Tracef("Node.print %s lastApplied %d==>%d",n.address,n.lastPrintLastApplied,n.stateMachine.lastApplied)
 		n.lastPrintLastApplied=n.stateMachine.lastApplied
 	}
-	//n.printPeers()
+	if n.nextIndex>n.lastPrintNextIndex{
+		Tracef("Node.print %s nextIndex %d==>%d",n.address,n.lastPrintNextIndex,n.nextIndex)
+		n.lastPrintNextIndex=n.nextIndex
+	}
+	n.printPeers()
 }
 func (n *Node) Commit() error {
 	n.nodesMut.RLock()
@@ -506,6 +551,5 @@ func (n *Node) Commit() error {
 			}
 		}
 	}
-
 	return nil
 }

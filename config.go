@@ -25,7 +25,7 @@ const (
 	DefaultMaxCacheEntries=1024*32
 	DefaultMaxDelay	=	 time.Millisecond
 	DefaultCheckDelay	=	 time.Millisecond*5
-
+	DefaultCommitDelay	=	 time.Millisecond*5
 	DefaultRetryTimes	=	5
 	DefaultLeaseFactor = 0.9
 

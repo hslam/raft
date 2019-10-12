@@ -81,7 +81,8 @@ func NewNode(data_dir string, host string, port ,rpc_port,raft_port int,peers []
 
 func (n *Node) ListenAndServe() error {
 	n.raft_node.Start()
-	log.Println("Listening at:", n.uri())
+	log.Println("HTTP listening at:", n.uri())
+	log.Println("RPC listening at:", fmt.Sprintf("%s:%d", n.host,n.rpc_port))
 	service:=new(Service)
 	service.node=n
 	server:= rpc.NewServer()

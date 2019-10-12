@@ -5,6 +5,7 @@ import (
 	"hslam.com/mgit/Mort/rpc/log"
 	"errors"
 	"sync"
+	"time"
 )
 
 const (
@@ -14,6 +15,7 @@ const (
 	RequestVoteName = "R"
 	AppendEntriesName = "A"
 	InstallSnapshotName = "I"
+	keepAlive=time.Minute
 
 	RetryTimes = 0
 
@@ -31,11 +33,15 @@ func listenAndServe(address string,node *Node){
 
 type RPCs struct {
 	mu				sync.RWMutex
-	conns			map[string]rpc.Client
+	conns			map[string]*Client
+}
+type Client struct {
+	rpc.Client
+	keepAlive				time.Duration
 }
 func newRPCs(addrs []string) *RPCs{
 	r :=&RPCs{
-		conns:make(map[string]rpc.Client),
+		conns:make(map[string]*Client),
 	}
 	for _, addr:= range addrs {
 		conn, err := r.NewConn(addr)
@@ -43,7 +49,8 @@ func newRPCs(addrs []string) *RPCs{
 			conn.DisableRetry()
 			conn.SetCompressType("gzip")
 			conn.EnableMultiplexing()
-			r.conns[addr] = conn
+			c:=&Client{conn,keepAlive}
+			r.conns[addr] = c
 		}
 	}
 	return r
@@ -60,7 +67,8 @@ func (r *RPCs) GetConn(addr string) rpc.Client {
 		conn.DisableRetry()
 		conn.SetCompressType("gzip")
 		conn.EnableMultiplexing()
-		r.conns[addr] = conn
+		c:=&Client{conn,keepAlive}
+		r.conns[addr] = c
 		return r.conns[addr]
 	}
 	return nil
@@ -72,7 +80,10 @@ func (r *RPCs) RemoveConn(addr string){
 	//Debugf("RPCs.RemoveConn %s",addr)
 	if conn,ok:=r.conns[addr];ok{
 		delete(r.conns,addr)
-		defer conn.Close()
+		go func(conn rpc.Client) {
+			time.Sleep(keepAlive)
+			conn.Close()
+		}(conn)
 	}
 }
 func (r *RPCs) NewConn(addr string) (rpc.Client, error){

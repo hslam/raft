@@ -14,12 +14,14 @@ type StateMachine struct {
 	snapshot						Snapshot
 	snapshotSyncType				SnapshotSyncType
 	snapshotSyncTicker				*time.Ticker
+	stop 							chan bool
 }
 func newStateMachine(node *Node)*StateMachine {
 	s:=&StateMachine{
 		node:node,
 		snapshotSyncType:Never,
 		snapshotSyncTicker:time.NewTicker(time.Second),
+		stop:make(chan bool,1),
 	}
 	s.load()
 	go s.run()
@@ -125,12 +127,19 @@ func (s *StateMachine) loadLastSaved() error {
 	return nil
 }
 func (s *StateMachine)run()  {
-	for{
-		select {
-		case <-s.snapshotSyncTicker.C:
+	go func() {
+		for range s.snapshotSyncTicker.C{
 			if s.snapshotSyncType==EverySecond{
 				s.SaveSnapshot()
 			}
 		}
+	}()
+	select {
+	case <-s.stop:
 	}
+	s.snapshotSyncTicker.Stop()
+}
+func (s *StateMachine)Stop()  {
+	defer func() {if err := recover(); err != nil {}}()
+	s.stop<-true
 }

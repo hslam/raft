@@ -38,11 +38,11 @@ func (state *CandidateState) String()string{
 }
 
 func (state *CandidateState)StepDown()State{
-	//Tracef("%s CandidateState.PreState",state.node.address)
+	Tracef("%s CandidateState.PreState",state.node.address)
 	return newFollowerState(state.node)
 }
 
 func (state *CandidateState)NextState()State{
-	//Tracef("%s CandidateState.NextState",state.node.address)
+	Tracef("%s CandidateState.NextState",state.node.address)
 	return newLeaderState(state.node)
 }

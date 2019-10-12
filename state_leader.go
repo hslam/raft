@@ -1,24 +1,30 @@
 package raft
 
 import (
-	"hslam.com/mgit/Mort/timer"
 	"sync"
+	"hslam.com/mgit/Mort/timer"
+	"time"
 )
 
 type LeaderState struct{
-	once 					sync.Once
+	once 					*sync.Once
 	node					*Node
 	stop					chan bool
-	heartbeatTicker			*timer.FuncTicker
-	checkTicker				*timer.FuncTicker
+	notice 					chan bool
+	heartbeatTicker			*time.Ticker
+	checkTicker				*timer.Ticker
+	commitTicker			*timer.Ticker
 }
 func newLeaderState(node *Node) State {
 	//Tracef("%s newLeaderState",node.address)
 	state:=&LeaderState{
+		once:					&sync.Once{},
 		node:					node,
 		stop:					make(chan bool,1),
-		heartbeatTicker:		timer.NewFuncTicker(node.heartbeatTick,nil),
-		checkTicker:			timer.NewFuncTicker(DefaultCheckDelay,nil),
+		notice:					make(chan bool,1),
+		heartbeatTicker:		time.NewTicker(node.heartbeatTick),
+		checkTicker:			timer.NewTicker(DefaultCheckDelay),
+		commitTicker:			timer.NewTicker(DefaultCommitDelay),
 	}
 	state.Reset()
 	go state.run()
@@ -26,17 +32,18 @@ func newLeaderState(node *Node) State {
 }
 
 func (state *LeaderState)Reset(){
+	Debugf("%s LeaderState.Reset %s nextIndex:%d",state.node.address,state.node.address,state.node.nextIndex)
 	if len(state.node.peers)>0{
 		for _,v:=range state.node.peers{
-			v.nextIndex=state.node.lastLogIndex.Id()+1
-			Debugf("%s LeaderState.Reset %s nextIndex :%d",state.node.address,v.address,v.nextIndex)
+			v.nextIndex=state.node.nextIndex
+			Debugf("%s LeaderState.Reset %s nextIndex:%d",state.node.address,v.address,v.nextIndex)
 		}
 	}
 	state.node.leader=state.node.address
 	state.node.lease=true
 	state.node.election.Random(false)
 	state.node.election.Reset()
-	Allf("%s LeaderState.Reset Term :%d",state.node.address,state.node.currentTerm.Id())
+	Allf("%s LeaderState.Reset Term:%d",state.node.address,state.node.currentTerm.Id())
 }
 
 func (state *LeaderState) Update(){
@@ -44,10 +51,6 @@ func (state *LeaderState) Update(){
 		state.node.lease=false
 		state.node.stepDown()
 		return
-	}else if state.node.AliveCount()>=state.node.Quorum(){
-		state.node.lease=true
-		state.node.election.Reset()
-		state.node.Commit()
 	}
 }
 
@@ -56,37 +59,67 @@ func (state *LeaderState) String()string{
 }
 
 func (state *LeaderState)StepDown()State{
-	defer func() {
-		if err := recover(); err != nil {
+	defer func() {if err := recover(); err != nil {}}()
+	Tracef("%s LeaderState.StepDown",state.node.address)
+	state.once.Do(func() {
+		state.stop<-true
+		if state.notice!=nil{
+			select {
+			case <-state.notice:
+				close(state.notice)
+			}
 		}
-	}()
-	state.stop<-true
+	})
 	return newFollowerState(state.node)
 }
 func (state *LeaderState)NextState()State{
-	defer func() {
-		if err := recover(); err != nil {
+	defer func() {if err := recover(); err != nil {}}()
+	Tracef("%s LeaderState.NextState",state.node.address)
+	state.once.Do(func() {
+		state.stop<-true
+		if state.notice!=nil{
+			select {
+			case <-state.notice:
+				close(state.notice)
+			}
 		}
-	}()
-	state.stop<-true
+	})
 	return newFollowerState(state.node)
 }
 
 func (state *LeaderState) run() {
-	state.checkTicker.Tick(func() {
-		state.node.check()
-	})
-	state.heartbeatTicker.Tick(func() {
-		state.node.heartbeats()
-	})
-	for{
+	for {
 		select {
+		case <-state.checkTicker.C:
+			func(){
+				defer func() {if err := recover(); err != nil {}}()
+				state.node.check()
+			}()
+		case <-state.heartbeatTicker.C:
+			func(){
+				defer func() {if err := recover(); err != nil {}}()
+				state.node.heartbeats()
+			}()
+		case <-state.commitTicker.C:
+			func(){
+				defer func() {if err := recover(); err != nil {}}()
+				if state.node.AliveCount()>=state.node.Quorum(){
+					state.node.lease=true
+					state.node.election.Reset()
+					state.node.Commit()
+				}
+			}()
 		case <-state.stop:
 			goto endfor
 		}
 	}
-endfor:
+	endfor:
 	close(state.stop)
 	state.heartbeatTicker.Stop()
+	state.heartbeatTicker=nil
 	state.checkTicker.Stop()
+	state.checkTicker=nil
+	state.commitTicker.Stop()
+	state.commitTicker=nil
+	state.notice<-true
 }

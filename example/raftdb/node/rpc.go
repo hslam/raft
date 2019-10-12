@@ -47,7 +47,7 @@ type RPCs struct {
 }
 type Client struct {
 	rpc.Client
-	startTime 				time.Time
+	lastTime 				time.Time
 	keepAlive				time.Duration
 }
 func newRPCs(addrs []string) *RPCs{
@@ -70,7 +70,7 @@ func newRPCs(addrs []string) *RPCs{
 
 func (r *RPCs) check(){
 	for addr,conn:=range r.conns{
-		if conn.startTime.Add(conn.keepAlive).Before(time.Now()){
+		if conn.lastTime.Add(conn.keepAlive).Before(time.Now()){
 			r.RemoveConn(addr)
 		}
 	}
@@ -89,7 +89,6 @@ func (r *RPCs) GetConn(addr string) *Client {
 		conn.EnableBatchAsync()
 		c:=&Client{conn,time.Now(),keepAlive}
 		r.conns[addr] = c
-		r.conns[addr] = c
 		return r.conns[addr]
 	}
 	return nil
@@ -100,7 +99,10 @@ func (r *RPCs) RemoveConn(addr string){
 	defer r.mu.Unlock()
 	if conn,ok:=r.conns[addr];ok{
 		delete(r.conns,addr)
-		defer conn.Close()
+		go func(conn rpc.Client) {
+			time.Sleep(keepAlive)
+			conn.Close()
+		}(conn)
 	}
 }
 func (r *RPCs) NewConn(addr string) (rpc.Client, error){
@@ -115,7 +117,7 @@ func (r *RPCs) Call(addr string,req *Request, res *Response)error {
 			r.RemoveConn(addr)
 			return err
 		}
-		conn.startTime=time.Now()
+		conn.lastTime=time.Now()
 		return nil
 	}
 	return errors.New("RPCs.Call can not connect to "+addr)
