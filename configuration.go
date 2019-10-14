@@ -51,7 +51,7 @@ func (c *Configuration) save() {
 		Peers:c.peers,
 	}
 	b, _ := json.Marshal(configurationStorage)
-	c.node.storage.SafeOverWrite(DefaultConfig,b)
+	c.node.storage.OverWrite(DefaultConfig,b)
 }
 
 func (c *Configuration) load() error {

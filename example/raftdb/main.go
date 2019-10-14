@@ -29,7 +29,7 @@ func init() {
 	flag.IntVar(&rpc_port, "c", 8001, "port")
 	flag.IntVar(&raft_port, "f", 9001, "port")
 	flag.StringVar(&addrs, "peers", "", "host:port,host:port")
-	flag.BoolVar(&debug, "debug", false, "debug: -debug=false")
+	flag.BoolVar(&debug, "debug", true, "debug: -debug=false")
 	flag.IntVar(&debug_port, "d", 6061, "debug_port: -dp=6060")
 	flag.StringVar(&data_dir, "path", "raft.1", "path")
 	flag.IntVar(&max, "m", 8, "MaxConnsPerHost: -m=8")

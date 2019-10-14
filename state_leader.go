@@ -52,6 +52,10 @@ func (state *LeaderState) Update(){
 		state.node.stepDown()
 		return
 	}
+	if state.node.AliveCount()>=state.node.Quorum(){
+		state.node.lease=true
+		state.node.election.Reset()
+	}
 }
 
 func (state *LeaderState) String()string{
@@ -94,11 +98,7 @@ func (state *LeaderState) run() {
 	})
 	state.commitTicker.Tick(func() {
 		defer func() {if err := recover(); err != nil {}}()
-		if state.node.AliveCount()>=state.node.Quorum(){
-			state.node.lease=true
-			state.node.election.Reset()
-			state.node.Commit()
-		}
+		state.node.Commit()
 	})
 	for {
 		select {

@@ -92,7 +92,7 @@ func (p *Peer) ping() {
 	//Debugf("Peer.ping %s %t",p.address,p.alive)
 }
 func (p *Peer) check() {
-	if p.node.lastLogIndex.Id()>p.nextIndex-1&&p.nextIndex>0{
+	if p.node.lastLogIndex>p.nextIndex-1&&p.nextIndex>0{
 		if p.send{
 			p.send=false
 			go func() {

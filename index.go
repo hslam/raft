@@ -5,13 +5,15 @@ import (
 	"errors"
 	//"fmt"
 )
+
+const metaSize  = 32
 var (
 	metaBytesPool			*sync.Pool
 )
 func init() {
 	metaBytesPool= &sync.Pool{
 		New: func() interface{} {
-			return make([]byte,32)
+			return make([]byte,metaSize)
 		},
 	}
 }
@@ -95,11 +97,7 @@ func (i *Index) lookupNext(index uint64)*Meta {
 	return i.read(nextIndex)
 }
 func (i *Index) deleteAfter(index uint64){
-	if index<=1{
-		i.node.lastLogIndex.Set(0)
-		return
-	}
-	i.node.lastLogIndex.Set(index-1)
+	i.node.storage.Truncate(DefaultIndex,(index-1)*metaSize)
 	Tracef("Index.deleteAfter %s delete %d and after",i.node.address, index)
 }
 func (i *Index) copyAfter(index uint64,max int)(metas []*Meta) {
@@ -147,8 +145,8 @@ func (i *Index) batchRead(startIndex uint64,endIndex uint64)[]*Meta {
 	if length<1||startIndex>length||endIndex>length{
 		return nil
 	}
-	cursor:=(startIndex-1)*32
-	offset:=endIndex*32
+	cursor:=(startIndex-1)*metaSize
+	offset:=endIndex*metaSize
 	b:=make([]byte,offset-cursor)
 	if err:=i.node.storage.SeekRead(DefaultIndex,cursor,b);err!=nil{
 		return nil
@@ -165,10 +163,10 @@ func (i *Index) batchRead(startIndex uint64,endIndex uint64)[]*Meta {
 }
 
 func (i *Index) append(b []byte) {
-	lastLogIndex:=i.node.lastLogIndex.Id()
+	lastLogIndex:=i.node.lastLogIndex
 	var ret uint64=0
 	if lastLogIndex>0{
-		ret=uint64(lastLogIndex*32)
+		ret=uint64(lastLogIndex*metaSize)
 	}else {
 		ret=0
 	}
@@ -179,18 +177,23 @@ func (i *Index) recover() error {
 	if !i.node.storage.Exists(DefaultIndex){
 		return errors.New(DefaultIndex+" file is not existed")
 	}
-	return i.node.lastLogIndex.load()
+	size,err:=i.node.storage.Size(DefaultIndex)
+	if err!=nil{
+		return err
+	}
+	i.node.lastLogIndex=uint64(size/metaSize)
+	return nil
 }
 
 func (i *Index) length() uint64 {
-	return i.node.lastLogIndex.Id()
+	return i.node.lastLogIndex
 }
 
 func (i *Index)Decode(data []byte)([]*Meta,error)  {
-	length:=len(data)/32
+	length:=len(data)/metaSize
 	metas:=make([]*Meta,0,length)
 	for j:=0;j<length;j++{
-		b:=data[j*32:j*32+32]
+		b:=data[j*metaSize:j*metaSize+metaSize]
 		meta:=i.getEmtyMeta()
 		meta.Decode(b)
 		metas=append(metas, meta)
@@ -199,7 +202,7 @@ func (i *Index)Decode(data []byte)([]*Meta,error)  {
 	return metas,nil
 }
 func (i *Index)Encode(metas []*Meta)([]byte,error)  {
-	var data=make([]byte,0,len(metas)*32)
+	var data=make([]byte,0,len(metas)*metaSize)
 	for j:=0;j<len(metas);j++{
 		b:=metas[j].Encode()
 		data=append(data,b...)

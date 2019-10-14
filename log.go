@@ -93,12 +93,12 @@ func (log *Log) deleteAfter(index uint64) {
 	log.mu.Lock()
 	defer log.mu.Unlock()
 	if index<=1{
-		log.node.lastLogIndex.Set(0)
+		log.node.lastLogIndex=0
 		return
 	}
-	log.node.lastLogIndex.Set(index-1)
+	log.node.lastLogIndex=index-1
 	log.indexs.deleteAfter(index)
-	lastLogIndex:=log.node.lastLogIndex.Id()
+	lastLogIndex:=log.node.lastLogIndex
 	if lastLogIndex>0{
 		meta:=log.indexs.lookup(lastLogIndex)
 		log.node.lastLogTerm=meta.Term
@@ -107,6 +107,7 @@ func (log *Log) deleteAfter(index uint64) {
 		log.node.lastLogTerm=0
 		log.ret=0
 	}
+	log.node.storage.Truncate(DefaultLog,log.ret)
 }
 
 func (log *Log) copyAfter(index uint64,max int)(entries []*Entry) {
@@ -123,7 +124,7 @@ func (log *Log) copyRange(startIndex uint64,endIndex uint64) []*Entry{
 func (log *Log) applyCommited() {
 	log.mu.Lock()
 	defer log.mu.Unlock()
-	lastLogIndex:=log.node.lastLogIndex.Id()
+	lastLogIndex:=log.node.lastLogIndex
 	if lastLogIndex==0{
 		return
 	}
@@ -173,12 +174,12 @@ func (log *Log) appendEntries(entries []*Entry)bool {
 			return false
 		}
 	}
-	if log.node.lastLogIndex.Id()!=metas[0].Index-1{
+	if log.node.lastLogIndex!=metas[0].Index-1{
 		return false
 	}
 	log.append(data)
 	log.indexs.appendMetas(metas)
-	log.node.lastLogIndex.Set(metas[len(metas)-1].Index)
+	log.node.lastLogIndex=metas[len(metas)-1].Index
 	log.node.lastLogTerm=metas[len(metas)-1].Term
 	log.indexs.putEmtyMetas(metas)
 	return true
@@ -232,13 +233,13 @@ func (log *Log) recover() error {
 	if !log.node.storage.Exists(DefaultLog){
 		return errors.New(DefaultLog+" file is not existed")
 	}
-	lastLogIndex:=log.node.lastLogIndex.Id()
+	lastLogIndex:=log.node.lastLogIndex
 	if lastLogIndex>0{
 		meta:=log.indexs.lookup(lastLogIndex)
 		log.node.lastLogTerm=meta.Term
 		log.ret=meta.Ret+meta.Offset
-		log.node.recoverLogIndex=log.node.lastLogIndex.Id()
-		log.node.nextIndex=log.node.lastLogIndex.Id()+1
+		log.node.recoverLogIndex=log.node.lastLogIndex
+		log.node.nextIndex=log.node.lastLogIndex+1
 	}
 	Tracef("Log.recover %s lastLogIndex %d",log.node.address,lastLogIndex)
 	return nil
@@ -336,7 +337,7 @@ func (log *Log) compaction() error {
 func (log *Log) saveMd5() {
 	md5:=log.node.storage.MD5(DefaultLog)
 	if len(md5)>0{
-		log.node.storage.SafeOverWrite(DefaultMd5,[]byte(md5))
+		log.node.storage.OverWrite(DefaultMd5,[]byte(md5))
 	}
 }
 
@@ -368,20 +369,21 @@ func (log *Log) run()  {
 			}()
 		}
 	}()
-	log.appendEntriesTicker.Tick(func(){
-		defer func() {if err := recover(); err != nil {}}()
-		log.batchMu.Lock()
-		defer log.batchMu.Unlock()
-		if len(log.readyEntries)>log.maxBatch{
-			entries:=log.readyEntries[:log.maxBatch]
-			log.readyEntries=log.readyEntries[log.maxBatch:]
-			log.ticker(entries)
-		}else  if len(log.readyEntries)>0{
-			entries:=log.readyEntries[:]
-			log.readyEntries=log.readyEntries[len(log.readyEntries):]
-			log.ticker(entries)
-		}
-
+	log.appendEntriesTicker.Tick(func() {
+		func(){
+			defer func() {if err := recover(); err != nil {}}()
+			log.batchMu.Lock()
+			if len(log.readyEntries)>log.maxBatch{
+				entries:=log.readyEntries[:log.maxBatch]
+				log.readyEntries=log.readyEntries[log.maxBatch:]
+				log.ticker(entries)
+			}else  if len(log.readyEntries)>0{
+				entries:=log.readyEntries[:]
+				log.readyEntries=log.readyEntries[len(log.readyEntries):]
+				log.ticker(entries)
+			}
+			log.batchMu.Unlock()
+		}()
 	})
 	for {
 		select {

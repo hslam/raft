@@ -69,7 +69,7 @@ func (r *raft) RequestVote(addr string) (ok bool){
 	var req =&RequestVoteRequest{}
 	req.Term=r.node.currentTerm.Id()
 	req.CandidateId=r.node.address
-	req.LastLogIndex=r.node.lastLogIndex.Id()
+	req.LastLogIndex=r.node.lastLogIndex
 	req.LastLogTerm=r.node.lastLogTerm
 	var ch =make(chan *RequestVoteResponse,1)
 	var errCh =make(chan error,1)
@@ -175,7 +175,7 @@ func (r *raft) HandleRequestVote(req *RequestVoteRequest, res *RequestVoteRespon
 	if req.Term<r.node.currentTerm.Id(){
 		res.VoteGranted=false
 		return nil
-	}else if req.Term>r.node.currentTerm.Id()&&req.LastLogIndex>=r.node.lastLogIndex.Id()&&req.LastLogTerm>=r.node.lastLogTerm{
+	}else if req.Term>r.node.currentTerm.Id()&&req.LastLogIndex>=r.node.lastLogIndex&&req.LastLogTerm>=r.node.lastLogTerm{
 		r.node.currentTerm.Set(req.Term)
 		r.node.votedFor.Reset()
 		r.node.stepDown()
@@ -183,7 +183,7 @@ func (r *raft) HandleRequestVote(req *RequestVoteRequest, res *RequestVoteRespon
 	if r.node.state.String()==Leader||r.node.state.String()==Candidate{
 		res.VoteGranted=false
 		return nil
-	} else if (r.node.votedFor.String()==""||r.node.votedFor.String()==req.CandidateId)&&req.LastLogIndex>=r.node.lastLogIndex.Id()&&req.LastLogTerm>=r.node.lastLogTerm{
+	} else if (r.node.votedFor.String()==""||r.node.votedFor.String()==req.CandidateId)&&req.LastLogIndex>=r.node.lastLogIndex&&req.LastLogTerm>=r.node.lastLogTerm{
 		res.VoteGranted=true
 		r.node.votedFor.Set(req.CandidateId)
 		r.node.stepDown()
@@ -224,7 +224,7 @@ func (r *raft) HandleAppendEntries(req *AppendEntriesRequest, res *AppendEntries
 		res.Success=true
 		return nil
 	}else if req.PrevLogIndex>0{
-		if req.PrevLogIndex>r.node.lastLogIndex.Id(){
+		if req.PrevLogIndex>r.node.lastLogIndex{
 			res.Success=false
 			return nil
 		}else if  r.node.log.lookup(req.PrevLogIndex)==nil{
@@ -232,7 +232,7 @@ func (r *raft) HandleAppendEntries(req *AppendEntriesRequest, res *AppendEntries
 			return nil
 		}else if r.node.log.lookup(req.PrevLogIndex).Term!=req.PrevLogTerm{
 			r.node.log.deleteAfter(req.PrevLogIndex)
-			r.node.nextIndex=r.node.lastLogIndex.Id()+1
+			r.node.nextIndex=r.node.lastLogIndex+1
 			res.NextIndex=r.node.nextIndex
 			//r.node.commitIndex=0
 			res.Success=false
@@ -241,15 +241,15 @@ func (r *raft) HandleAppendEntries(req *AppendEntriesRequest, res *AppendEntries
 	}
 	if req.LeaderCommit>r.node.commitIndex.Id() {
 		//var commitIndex=r.node.commitIndex
-		r.node.commitIndex.Set(minUint64(req.LeaderCommit,r.node.lastLogIndex.Id()))
+		r.node.commitIndex.Set(minUint64(req.LeaderCommit,r.node.lastLogIndex))
 		//if r.node.commitIndex>commitIndex{
 		//	Tracef("raft.HandleAppendEntries %s commitIndex %d==>%d",r.node.address, commitIndex,r.node.commitIndex)
 		//}
 	}
-	if len(req.Entries)>0&&req.PrevLogIndex==r.node.lastLogIndex.Id(){
+	if len(req.Entries)>0&&req.PrevLogIndex==r.node.lastLogIndex{
 		if req.PrevLogIndex+1==req.Entries[0].Index{
 			res.Success=r.node.log.appendEntries(req.Entries)
-			r.node.nextIndex=r.node.lastLogIndex.Id()+1
+			r.node.nextIndex=r.node.lastLogIndex+1
 			res.NextIndex=r.node.nextIndex
 			return nil
 		}

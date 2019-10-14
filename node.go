@@ -51,7 +51,8 @@ type Node struct {
 	//volatile state on all servers
 	commitIndex						*PersistentUint64
 
-	lastLogIndex					*PersistentUint64
+	lastLogIndex					uint64
+	//lastLogIndex					*PersistentUint64
 	lastLogTerm						uint64
 	nextIndex						uint64
 
@@ -88,7 +89,6 @@ func NewNode(host string, port int,data_dir string,context interface{})(*Node,er
 		host:host,
 		port:port,
 		address:address,
-		storage:newStorage(data_dir),
 		rpcs:newRPCs([]string{}),
 		peers:make(map[string]*Peer),
 		printTicker:time.NewTicker(DefaultNodeTracePrintTick),
@@ -104,6 +104,7 @@ func NewNode(host string, port int,data_dir string,context interface{})(*Node,er
 		commandType:&CommandType{types:make(map[int32]Command)},
 		nextIndex:1,
 	}
+	n.storage=newStorage(n,data_dir)
 	n.votes=newVotes(n)
 	n.stateMachine=newStateMachine(n)
 	n.configuration=newConfiguration(n)
@@ -112,7 +113,7 @@ func NewNode(host string, port int,data_dir string,context interface{})(*Node,er
 	n.raft=newRaft(n)
 	n.server=newServer(n,fmt.Sprintf(":%d",port))
 	n.currentTerm=newPersistentUint64(n,DefaultTerm)
-	n.lastLogIndex=newPersistentUint64(n,DefaultLastLogIndex)
+	//n.lastLogIndex=newPersistentUint64(n,DefaultLastLogIndex)
 	n.commitIndex=newPersistentUint64(n,DefaultCommitIndex)
 	n.votedFor=newPersistentString(n,DefaultVoteFor)
 	n.state=newFollowerState(n)
@@ -366,6 +367,9 @@ func (n *Node)Do(command Command) (interface{},error){
 	<-n.pipelineChan
 	return reply,err
 }
+func (n *Node) fast() bool {
+	return n.isLeader()&&len(n.peers)>0
+}
 func (n *Node) Peers() []string {
 	n.nodesMut.Lock()
 	defer n.nodesMut.Unlock()
@@ -491,9 +495,9 @@ func (n *Node) printPeers(){
 }
 
 func (n *Node) print(){
-	if n.lastLogIndex.Id()>n.lastPrintLastLogIndex{
-		Tracef("Node.print %s lastLogIndex %d==>%d",n.address,n.lastPrintLastLogIndex,n.lastLogIndex.Id())
-		n.lastPrintLastLogIndex=n.lastLogIndex.Id()
+	if n.lastLogIndex>n.lastPrintLastLogIndex{
+		Tracef("Node.print %s lastLogIndex %d==>%d",n.address,n.lastPrintLastLogIndex,n.lastLogIndex)
+		n.lastPrintLastLogIndex=n.lastLogIndex
 	}
 	if n.commitIndex.Id()>n.lastPrintCommitIndex{
 		Tracef("Node.print %s commitIndex %d==>%d",n.address,n.lastPrintCommitIndex,n.commitIndex.Id())
@@ -514,7 +518,7 @@ func (n *Node) Commit() error {
 	defer n.nodesMut.RUnlock()
 	//var commitIndex=n.commitIndex
 	if len(n.peers)==0{
-		index:=n.lastLogIndex.Id()
+		index:=n.lastLogIndex
 		if index>n.commitIndex.Id(){
 			n.commitIndex.Set(index)
 			//Tracef("Node.Commit %s commitIndex %d==>%d",n.address,commitIndex,n.commitIndex)

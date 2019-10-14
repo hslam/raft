@@ -81,7 +81,7 @@ func (s *StateMachine)RecoverSnapshot(data []byte) error {
 func (s *StateMachine)save(data []byte) error {
 	if s.snapshot!=nil{
 		s.saveLastSaved()
-		return s.node.storage.SafeOverWrite(DefaultSnapshot,data)
+		return s.node.storage.OverWrite(DefaultSnapshot,data)
 	}
 	return ErrSnapshotCodecNil
 }
@@ -102,7 +102,7 @@ func (s *StateMachine) load() error {
 
 func (s *StateMachine) saveLastSaved() {
 	s.lastSaved=s.lastApplied
-	s.node.storage.SafeOverWrite(DefaultLastSaved,uint64ToBytes(s.lastSaved))
+	s.node.storage.OverWrite(DefaultLastSaved,uint64ToBytes(s.lastSaved))
 }
 
 func (s *StateMachine) loadLastSaved() error {
@@ -140,6 +140,15 @@ func (s *StateMachine)run()  {
 	s.snapshotSyncTicker.Stop()
 }
 func (s *StateMachine)Stop()  {
-	defer func() {if err := recover(); err != nil {}}()
-	s.stop<-true
+	go func() {
+		for range s.snapshotSyncTicker.C{
+			if s.snapshotSyncType==EverySecond{
+				s.SaveSnapshot()
+			}
+		}
+	}()
+	select {
+	case <-s.stop:
+	}
+	s.snapshotSyncTicker.Stop()
 }

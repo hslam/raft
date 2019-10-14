@@ -39,7 +39,7 @@ func (p *PersistentString) String()string {
 }
 
 func (p *PersistentString) save() {
-	p.node.storage.SafeOverWrite(p.name,[]byte(p.value))
+	p.node.storage.OverWrite(p.name,[]byte(p.value))
 }
 
 func (p *PersistentString) load() error {
