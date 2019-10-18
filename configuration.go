@@ -77,7 +77,6 @@ func (c *Configuration) load() error {
 		c.node.addNode(client)
 	}
 	c.SetPeers(peers)
-	//n.log.updateCommitIndex(config.CommitIndex)
 	return nil
 }
 

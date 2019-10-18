@@ -128,8 +128,11 @@ func (log *Log) applyCommited() {
 	if lastLogIndex==0{
 		return
 	}
-	var startIndex =maxUint64(log.node.stateMachine.lastApplied,1)
+	var startIndex =maxUint64(log.node.stateMachine.lastApplied+1,1)
 	var endIndex =log.node.commitIndex.Id()
+	if startIndex>endIndex{
+		return
+	}
 	if endIndex-startIndex>DefaultMaxBatch{
 		index:=startIndex
 		for {
@@ -147,6 +150,9 @@ func (log *Log) applyCommited() {
 
 func (log *Log) applyCommitedRange(startIndex uint64,endIndex uint64) {
 	entries:=log.copyRange(startIndex,endIndex)
+	if len(entries)==0{
+		return
+	}
 	for i:=0;i<len(entries);i++{
 		//Tracef("Log.applyCommitedRange %s Index %d",log.node.address,entries[i].Index)
 		command:=log.node.commandType.clone(entries[i].CommandType)
@@ -189,7 +195,7 @@ func (log *Log) read(meta *Meta)*Entry {
 		return nil
 	}
 	b:=make([]byte,meta.Offset)
-	err:=log.node.storage.SeekRead(DefaultLog,meta.Ret,b)
+	_,err:=log.node.storage.SeekRead(DefaultLog,meta.Ret,b)
 	if err!=nil{
 		return nil
 	}
@@ -209,7 +215,7 @@ func (log *Log) batchRead(metas []*Meta)[]*Entry {
 	cursor:=metas[0].Ret
 	offset:=metas[len(metas)-1].Ret+metas[len(metas)-1].Offset
 	b:=make([]byte,offset-cursor)
-	if err:=log.node.storage.SeekRead(DefaultLog,cursor,b);err!=nil{
+	if _,err:=log.node.storage.SeekRead(DefaultLog,cursor,b);err!=nil{
 		return nil
 	}
 	if entries,_,err := log.Decode(b,metas,cursor); err == nil {
@@ -223,25 +229,27 @@ func (log *Log) append(b []byte) {
 	log.ret+=uint64(len(b))
 }
 
-func (log *Log) recover() error {
+func (log *Log) load() error {
 	log.mu.Lock()
 	defer log.mu.Unlock()
-	err:=log.indexs.recover()
+	lastLogIndex:=log.node.lastLogIndex
+	err:=log.indexs.load()
 	if err!=nil{
 		return err
 	}
 	if !log.node.storage.Exists(DefaultLog){
 		return errors.New(DefaultLog+" file is not existed")
 	}
-	lastLogIndex:=log.node.lastLogIndex
-	if lastLogIndex>0{
-		meta:=log.indexs.lookup(lastLogIndex)
+	if log.node.lastLogIndex>0{
+		meta:=log.indexs.lookup(log.node.lastLogIndex)
 		log.node.lastLogTerm=meta.Term
 		log.ret=meta.Ret+meta.Offset
 		log.node.recoverLogIndex=log.node.lastLogIndex
 		log.node.nextIndex=log.node.lastLogIndex+1
 	}
-	Tracef("Log.recover %s lastLogIndex %d",log.node.address,lastLogIndex)
+	if log.node.lastLogIndex>lastLogIndex{
+		Tracef("Log.recover %s lastLogIndex %d",log.node.address,lastLogIndex)
+	}
 	return nil
 }
 

@@ -39,7 +39,7 @@ type Node struct {
 	detectTicker					*time.Ticker
 	keepAliveTicker					*time.Ticker
 	printTicker						*time.Ticker
-
+	checkLogTicker					*time.Ticker
 	state							State
 	changeStateChan 				chan int
 	ticker							*timer.FuncTicker
@@ -94,6 +94,7 @@ func NewNode(host string, port int,data_dir string,context interface{})(*Node,er
 		printTicker:time.NewTicker(DefaultNodeTracePrintTick),
 		detectTicker:time.NewTicker(DefaultDetectTick),
 		keepAliveTicker:time.NewTicker(DefaultKeepAliveTick),
+		checkLogTicker:time.NewTicker(DefaultCheckLogTick),
 		ticker:timer.NewFuncTicker(DefaultNodeTick,nil),
 		stop:make(chan bool,1),
 		changeStateChan: make(chan int,1),
@@ -124,23 +125,7 @@ func NewNode(host string, port int,data_dir string,context interface{})(*Node,er
 }
 func (n *Node) Start() {
 	n.onceStart.Do(func() {
-		n.log.recover()
-		recoverApplyTicker:=time.NewTicker(time.Second)
-		recoverApplyStop:=make(chan bool,1)
-		go func() {
-			for{
-				select {
-				case <-recoverApplyTicker.C:
-					n.print()
-				case <-recoverApplyStop:
-					goto endfor
-				}
-			}
-		endfor:
-		}()
-		n.log.applyCommited()
-		n.print()
-		recoverApplyStop<-true
+		n.recover()
 		n.server.listenAndServe()
 		go n.run()
 	})
@@ -184,6 +169,11 @@ func (n *Node) run() {
 			func(){
 				defer func() {if err := recover(); err != nil {}}()
 				n.detectNodes()
+			}()
+		case <-n.checkLogTicker.C:
+			func(){
+				defer func() {if err := recover(); err != nil {}}()
+				n.checkLog()
 			}()
 		case v:=<-n.votes.vote:
 			func(){
@@ -316,6 +306,9 @@ func (n *Node) Context()interface{}{
 	n.mu.RLock()
 	defer n.mu.RUnlock()
 	return n.context
+}
+func (n *Node)SetSnapshotSyncType(snapshotSyncType SnapshotSyncType){
+	n.stateMachine.SetSnapshotSyncType(snapshotSyncType)
 }
 func (n *Node)SetSnapshot(snapshot Snapshot){
 	n.stateMachine.SetSnapshot(snapshot)
@@ -463,11 +456,21 @@ func (n *Node) heartbeats() error {
 	n.nodesMut.RLock()
 	defer n.nodesMut.RUnlock()
 	for _,v :=range n.peers{
-		if v.alive==true{
+		if v.alive{
 			go v.heartbeat()
 		}
 	}
 	return nil
+}
+func (n *Node) install() bool {
+	n.nodesMut.RLock()
+	defer n.nodesMut.RUnlock()
+	for _,v :=range n.peers{
+		if !v.install{
+			return false
+		}
+	}
+	return true
 }
 func (n *Node) check() error {
 	n.nodesMut.RLock()
@@ -475,6 +478,102 @@ func (n *Node) check() error {
 	for _,v :=range n.peers{
 		if v.alive==true{
 			v.check()
+		}
+	}
+	return nil
+}
+func (n *Node) reset(){
+	n.recoverLogIndex=0
+	n.lastPrintNextIndex=1
+	n.lastPrintLastApplied=0
+	n.lastPrintLastLogIndex=0
+	n.lastPrintCommitIndex=0
+	n.nextIndex=1
+	n.lastLogIndex=0
+	n.lastLogTerm=0
+	n.commitIndex.Set(0)
+	n.stateMachine.lastApplied=0
+	n.stateMachine.snapshotReadWriter.lastIncludedIndex.Set(0)
+	n.stateMachine.snapshotReadWriter.lastIncludedTerm.Set(0)
+	n.stateMachine.snapshotReadWriter.lastTarIndex.Set(0)
+}
+func (n *Node) load(){
+	n.log.load()
+	n.stateMachine.load()
+}
+func (n *Node) recover() error {
+	Tracef("Node.recover %s start",n.address)
+	if n.storage.IsEmpty(DefaultIndex){
+		if !n.storage.IsEmpty(DefaultTarGz){
+			n.stateMachine.snapshotReadWriter.untar()
+		}
+	}else if n.storage.IsEmpty(DefaultLog){
+		if !n.storage.IsEmpty(DefaultTarGz){
+			n.stateMachine.snapshotReadWriter.untar()
+		}
+	}
+	n.load()
+	recoverApplyTicker:=time.NewTicker(time.Second)
+	recoverApplyStop:=make(chan bool,1)
+	go func() {
+		for{
+			select {
+			case <-recoverApplyTicker.C:
+				n.print()
+			case <-recoverApplyStop:
+				goto endfor
+			}
+		}
+	endfor:
+	}()
+	n.stateMachine.recover()
+	n.log.applyCommited()
+	n.print()
+	recoverApplyStop<-true
+	Tracef("Node.recover %s finish",n.address)
+	return nil
+}
+func (n *Node) checkLog() error {
+	if n.storage.IsEmpty(DefaultCommitIndex){
+		n.commitIndex.save()
+	}
+	if n.storage.IsEmpty(DefaultLastIncludedIndex){
+		n.stateMachine.snapshotReadWriter.lastIncludedIndex.save()
+	}
+	if n.storage.IsEmpty(DefaultLastIncludedTerm){
+		n.stateMachine.snapshotReadWriter.lastIncludedTerm.save()
+	}
+	if n.storage.IsEmpty(DefaultTerm){
+		n.currentTerm.save()
+	}
+	if n.storage.IsEmpty(DefaultConfig){
+		n.configuration.save()
+	}
+	if n.storage.IsEmpty(DefaultVoteFor){
+		n.votedFor.save()
+	}
+	if n.storage.IsEmpty(DefaultSnapshot)&&n.stateMachine.snapshot!=nil&&!n.storage.IsEmpty(DefaultIndex)&&!n.storage.IsEmpty(DefaultLog)&&!n.storage.IsEmpty(DefaultCommitIndex){
+		n.stateMachine.SaveSnapshot()
+	}
+	if n.isLeader()&&n.storage.IsEmpty(DefaultTarGz)&&!n.storage.IsEmpty(DefaultIndex)&&!n.storage.IsEmpty(DefaultLog)&&!n.storage.IsEmpty(DefaultCommitIndex)&&!n.storage.IsEmpty(DefaultSnapshot){
+		n.stateMachine.snapshotReadWriter.lastTarIndex.Set(0)
+		n.stateMachine.snapshotReadWriter.Tar()
+	}
+	if n.storage.IsEmpty(DefaultIndex){
+		if !n.storage.IsEmpty(DefaultTarGz){
+			n.stateMachine.snapshotReadWriter.untar()
+			n.load()
+		}else {
+			n.nextIndex=1
+			//n.reset()
+		}
+	}else if n.storage.IsEmpty(DefaultLog){
+		if !n.storage.IsEmpty(DefaultTarGz){
+			n.stateMachine.snapshotReadWriter.untar()
+			n.load()
+		}else {
+			n.nextIndex=1
+			//n.reset()
 		}
 	}
 	return nil
@@ -546,7 +645,7 @@ func (n *Node) Commit() error {
 		index:=lastLogIndexs[i]
 		if v,ok:=lastLogIndexCount[index];ok{
 			if v+1>=quorum{
-				if index>n.commitIndex.Id(){
+				if index>n.commitIndex.Id()&&index<n.nextIndex{
 					n.commitIndex.Set(index)
 					//Tracef("Node.Commit %s commitIndex %d==>%d",n.address,commitIndex,n.commitIndex)
 				}

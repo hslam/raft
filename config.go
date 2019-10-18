@@ -12,6 +12,7 @@ const (
 	DefaultHeartbeatTick = 100 * time.Millisecond
 	DefaultDetectTick = 100 * time.Millisecond
 	DefaultKeepAliveTick = 10000 * time.Millisecond
+	DefaultCheckLogTick	=	 time.Second
 	DefaultElectionTimeout = 1000 * time.Millisecond
 	DefaultHearbeatTimeout = 100 * time.Millisecond
 	DefaultRequestVoteTimeout = 1000 * time.Millisecond
@@ -27,7 +28,7 @@ const (
 	DefaultCheckDelay	=	time.Millisecond*5
 	DefaultCommitDelay	=	 time.Millisecond*5
 	DefaultRetryTimes	=	5
-	DefaultLeaseFactor = 0.9
+	DefaultTarTick	=	 time.Minute
 
 	DefaultDataDir = "default.raft"
 	DefaultConfig = "config"
@@ -39,12 +40,22 @@ const (
 	DefaultTerm = "term"
 	DefaultVoteFor = "votefor"
 	DefaultSnapshot = "snapshot"
-	DefaultMd5 = "md5"
-	DefaultLastSaved = "lastsaved"
-	DefaultTmp = ".tmp"
+	DefaultLastIncludedIndex = "lastincludedindex"
+	DefaultLastIncludedTerm = "lastincludedterm"
+	DefaultLastTarIndex = "lasttarindex"
 
+
+	DefaultMd5 = "md5"
+	DefaultTar = "tar"
+	DefaultTarGz = "tar.gz"
+	DefaultTmp = ".tmp"
+	DefaultReadFileBufferSize= 1 << 24
 	CommandTypeAddPeer =-1
 	CommandTypeRemovePeer =-2
+
+	DefaultNumInstallSnapshot = 1<<27
+	DefaultMaxEntriesPerFile = 1 << 27
+	DefaultChunkSize int64 = 1 << 24
 
 )
 type SnapshotSyncType int
@@ -52,8 +63,18 @@ type SnapshotSyncType int
 const (
 	Never SnapshotSyncType = 0
 	EverySecond SnapshotSyncType= 1
-	Always SnapshotSyncType= 2
-	DefaultMaxTimesSaveSnapshot = 256
+	EveryMinute SnapshotSyncType= 2
+	EveryHour SnapshotSyncType= 3
+	DefalutSave SnapshotSyncType= 4
+	Save SnapshotSyncType= 5
+	Always SnapshotSyncType= 9
+
+	SecondsSaveSnapshot1 = 900
+	ChangesSaveSnapshot1 = 1
+	SecondsSaveSnapshot2 = 300
+	ChangesSaveSnapshot2 = 10
+	SecondsSaveSnapshot3 = 60
+	ChangesSaveSnapshot3 = 10000
 )
 
 

@@ -50,7 +50,9 @@ message InstallSnapshotRequest {
 }
 
 message InstallSnapshotResponse {
-    uint64  Term    = 1;
+    uint64  Term        = 1;
+    uint64  Offset      = 2;
+    uint64  NextIndex   = 3;
 }
 
 message Meta {
@@ -58,13 +60,6 @@ message Meta {
     uint64      Term        = 2;
     uint64      Ret         = 3;
     uint64      Offset      = 4;
-}
-
-message MetaStorage {
-    repeated    Meta    Metas   = 1;
-}
-message LogStorage {
-    repeated    Entry   Entries = 1;
 }
 
 message ConfigurationStorage {

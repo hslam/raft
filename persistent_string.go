@@ -3,6 +3,7 @@ package raft
 import (
 	"sync"
 	"errors"
+	"fmt"
 )
 
 type PersistentString struct {
@@ -49,6 +50,9 @@ func (p *PersistentString) load() error {
 	b, err := p.node.storage.Load(p.name)
 	if err != nil {
 		return err
+	}
+	if len(b)==0{
+		return fmt.Errorf("length %d",len(b))
 	}
 	p.value = string(b)
 	return nil

@@ -3,12 +3,13 @@ package raft
 import (
 	"sync"
 	"errors"
+	"fmt"
 )
 
 type PersistentUint64 struct {
 	mu 								sync.RWMutex
 	node 							*Node
-	value								uint64
+	value							uint64
 	name 							string
 }
 func newPersistentUint64(node *Node,name string) *PersistentUint64 {
@@ -44,11 +45,15 @@ func (p *PersistentUint64) save() {
 
 func (p *PersistentUint64) load() error {
 	if !p.node.storage.Exists(p.name){
+		p.value=0
 		return errors.New(p.name+" file is not existed")
 	}
 	b, err := p.node.storage.Load(p.name)
 	if err != nil {
 		return err
+	}
+	if len(b)!=8{
+		return fmt.Errorf("length %d",len(b))
 	}
 	p.value = bytesToUint64(b)
 	return nil

@@ -5,6 +5,8 @@ import (
 	"math/rand"
 	"encoding/binary"
 	"bytes"
+	"strconv"
+	"fmt"
 )
 
 func  randomTime(t time.Time,maxRange time.Duration)time.Time{
@@ -68,7 +70,15 @@ func  bytesToInt32(b []byte)int32{
 	return v
 }
 
-
+func FormatName(v uint64) (s string) {
+	getString:=func(n int,char string) (s string) {
+		if n<1{return}
+		for i:=1;i<=n;i++{s+=char}
+		return
+	}
+	str:=strconv.FormatUint(v, 10)
+	return fmt.Sprintf( "%s%s",getString(20-len(str),"0"),str)
+}
 
 func quickSort(a []uint64,left ,right int){
 	length:=len(a)

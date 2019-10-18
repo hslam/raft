@@ -3,7 +3,7 @@ package raft
 import (
 	"sync"
 	"errors"
-	//"fmt"
+	"math"
 )
 
 const metaSize  = 32
@@ -128,7 +128,7 @@ func (i *Index) read(index uint64)*Meta {
 	}
 	ret:=(index-1)*32
 	b:=metaBytesPool.Get().([]byte)
-	err:=i.node.storage.SeekRead(DefaultIndex,ret,b)
+	_,err:=i.node.storage.SeekRead(DefaultIndex,ret,b)
 	if err!=nil{
 		return nil
 	}
@@ -148,7 +148,7 @@ func (i *Index) batchRead(startIndex uint64,endIndex uint64)[]*Meta {
 	cursor:=(startIndex-1)*metaSize
 	offset:=endIndex*metaSize
 	b:=make([]byte,offset-cursor)
-	if err:=i.node.storage.SeekRead(DefaultIndex,cursor,b);err!=nil{
+	if _,err:=i.node.storage.SeekRead(DefaultIndex,cursor,b);err!=nil{
 		return nil
 	}
 	if metas,err := i.Decode(b); err == nil {
@@ -173,7 +173,7 @@ func (i *Index) append(b []byte) {
 	i.node.storage.SeekWrite(DefaultIndex,ret,b)
 }
 
-func (i *Index) recover() error {
+func (i *Index) load() error {
 	if !i.node.storage.Exists(DefaultIndex){
 		return errors.New(DefaultIndex+" file is not existed")
 	}
@@ -208,4 +208,11 @@ func (i *Index)Encode(metas []*Meta)([]byte,error)  {
 		data=append(data,b...)
 	}
 	return data,nil
+}
+func (i *Index)Name(index uint64)(string)  {
+	if index<1{
+		return ""
+	}
+	file_index:=uint64(math.Ceil(float64(index)/DefaultMaxEntriesPerFile)*DefaultMaxEntriesPerFile)
+	return FormatName(file_index)
 }

@@ -33,6 +33,15 @@ func (s *Storage)Exists(file_name string) bool {
 	}
 	return exist
 }
+func (s *Storage)IsEmpty(file_name string) bool {
+	var empty bool
+	if num,err:=s.Size(file_name);err!=nil||num==0||!s.Exists(file_name){
+		empty = true
+	}else {
+		empty = false
+	}
+	return empty
+}
 func (s *Storage)SafeExists(file_name string) bool {
 	file_path := path.Join(s.data_dir, file_name)
 	var exist = true
@@ -61,6 +70,12 @@ func (s *Storage)MkDir(dir_name string) {
 func (s *Storage)RmDir(dir_name string) {
 	if err := os.RemoveAll(dir_name); err != nil {
 		Errorf("Unable to RmDir path: %v", err)
+	}
+}
+func (s *Storage)Rm(file_name string) {
+	file_path := path.Join(s.data_dir, file_name)
+	if err := os.Remove(file_path); err != nil {
+		Errorf("Unable to Rm path: %v", err)
 	}
 }
 func (s *Storage)SafeOverWrite(file_name string, data []byte ) error {
@@ -104,11 +119,12 @@ func (s *Storage) Size(file_name string) (int64,error) {
 	file_path := path.Join(s.data_dir, file_name)
 	f , err := os.OpenFile(file_path, os.O_RDONLY, 0600)
 	if err != nil {
-		return -1,err
+		return 0,err
 	}
 	defer f.Close()
 	return f.Seek(0, os.SEEK_END)
 }
+
 func (s *Storage) MD5(file_name string) string{
 	file_path := path.Join(s.data_dir, file_name)
 	testFile := file_path
@@ -202,19 +218,23 @@ func (s *Storage)Truncate(file_name string,size uint64) error {
 	}
 	return f.Sync()
 }
-func (s *Storage) SeekRead(file_name string,cursor uint64,b []byte)(err error) {
+func (s *Storage) SeekRead(file_name string,cursor uint64,b []byte)(n int, err error) {
 	file_path := path.Join(s.data_dir, file_name)
 	f , err := os.OpenFile(file_path, os.O_RDONLY, 0600)
 	if err != nil {
-		return err
+		return 0,err
 	}
 	defer f.Close()
 	ret, _ := f.Seek(int64(cursor), os.SEEK_SET)
-	n, err := f.ReadAt(b, ret)
-	if err != nil {
-		return err
-	}else if n < len(b) {
-		return io.ErrShortBuffer
-	}
-	return nil
+	return f.ReadAt(b, ret)
+}
+
+func (s *Storage)FileReader(file_name string) (*os.File,error) {
+	file_path := path.Join(s.data_dir, file_name)
+	return os.OpenFile(file_path, os.O_CREATE|os.O_RDONLY, 0600)
+}
+
+func (s *Storage)FileWriter(file_name string) (*os.File,error) {
+	file_path := path.Join(s.data_dir, file_name)
+	return os.OpenFile(file_path, os.O_CREATE|os.O_WRONLY, 0600)
 }

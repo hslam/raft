@@ -1,12 +1,14 @@
 package raft
 
-import "time"
+import (
+	"time"
+)
 
 type Raft interface {
-	Hearbeat(addr string,prevLogIndex,prevLogTerm uint64)  (nextIndex uint64,term uint64,success bool,ok bool)
+	Hearbeat(addr string,prevLogIndex,prevLogTerm uint64)  (nextIndex ,term uint64,success ,ok bool)
 	RequestVote(addr string) (ok bool)
-	AppendEntries(addr string,prevLogIndex,prevLogTerm uint64,entries []*Entry)  (nextIndex uint64,term uint64,success bool,ok bool)
-	InstallSnapshot(addr string) (ok bool)
+	AppendEntries(addr string,prevLogIndex,prevLogTerm uint64,entries []*Entry)  (nextIndex,term uint64,success ,ok bool)
+	InstallSnapshot(addr string,LastIncludedIndex,LastIncludedTerm,Offset uint64,Data []byte,Done bool) (offset,nextIndex uint64,ok bool)
 	HandleRequestVote(req *RequestVoteRequest, res *RequestVoteResponse)error
 	HandleAppendEntries(req *AppendEntriesRequest, res *AppendEntriesResponse)error
 	HandleInstallSnapshot(req *InstallSnapshotRequest,res *InstallSnapshotResponse)error
@@ -140,9 +142,15 @@ func (r *raft) AppendEntries(addr string,prevLogIndex,prevLogTerm uint64,entries
 	}
 	return 0,0,false,false
 }
-func (r *raft) InstallSnapshot(addr string) bool{
+func (r *raft) InstallSnapshot(addr string,LastIncludedIndex,LastIncludedTerm,Offset uint64,Data []byte,Done bool)(offset uint64,nextIndex uint64,ok bool){
 	var req =&InstallSnapshotRequest{}
 	req.Term=r.node.currentTerm.Id()
+	req.LeaderId=r.node.leader
+	req.LastIncludedIndex=LastIncludedIndex
+	req.LastIncludedTerm=LastIncludedTerm
+	req.Offset=Offset
+	req.Data=Data
+	req.Done=Done
 	var ch =make(chan *InstallSnapshotResponse,1)
 	var errCh =make(chan error,1)
 	go func (rpcs *RPCs,addr string,req *InstallSnapshotRequest, ch chan *InstallSnapshotResponse,errCh chan error) {
@@ -159,15 +167,15 @@ func (r *raft) InstallSnapshot(addr string) bool{
 			r.node.currentTerm.Set(res.Term)
 			r.node.stepDown()
 		}
-		Tracef("raft.InstallSnapshot %s -> %s",r.node.address,addr)
-		return true
+		//Tracef("raft.InstallSnapshot %s -> %s offset %d",r.node.address,addr,res.Offset)
+		return res.Offset,res.NextIndex,true
 	case err:=<-errCh:
 		Tracef("raft.InstallSnapshot %s -> %s error %s",r.node.address,addr,err.Error())
-		return false
+		return 0,0,false
 	case <-time.After(r.installSnapshotTimeout):
 		Tracef("raft.InstallSnapshot %s -> %s time out",r.node.address,addr)
 	}
-	return false
+	return 0,0,false
 }
 
 func (r *raft) HandleRequestVote(req *RequestVoteRequest, res *RequestVoteResponse)error {
@@ -258,6 +266,35 @@ func (r *raft) HandleAppendEntries(req *AppendEntriesRequest, res *AppendEntries
 	return nil
 }
 func (r *raft) HandleInstallSnapshot(req *InstallSnapshotRequest,res *InstallSnapshotResponse)error {
+	res.Term=r.node.currentTerm.Id()
+	if req.Term<r.node.currentTerm.Id(){
+		return nil
+	}else if req.Term>r.node.currentTerm.Id(){
+		r.node.currentTerm.Set(req.Term)
+		r.node.stepDown()
+	}
+	//Tracef("raft.HandleInstallSnapshot offset %d len %d done %t", req.Offset,len(req.Data),req.Done)
+	if req.Offset==0{
+		r.node.stateMachine.snapshotReadWriter.clearTar()
+		r.node.stateMachine.snapshotReadWriter.done=false
+	}
+	r.node.stateMachine.append(req.Offset,req.Data)
+	if req.Done{
+		if r.node.leader!=req.LeaderId{
+			r.node.leader=req.LeaderId
+		}
+		r.node.stateMachine.snapshotReadWriter.done=true
+		r.node.stateMachine.snapshotReadWriter.lastIncludedIndex.Set(req.LastIncludedIndex)
+		r.node.stateMachine.snapshotReadWriter.lastIncludedTerm.Set(req.LastIncludedTerm)
+		r.node.stateMachine.snapshotReadWriter.untar()
+		r.node.recover()
+	}
+	offset,err:=r.node.storage.Size(DefaultTarGz)
+	if err!=nil{
+		return nil
+	}
+	res.Offset=uint64(offset)
+	res.NextIndex=r.node.nextIndex
 	return nil
 }
 
