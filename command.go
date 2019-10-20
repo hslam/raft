@@ -25,6 +25,7 @@ func (m *CommandType) register(cmd Command) error{
 	m.types[cmd.Type()] = cmd
 	return nil
 }
+
 func (m *CommandType) clone(Type int32)Command{
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -35,6 +36,7 @@ func (m *CommandType) clone(Type int32)Command{
 	Debugf("CommandType.clone Unregistered %d",Type)
 	return nil
 }
+
 func (m *CommandType)exists(cmd Command) bool{
 	m.mu.RLock()
 	defer m.mu.RUnlock()

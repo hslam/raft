@@ -26,7 +26,6 @@ func (c JsonCodec) Decode(data []byte, v interface{}) error {
 	return json.Unmarshal(data, v)
 }
 
-
 type ProtoCodec struct{
 }
 
@@ -38,7 +37,6 @@ func (c ProtoCodec) Decode(data []byte, v interface{}) error {
 	return proto.Unmarshal(data, v.(proto.Message))
 }
 
-
 type XmlCodec struct{
 }
 
@@ -49,7 +47,6 @@ func (c XmlCodec) Encode(v interface{}) ([]byte, error) {
 func (c XmlCodec) Decode(data []byte, v interface{}) error {
 	return xml.Unmarshal(data, v)
 }
-
 
 type GobCodec struct{
 }

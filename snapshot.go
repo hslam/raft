@@ -256,6 +256,9 @@ func (s *SnapshotReadWriter) untar() error {
 	if s.node.storage.Exists(DefaultTarGz){
 		s.node.storage.Rm(DefaultTarGz)
 	}
+	if s.node.storage.Exists(DefaultLastTarIndex){
+		s.node.storage.Rm(DefaultLastTarIndex)
+	}
 	return nil
 }
 func (s *SnapshotReadWriter) gz() error {

@@ -37,9 +37,11 @@ func (election *Election)Reset(){
 		election.electionTimeout=DefaultStartWait
 	})
 }
+
 func (election *Election)Random(random bool){
 	election.random=random
 }
+
 func (election *Election)Timeout()bool{
 	if election.startTime.Add(election.electionTimeout).Before(time.Now()){
 		election.onceDisabled=true
