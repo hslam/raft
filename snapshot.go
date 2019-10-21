@@ -163,7 +163,7 @@ func (s *SnapshotReadWriter) RecoverFile(source *os.File,name string) error {
 			s.node.storage.SeekWrite(name,offsize,buf[:n])
 			offsize+=DefaultReadFileBufferSize
 			if size-offsize<=DefaultReadFileBufferSize{
-				n, err = source.Read(buf[:size-offsize])
+				n, err = source.Read(buf)
 				if err!=nil && err != io.EOF {
 					return err
 				}
@@ -224,10 +224,10 @@ func (s *SnapshotReadWriter) tar() error {
 	s.AppendFile(DefaultIndex)
 	s.AppendFile(DefaultLog)
 	s.gz()
-	s.node.storage.Rm(DefaultTar)
 	s.lastTarIndex.Set(s.lastIncludedIndex.Id())
 	Tracef("SnapshotReadWriter.tar %s lastTarIndex %d==%d",s.node.address,lastTarIndex,s.lastTarIndex.Id())
 	s.done=true
+	s.node.storage.Rm(DefaultTar)
 	return nil
 }
 func (s *SnapshotReadWriter) untar() error {
@@ -288,7 +288,7 @@ func (s *SnapshotReadWriter) gz() error {
 		writer.Write(buf[:n])
 		offsize+=DefaultReadFileBufferSize
 		if size-offsize<=DefaultReadFileBufferSize{
-			n, err = source.Read(buf[:size-offsize])
+			n, err = source.Read(buf)
 			if err!=nil && err != io.EOF {
 				return err
 			}

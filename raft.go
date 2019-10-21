@@ -265,7 +265,7 @@ func (r *raft) HandleInstallSnapshot(req *InstallSnapshotRequest,res *InstallSna
 		r.node.currentTerm.Set(req.Term)
 		r.node.stepDown()
 	}
-	//Tracef("raft.HandleInstallSnapshot offset %d len %d done %t", req.Offset,len(req.Data),req.Done)
+	Tracef("raft.HandleInstallSnapshot offset %d len %d done %t", req.Offset,len(req.Data),req.Done)
 	if req.Offset==0{
 		r.node.stateMachine.snapshotReadWriter.clear()
 		r.node.stateMachine.snapshotReadWriter.done=false
@@ -280,6 +280,7 @@ func (r *raft) HandleInstallSnapshot(req *InstallSnapshotRequest,res *InstallSna
 		r.node.stateMachine.snapshotReadWriter.lastIncludedTerm.Set(req.LastIncludedTerm)
 		r.node.stateMachine.snapshotReadWriter.untar()
 		r.node.recover()
+		Tracef("raft.HandleInstallSnapshot offset %d len %d done %t", req.Offset,len(req.Data),req.Done)
 	}
 	offset,err:=r.node.storage.Size(DefaultTarGz)
 	if err!=nil{

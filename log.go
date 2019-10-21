@@ -179,12 +179,18 @@ func (log *Log) applyCommitedRange(startIndex uint64,endIndex uint64) {
 		return
 	}
 	for i:=0;i<len(entries);i++{
-		//Tracef("Log.applyCommitedRange %s Index %d",log.node.address,entries[i].Index)
+		//Tracef("Log.applyCommitedRange %s Index %d Type %d",log.node.address,entries[i].Index,entries[i].CommandType)
 		command:=log.node.commandType.clone(entries[i].CommandType)
-		err:=log.node.raftCodec.Decode(entries[i].Command,command)
+		var err error
+		if entries[i].CommandType>=0{
+			err=log.node.raftCodec.Decode(entries[i].Command,command)
+		}else {
+			err=log.node.commandCodec.Decode(entries[i].Command,command)
+		}
 		if err==nil{
 			log.node.stateMachine.Apply(entries[i].Index,command)
 		}
+
 	}
 	log.putEmtyEntries(entries)
 	//Tracef("Log.applyCommitedRange %s startIndex %d endIndex %d",log.node.address,startIndex,endIndex)
