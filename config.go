@@ -52,6 +52,7 @@ const (
 	DefaultReadFileBufferSize= 1 << 24
 	CommandTypeAddPeer =-1
 	CommandTypeRemovePeer =-2
+	CommandTypeNoOperation =-3
 
 	DefaultNumInstallSnapshot = 1<<27
 	DefaultMaxEntriesPerFile = 1 << 27
@@ -65,8 +66,9 @@ const (
 	EverySecond SnapshotSyncType= 1
 	EveryMinute SnapshotSyncType= 2
 	EveryHour SnapshotSyncType= 3
-	DefalutSave SnapshotSyncType= 4
-	Save SnapshotSyncType= 5
+	EveryDay SnapshotSyncType= 4
+	DefalutSave SnapshotSyncType= 5
+	Save SnapshotSyncType= 6
 	Always SnapshotSyncType= 9
 
 	SecondsSaveSnapshot1 = 900

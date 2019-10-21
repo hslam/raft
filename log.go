@@ -60,11 +60,36 @@ func (log *Log) putEmtyEntries(entries []*Entry) {
 func (log *Log) checkIndex(index uint64)bool {
 	return log.indexs.checkIndex(index)
 }
+
 func (log *Log) lookup(index uint64)*Entry {
 	log.mu.Lock()
 	defer log.mu.Unlock()
 	meta:=log.indexs.lookup(index)
 	return log.read(meta)
+}
+
+func (log *Log) consistencyCheck(index uint64,term uint64)(ok bool) {
+	if index==0{
+		return false
+	}
+	if index>log.node.lastLogIndex{
+		return false
+	}
+	if index==log.node.lastLogIndex{
+		if term==log.node.lastLogTerm{
+			return true
+		}
+	}
+	entry:=log.node.log.lookup(index)
+	if  entry==nil{
+		return false
+	}
+	if entry.Term!=term{
+		log.node.log.deleteAfter(index)
+		log.node.nextIndex=log.node.lastLogIndex+1
+		return false
+	}
+	return true
 }
 func (log *Log)check(entries []*Entry)(bool)  {
 	lastIndex:=entries[0].Index

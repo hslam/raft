@@ -322,8 +322,8 @@ func (s *SnapshotReadWriter) ungz() error {
 	}
 	return nil
 }
-func (s *SnapshotReadWriter) clearTar() error {
-	return s.node.storage.Truncate(DefaultTar,0)
+func (s *SnapshotReadWriter) clear() error {
+	return s.node.storage.Truncate(DefaultTarGz,0)
 }
 func (s *SnapshotReadWriter)canTar() bool {
 	s.mut.RLock()

@@ -44,6 +44,21 @@ func (state *LeaderState)Reset(){
 	state.node.election.Random(false)
 	state.node.election.Reset()
 	Allf("%s LeaderState.Reset Term:%d",state.node.address,state.node.currentTerm.Id())
+	go func(node *Node,term uint64) {
+		noOperationCommand:=newNoOperationCommand()
+		if ok, err := node.do(noOperationCommand,time.Minute*10);ok!=nil{
+			if node.currentTerm.Id()==term{
+				node.ready=true
+			}
+		}else if err!=nil{
+			if err==ErrCommandTimeout{
+				if node.currentTerm.Id()==term{
+					state.node.lease=false
+					state.node.stepDown()
+				}
+			}
+		}
+	}(state.node,state.node.currentTerm.Id())
 }
 
 func (state *LeaderState) Update(){

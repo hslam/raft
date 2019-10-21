@@ -69,8 +69,10 @@ type Node struct {
 
 	//leader
 	lease 							bool
+	ready 							bool
 
 	raftCodec						Codec
+	commandCodec					Codec
 	codec							Codec
 
 	context 						interface{}
@@ -100,6 +102,7 @@ func NewNode(host string, port int,data_dir string,context interface{})(*Node,er
 		changeStateChan: make(chan int,1),
 		heartbeatTick:DefaultHeartbeatTick,
 		raftCodec:new(ProtoCodec),
+		commandCodec:new(JsonCodec),
 		codec:new(JsonCodec),
 		context:context,
 		commandType:&CommandType{types:make(map[int32]Command)},
@@ -120,7 +123,7 @@ func NewNode(host string, port int,data_dir string,context interface{})(*Node,er
 	n.state=newFollowerState(n)
 	n.pipeline=NewPipeline(n,DefaultMaxConcurrency)
 	n.pipelineChan = make(chan bool,DefaultMaxConcurrency)
-
+	n.registerCommand(&noOperationCommand{})
 	return n,nil
 }
 func (n *Node) Start() {
@@ -266,6 +269,11 @@ func (n *Node) Leader()string {
 	defer n.mu.RUnlock()
 	return n.leader
 }
+func (n *Node) Ready()bool {
+	n.mu.RLock()
+	defer n.mu.RUnlock()
+	return n.ready
+}
 func (n *Node) Lease()bool {
 	n.mu.RLock()
 	defer n.mu.RUnlock()
@@ -323,21 +331,36 @@ func (n *Node)RegisterCommand(command Command) (error){
 	defer n.mu.Unlock()
 	return n.commandType.register(command)
 }
+func (n *Node)registerCommand(command Command) (error){
+	if command == nil {
+		return ErrCommandNil
+	}
+	return n.commandType.register(command)
+}
 func (n *Node)Do(command Command) (interface{},error){
+	if command.Type() < 0 {
+		return nil,ErrCommandTypeMinus
+	}
+	return n.do(command,DefaultCommandTimeout)
+}
+func (n *Node)do(command Command,timeout time.Duration) (interface{},error){
 	if !n.running{
 		return nil,ErrNotRunning
 	}
 	if command == nil {
 		return nil,ErrCommandNil
-	}else if command.Type() < 0 {
-		return nil,ErrCommandTypeMinus
 	}
 	n.pipelineChan<-true
 	var reply interface{}
 	var err error
 	if n.IsLeader(){
 		if n.commandType.exists(command){
-			invoker:=newInvoker(command,false,n.codec)
+			var invoker RaftCommand
+			if command.Type()>=0{
+				invoker=newInvoker(command,false,n.codec)
+			}else {
+				invoker=newInvoker(command,false,n.commandCodec)
+			}
 			replyChan:=make(chan interface{},1)
 			errChan:=make(chan error,1)
 			ch:=NewPipelineCommand(invoker,replyChan,errChan)
@@ -345,7 +368,7 @@ func (n *Node)Do(command Command) (interface{},error){
 			select {
 			case reply=<-replyChan:
 			case err=<-errChan:
-			case <-time.After(DefaultCommandTimeout):
+			case <-time.After(timeout):
 				err=ErrCommandTimeout
 			}
 			close(replyChan)

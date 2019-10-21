@@ -232,21 +232,13 @@ func (r *raft) HandleAppendEntries(req *AppendEntriesRequest, res *AppendEntries
 		res.Success=true
 		return nil
 	}else if req.PrevLogIndex>0{
-		if req.PrevLogIndex>r.node.lastLogIndex{
-			res.Success=false
-			return nil
-		}else if  r.node.log.lookup(req.PrevLogIndex)==nil{
-			res.Success=false
-			return nil
-		}else if r.node.log.lookup(req.PrevLogIndex).Term!=req.PrevLogTerm{
-			r.node.log.deleteAfter(req.PrevLogIndex)
-			r.node.nextIndex=r.node.lastLogIndex+1
+		if ok:=r.node.log.consistencyCheck(req.PrevLogIndex,req.PrevLogTerm);!ok{
 			res.NextIndex=r.node.nextIndex
-			//r.node.commitIndex=0
 			res.Success=false
 			return nil
 		}
 	}
+
 	if req.LeaderCommit>r.node.commitIndex.Id() {
 		//var commitIndex=r.node.commitIndex
 		r.node.commitIndex.Set(minUint64(req.LeaderCommit,r.node.lastLogIndex))
@@ -275,7 +267,7 @@ func (r *raft) HandleInstallSnapshot(req *InstallSnapshotRequest,res *InstallSna
 	}
 	//Tracef("raft.HandleInstallSnapshot offset %d len %d done %t", req.Offset,len(req.Data),req.Done)
 	if req.Offset==0{
-		r.node.stateMachine.snapshotReadWriter.clearTar()
+		r.node.stateMachine.snapshotReadWriter.clear()
 		r.node.stateMachine.snapshotReadWriter.done=false
 	}
 	r.node.stateMachine.append(req.Offset,req.Data)

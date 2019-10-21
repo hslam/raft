@@ -38,7 +38,13 @@ func (s *StateMachine)Apply(index uint64,command Command) (interface{},error){
 	if index<=s.lastApplied{
 		return nil,nil
 	}
-	reply,err:=command.Do(s.node.context)
+	var reply interface{}
+	var err error
+	if command.Type()>=0{
+		reply,err=command.Do(s.node.context)
+	}else {
+		reply,err=command.Do(s.node)
+	}
 	s.lastApplied=index
 	return reply,err
 }
@@ -64,6 +70,12 @@ func (s *StateMachine)SetSnapshotSyncType(snapshotSyncType SnapshotSyncType){
 	case EveryHour:
 		s.Stop()
 		s.snapshotSyncTicker=time.NewTicker(time.Hour)
+		s.stop=make(chan bool,1)
+		s.finish=make(chan bool,1)
+		go s.run()
+	case EveryDay:
+		s.Stop()
+		s.snapshotSyncTicker=time.NewTicker(time.Hour*24)
 		s.stop=make(chan bool,1)
 		s.finish=make(chan bool,1)
 		go s.run()

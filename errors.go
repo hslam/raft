@@ -7,6 +7,7 @@ import (
 var (
 	ErrNotLeader=errors.New("this node is not Leader")
 	ErrNotRunning=errors.New("this node do not running")
+	ErrLeaderIsNotReady=errors.New("Leader is not ready")
 
 
 	//AppendEntries
@@ -20,6 +21,7 @@ var (
 	ErrCommandNotRegistered=errors.New("Command is not registered")
 	ErrCommandTypeExisted=errors.New("CommandType is existed")
 	ErrCommandTypeMinus=errors.New("CommandType must be >=0")
+
 
 	//SnapshotCodec
 	ErrSnapshotCodecNil=errors.New("SnapshotCodec can not be nil")
