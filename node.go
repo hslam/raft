@@ -7,6 +7,8 @@ import (
 	"hslam.com/mgit/Mort/timer"
 )
 
+func init() {
+}
 
 type Node struct {
 	mu 								sync.RWMutex
@@ -33,8 +35,9 @@ type Node struct {
 	server							*Server
 	configuration 					*Configuration
 	log								*Log
-
+	readIndex 						*ReadIndex
 	stateMachine					*StateMachine
+
 	peers      						map[string]*Peer
 	detectTicker					*time.Ticker
 	keepAliveTicker					*time.Ticker
@@ -80,6 +83,8 @@ type Node struct {
 	pipeline						*Pipeline
 	pipelineChan					chan bool
 
+	commitWork 						bool
+
 }
 
 func NewNode(host string, port int,data_dir string,context interface{})(*Node,error){
@@ -110,15 +115,16 @@ func NewNode(host string, port int,data_dir string,context interface{})(*Node,er
 	}
 	n.storage=newStorage(n,data_dir)
 	n.votes=newVotes(n)
+	n.readIndex=newReadIndex(n)
 	n.stateMachine=newStateMachine(n)
 	n.configuration=newConfiguration(n)
 	n.log=newLog(n)
 	n.election=newElection(n,DefaultElectionTimeout)
 	n.raft=newRaft(n)
 	n.server=newServer(n,fmt.Sprintf(":%d",port))
-	n.currentTerm=newPersistentUint64(n,DefaultTerm)
+	n.currentTerm=newPersistentUint64(n,DefaultTerm,0)
 	//n.lastLogIndex=newPersistentUint64(n,DefaultLastLogIndex)
-	n.commitIndex=newPersistentUint64(n,DefaultCommitIndex)
+	n.commitIndex=newPersistentUint64(n,DefaultCommitIndex,time.Second)
 	n.votedFor=newPersistentString(n,DefaultVoteFor)
 	n.state=newFollowerState(n)
 	n.pipeline=NewPipeline(n,DefaultMaxConcurrency)
@@ -153,6 +159,8 @@ func (n *Node) run() {
 				}
 			default:
 				n.state.Update()
+				n.log.Update()
+				n.readIndex.Update()
 			}
 		}()
 	})
@@ -383,6 +391,18 @@ func (n *Node)do(command Command,timeout time.Duration) (interface{},error){
 	<-n.pipelineChan
 	return reply,err
 }
+func (n *Node)ReadIndex()bool{
+	if !n.running{
+		return false
+	}
+	if !n.isLeader(){
+		return false
+	}
+	if !n.Ready(){
+		return false
+	}
+	return n.readIndex.Read()
+}
 func (n *Node) fast() bool {
 	return n.isLeader()&&len(n.peers)>0
 }
@@ -521,8 +541,8 @@ func (n *Node) reset(){
 	n.stateMachine.snapshotReadWriter.lastTarIndex.Set(0)
 }
 func (n *Node) load(){
-	n.log.load()
 	n.stateMachine.load()
+	n.log.load()
 }
 func (n *Node) recover() error {
 	Tracef("Node.recover %s start",n.address)
@@ -635,7 +655,7 @@ func (n *Node) print(){
 	}
 	n.printPeers()
 }
-func (n *Node) Commit() error {
+func (n *Node) commit() error {
 	n.nodesMut.RLock()
 	defer n.nodesMut.RUnlock()
 	//var commitIndex=n.commitIndex
@@ -645,10 +665,17 @@ func (n *Node) Commit() error {
 			n.commitIndex.Set(index)
 			//Tracef("Node.Commit %s commitIndex %d==>%d",n.address,commitIndex,n.commitIndex)
 		}
-		if n.commitIndex.Id()<=n.recoverLogIndex&&n.commitIndex.Id()>n.stateMachine.lastApplied{
-			//var lastApplied=n.stateMachine.lastApplied
-			n.log.applyCommited()
-			//Tracef("Node.Commit %s lastApplied %d==>%d",n.address,lastApplied,n.stateMachine.lastApplied)
+		if n.commitWork{
+			if n.commitIndex.Id()<=n.recoverLogIndex&&n.commitIndex.Id()>n.stateMachine.lastApplied{
+				n.commitWork=false
+				go func(){
+					defer func() {if err := recover(); err != nil {}}()
+					defer func() {n.commitWork=true}()
+					//var lastApplied=n.stateMachine.lastApplied
+					n.log.applyCommited()
+					//Tracef("Node.Commit %s lastApplied %d==>%d",n.address,lastApplied,n.stateMachine.lastApplied)
+				}()
+			}
 		}
 		return nil
 	}
@@ -672,10 +699,17 @@ func (n *Node) Commit() error {
 					n.commitIndex.Set(index)
 					//Tracef("Node.Commit %s commitIndex %d==>%d",n.address,commitIndex,n.commitIndex)
 				}
-				if n.commitIndex.Id()<=n.recoverLogIndex&&n.commitIndex.Id()>n.stateMachine.lastApplied{
-					//var lastApplied=n.stateMachine.lastApplied
-					n.log.applyCommited()
-					//Tracef("Node.Commit %s lastApplied %d==>%d",n.address,lastApplied,n.stateMachine.lastApplied)
+				if n.commitWork{
+					if n.commitIndex.Id()<=n.recoverLogIndex&&n.commitIndex.Id()>n.stateMachine.lastApplied{
+						n.commitWork=false
+						go func(){
+							defer func() {if err := recover(); err != nil {}}()
+							defer func() {n.commitWork=true}()
+							//var lastApplied=n.stateMachine.lastApplied
+							n.log.applyCommited()
+							//Tracef("Node.Commit %s lastApplied %d==>%d",n.address,lastApplied,n.stateMachine.lastApplied)
+						}()
+					}
 				}
 				break
 			}

@@ -59,7 +59,7 @@ func NewNode(data_dir string, host string, port ,rpc_port,raft_port int,peers []
 	n.raft_node.SetNode(peers)
 	n.raft_node.RegisterCommand(&SetCommand{})
 	n.raft_node.SetSnapshot(&Snapshot{})
-	n.raft_node.SetSnapshotSyncType(raft.EveryMinute)
+	n.raft_node.SetSnapshotSyncType(raft.EveryHour)
 	n.raft_node.SetCodec(&raft.ProtoCodec{})
 	n.http_server = &http.Server{
 		Addr:    fmt.Sprintf(":%d", n.port),
@@ -68,6 +68,7 @@ func NewNode(data_dir string, host string, port ,rpc_port,raft_port int,peers []
 	n.router.Group("/cluster", func(router *mux.Router) {
 		router.HandleFunc("/status", n.statusHandler).All()
 		router.HandleFunc("/leader", n.leaderHandler).All()
+		router.HandleFunc("/ready", n.readyHandler).All()
 		router.HandleFunc("/address", n.addressHandler).All()
 		router.HandleFunc("/isleader", n.isLeaderHandler).All()
 		router.HandleFunc("/peers", n.peersHandler).All()
@@ -160,8 +161,10 @@ func (n *Node) getHandler(w http.ResponseWriter, req *http.Request) {
 		}
 	}()
 	params := n.router.Params(req)
-	value := n.db.Get(params["key"])
-	w.Write([]byte(value))
+	if ok:=n.raft_node.ReadIndex();ok{
+		value := n.db.Get(params["key"])
+		w.Write([]byte(value))
+	}
 }
 func (n *Node) statusHandler(w http.ResponseWriter, req *http.Request) {
 	defer func() {
@@ -182,6 +185,13 @@ func (n *Node) leaderHandler(w http.ResponseWriter, req *http.Request) {
 		}
 	}()
 	w.Write([]byte(n.raft_node.Leader()))
+}
+func (n *Node) readyHandler(w http.ResponseWriter, req *http.Request) {
+	defer func() {
+		if err := recover(); err != nil {
+		}
+	}()
+	n.render.JSON(w,req,n.raft_node.Ready(),http.StatusOK)
 }
 func (n *Node) isLeaderHandler(w http.ResponseWriter, req *http.Request) {
 	defer func() {

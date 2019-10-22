@@ -2,7 +2,6 @@ package raft
 
 import (
 	"sync"
-	"hslam.com/mgit/Mort/timer"
 	"time"
 )
 
@@ -12,8 +11,6 @@ type LeaderState struct{
 	stop					chan bool
 	notice 					chan bool
 	heartbeatTicker			*time.Ticker
-	checkTicker				*timer.FuncTicker
-	commitTicker			*timer.FuncTicker
 }
 func newLeaderState(node *Node) State {
 	//Tracef("%s newLeaderState",node.address)
@@ -23,8 +20,6 @@ func newLeaderState(node *Node) State {
 		stop:					make(chan bool,1),
 		notice:					make(chan bool,1),
 		heartbeatTicker:		time.NewTicker(node.heartbeatTick),
-		checkTicker:			timer.NewFuncTicker(DefaultCheckDelay,nil),
-		commitTicker:			timer.NewFuncTicker(DefaultCommitDelay,nil),
 	}
 	state.Reset()
 	go state.run()
@@ -46,17 +41,15 @@ func (state *LeaderState)Reset(){
 	Allf("%s LeaderState.Reset Term:%d",state.node.address,state.node.currentTerm.Id())
 	go func(node *Node,term uint64) {
 		noOperationCommand:=newNoOperationCommand()
-		if ok, err := node.do(noOperationCommand,time.Minute*10);ok!=nil{
+		if ok, _ := node.do(noOperationCommand,time.Minute*10);ok!=nil{
 			if node.currentTerm.Id()==term{
 				node.ready=true
+				return
 			}
-		}else if err!=nil{
-			if err==ErrCommandTimeout{
-				if node.currentTerm.Id()==term{
-					state.node.lease=false
-					state.node.stepDown()
-				}
-			}
+		}
+		if node.currentTerm.Id()==term{
+			state.node.lease=false
+			state.node.stepDown()
 		}
 	}(state.node,state.node.currentTerm.Id())
 }
@@ -71,6 +64,8 @@ func (state *LeaderState) Update(){
 		state.node.lease=true
 		state.node.election.Reset()
 	}
+	state.node.check()
+	state.node.commit()
 }
 
 func (state *LeaderState) String()string{
@@ -107,14 +102,6 @@ func (state *LeaderState)NextState()State{
 }
 
 func (state *LeaderState) run() {
-	state.checkTicker.Tick(func(){
-		defer func() {if err := recover(); err != nil {}}()
-		state.node.check()
-	})
-	state.commitTicker.Tick(func() {
-		defer func() {if err := recover(); err != nil {}}()
-		state.node.Commit()
-	})
 	for {
 		select {
 		case <-state.heartbeatTicker.C:
@@ -130,9 +117,5 @@ func (state *LeaderState) run() {
 	close(state.stop)
 	state.heartbeatTicker.Stop()
 	state.heartbeatTicker=nil
-	state.checkTicker.Stop()
-	state.checkTicker=nil
-	state.commitTicker.Stop()
-	state.commitTicker=nil
 	state.notice<-true
 }

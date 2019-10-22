@@ -125,18 +125,20 @@ func (p *Peer) check() {
 					}
 				}()
 			}else {
-				size,err:=p.node.storage.Size(DefaultTarGz)
-				if err!=nil{
-					return
-				}
-				p.size=uint64(size)
-				p.chunkNum=int(math.Ceil(float64(size) / float64(DefaultChunkSize)))
 				if p.send{
 					p.send=false
 					go func() {
 						defer func() {
 							p.send=true
 						}()
+						if p.chunk==0{
+							size,err:=p.node.storage.Size(DefaultTarGz)
+							if err!=nil{
+								return
+							}
+							p.size=uint64(size)
+							p.chunkNum=int(math.Ceil(float64(size) / float64(DefaultChunkSize)))
+						}
 						if p.chunkNum>1{
 							if p.chunk<p.chunkNum-1{
 								b := make([]byte, DefaultChunkSize)

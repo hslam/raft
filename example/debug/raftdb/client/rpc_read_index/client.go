@@ -3,7 +3,7 @@ package main
 import (
 	"hslam.com/mgit/Mort/rpc"
 	"hslam.com/mgit/Mort/stats"
-	"hslam.com/mgit/Mort/raft/example/debug/raftdb/client/rpc/pb"
+	"hslam.com/mgit/Mort/raft/example/raftdb/node"
 	"math/rand"
 	"strconv"
 	"runtime"
@@ -21,7 +21,6 @@ var addr string
 var parallel int
 var batch bool
 var batch_async bool
-var pipelining bool
 var multiplexing bool
 var clients int
 var total_calls int
@@ -38,7 +37,6 @@ func init()  {
 	flag.IntVar(&total_calls, "total", 500000, "total_calls: -total=10000")
 	flag.BoolVar(&batch, "batch", true, "batch: -batch=false")
 	flag.BoolVar(&batch_async, "batch_async", true, "batch_async: -batch_async=false")
-	flag.BoolVar(&pipelining, "pipelining", true, "pipelining: -pipelining=false")
 	flag.BoolVar(&multiplexing, "multiplexing", false, "multiplexing: -multiplexing=false")
 	flag.IntVar(&clients, "clients", 8, "num: -clients=1")
 	flag.BoolVar(&bar, "bar", false, "bar: -bar=true")
@@ -49,7 +47,7 @@ func init()  {
 }
 
 func main()  {
-	fmt.Printf("./client -network=%s -codec=%s -compress=%s -h=%s -p=%d -parallel=%d -total=%d -pipelining=%t -multiplexing=%t -batch=%t -batch_async=%t -clients=%d\n",network,codec,compress,host,port,parallel,total_calls,pipelining,multiplexing,batch,batch_async,clients)
+	fmt.Printf("./client -network=%s -codec=%s -compress=%s -h=%s -p=%d -parallel=%d -total=%d -multiplexing=%t -batch=%t -batch_async=%t -clients=%d\n",network,codec,compress,host,port,parallel,total_calls,multiplexing,batch,batch_async,clients)
 	var wrkClients []stats.Client
 	if clients>1{
 		pool,err := rpc.DialsWithMaxRequests(clients,network,addr,codec,parallel)
@@ -91,15 +89,14 @@ type WrkClient struct {
 }
 
 func (c *WrkClient)Call()(int64,int64,bool){
-	A:= RandString(4)
-	B:= RandString(32)
-	req := &pb.Request{Key:A,Value:B}
-	var res pb.Response
-	c.Conn.Call("S.Set", req, &res)
+	A:= "foo"
+	req := &node.Request{Key:A}
+	var res node.Response
+	c.Conn.Call("S.ReadIndexGet", req, &res)
 	if res.Ok==true{
-		return int64(len(A)+len(B)),0,true
+		return int64(len(A)),int64(len(res.Result)),true
 	}
-	return int64(len(A)+len(B)),0,false
+	return int64(len(A)),int64(len(res.Result)),false
 }
 
 func RandString(len int) string {

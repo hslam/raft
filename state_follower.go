@@ -34,7 +34,7 @@ func (state *FollowerState) Update(){
 	if state.work{
 		if state.node.commitIndex.Id()>0&&state.node.commitIndex.Id()>state.node.stateMachine.lastApplied{
 			state.work=false
-			go func() {
+			func() {
 				var ch =make(chan bool,1)
 				go func (ch chan bool) {
 					defer func() {if err := recover(); err != nil {}}()
@@ -52,8 +52,6 @@ func (state *FollowerState) Update(){
 					Tracef("%s FollowerState.Update applyCommited time out",state.node.address)
 				}
 			}()
-
-
 		}
 	}
 }

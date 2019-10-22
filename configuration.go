@@ -69,7 +69,7 @@ func (c *Configuration) load() error {
 	c.node.address=configurationStorage.Address
 	peers:=configurationStorage.Peers
 	if !c.isPeersChanged(peers){
-		Tracef("is not PeersChanged %d %d",len(peers),len(c.peers))
+		Tracef("Configuration.load !PeersChanged %d %d",len(peers),len(c.peers))
 		return nil
 	}
 	c.node.peers=make(map[string]*Peer)

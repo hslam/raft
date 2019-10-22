@@ -4,6 +4,7 @@ import (
 	"sync"
 	"errors"
 	"fmt"
+	"time"
 )
 
 type PersistentUint64 struct {
@@ -11,11 +12,19 @@ type PersistentUint64 struct {
 	node 							*Node
 	value							uint64
 	name 							string
+	ticker 							*time.Ticker
+	lastSaveValue 					uint64
+	deferSync  						bool
 }
-func newPersistentUint64(node *Node,name string) *PersistentUint64 {
+func newPersistentUint64(node *Node,name string,tick time.Duration) *PersistentUint64 {
 	p:=&PersistentUint64{
 		node:node,
 		name:name,
+	}
+	if tick>0{
+		p.deferSync=true
+		p.ticker=time.NewTicker(tick)
+		go p.run()
 	}
 	p.load()
 	return p
@@ -24,14 +33,18 @@ func (p *PersistentUint64) Incre()uint64 {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.value+=1
-	p.save()
+	if !p.deferSync{
+		p.save()
+	}
 	return p.value
 }
 func (p *PersistentUint64) Set(t uint64) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.value=t
-	p.save()
+	if !p.deferSync{
+		p.save()
+	}
 }
 func (p *PersistentUint64) Id()uint64 {
 	p.mu.RLock()
@@ -57,4 +70,21 @@ func (p *PersistentUint64) load() error {
 	}
 	p.value = bytesToUint64(b)
 	return nil
+}
+
+func (p *PersistentUint64)run()  {
+	for range p.ticker.C{
+		if p.lastSaveValue!=p.value{
+			func(){
+				p.mu.Lock()
+				defer p.mu.Unlock()
+				p.save()
+			}()
+			p.lastSaveValue=p.value
+		}
+	}
+}
+func (p *PersistentUint64)Stop()  {
+	p.ticker.Stop()
+	p.ticker=nil
 }

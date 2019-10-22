@@ -20,15 +20,16 @@ const (
 	DefaultInstallSnapshotTimeout = 10*1000 * time.Millisecond
 
 	DefaultCommandTimeout = 60*1000 * time.Millisecond
-
-	DefaultMaxConcurrency = 1024*32
-	DefaultMaxBatch = 1024*32
-	DefaultMaxCacheEntries=1024*32
+	DefaultMaxConcurrencyRead = 1024*1024
+	DefaultMaxConcurrency = 1024*1024
+	DefaultMaxCacheEntries=1024*1024
+	DefaultMaxBatch = 1024*1024
 	DefaultMaxDelay	=	  time.Millisecond
+	DefaultMaxReadDelay	=	  time.Millisecond
 	DefaultCheckDelay	=	time.Millisecond*5
 	DefaultCommitDelay	=	 time.Millisecond*5
 	DefaultRetryTimes	=	5
-	DefaultTarTick	=	 time.Minute
+	DefaultTarTick	=	 time.Hour
 
 	DefaultDataDir = "default.raft"
 	DefaultConfig = "config"
@@ -53,6 +54,7 @@ const (
 	CommandTypeAddPeer =-1
 	CommandTypeRemovePeer =-2
 	CommandTypeNoOperation =-3
+	CommandTypeReadIndex =-4
 
 	DefaultNumInstallSnapshot = 1<<27
 	DefaultMaxEntriesPerFile = 1 << 27

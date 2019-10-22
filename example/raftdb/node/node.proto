@@ -13,8 +13,8 @@ message Request {
 }
 
 message Response {
-    bool  ok     = 1;
-    string  leader = 2;
+    bool    ok     = 1;
+    bytes   result = 2;
 }
 
 message Status {

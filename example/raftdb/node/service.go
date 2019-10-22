@@ -21,13 +21,63 @@ func (s *Service)Set(req *Request, res *Response) error {
 			res.Ok=true
 			return nil
 		}
-		if err==raft.ErrNotLeader{
-			leader:=s.node.raft_node.Leader()
-			if leader!=""{
-				res.Leader=leader
-			}
-		}
 		return err
+	}else {
+		leader:=s.node.raft_node.Leader()
+		if leader!=""{
+			leader_url, err := url.Parse("http://" + leader)
+			if err!=nil{
+				panic(err)
+			}
+			port,err:=strconv.Atoi(leader_url.Port())
+			if err!=nil{
+				panic(err)
+			}
+			leader_host:=leader_url.Hostname() + ":" + strconv.Itoa(port-1000)
+			return getRPCs().Call(leader_host,req,res)
+		}
+		return raft.ErrNotLeader
+	}
+}
+
+
+func (s *Service)Get(req *Request, res *Response) error {
+	if s.node.raft_node.IsLeader(){
+		if ok:=s.node.raft_node.Lease();ok{
+			value := s.node.db.Get(req.Key)
+			res.Result=[]byte(value)
+			res.Ok=true
+			return nil
+		}
+		return nil
+	}else {
+		leader:=s.node.raft_node.Leader()
+		if leader!=""{
+			leader_url, err := url.Parse("http://" + leader)
+			if err!=nil{
+				panic(err)
+			}
+			port,err:=strconv.Atoi(leader_url.Port())
+			if err!=nil{
+				panic(err)
+			}
+			leader_host:=leader_url.Hostname() + ":" + strconv.Itoa(port-1000)
+			return getRPCs().Call(leader_host,req,res)
+		}
+		return raft.ErrNotLeader
+	}
+}
+
+
+func (s *Service)ReadIndexGet(req *Request, res *Response) error {
+	if s.node.raft_node.IsLeader(){
+		if ok:=s.node.raft_node.ReadIndex();ok{
+			value := s.node.db.Get(req.Key)
+			res.Result=[]byte(value)
+			res.Ok=true
+			return nil
+		}
+		return nil
 	}else {
 		leader:=s.node.raft_node.Leader()
 		if leader!=""{

@@ -48,6 +48,14 @@ curl -XPOST http://localhost:7003/db/foo -d 'bar'
 
 curl http://localhost:7003/db/foo
 
+go-wrk -m="POST" -c=1 -t=1 -n=1000 -k=false -b="bar" http://127.0.0.1:7001/db/foo
+
+go-wrk -m="GET" -c=1 -t=1 -n=1000 -k=false http://localhost:7001/db/foo
+
+go-wrk -m="POST" -c=128 -t=8 -n=10000 -k=false -b="bar" http://127.0.0.1:7001/db/foo
+
+go-wrk -m="GET" -c=128 -t=8 -n=10000 -k=false http://localhost:7001/db/foo
+
 go-wrk -m="POST" -c=1 -t=1 -n=1000 -k=false -b="bar" http://127.0.0.1:7003/db/foo
 
 
