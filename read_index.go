@@ -53,31 +53,34 @@ func (r *ReadIndex) reply(id uint64,success bool){
 	}
 	delete(r.m,id)
 }
-func (r *ReadIndex) Update() {
+func (r *ReadIndex) Update() bool{
 	if r.work{
 		r.work=false
-		func(){
-			defer func() {if err := recover(); err != nil {}}()
-			defer func() {r.work=true}()
-			r.mu.Lock()
-			defer r.mu.Unlock()
-			if _,ok:=r.m[r.id];ok{
-				if len(r.m[r.id])>0{
-					go func(node *Node,id uint64) {
-						noOperationCommand:=newNoOperationCommand()
-						if ok, _ := node.do(noOperationCommand,DefaultCommandTimeout);ok!=nil{
-							r.reply(id,true)
-							return
-						}
-						r.reply(id,false)
-					}(r.node,r.id)
-				}
-			}
+		defer func() {if err := recover(); err != nil {}}()
+		defer func() {r.work=true}()
+		defer func() {
 			if r.node.isLeader(){
 				r.id+=1
 			}
 		}()
+		r.mu.Lock()
+		defer r.mu.Unlock()
+		if _,ok:=r.m[r.id];ok{
+			if len(r.m[r.id])>0{
+				go func(node *Node,id uint64) {
+					noOperationCommand:=newNoOperationCommand()
+					if ok, _ := node.do(noOperationCommand,DefaultCommandTimeout);ok!=nil{
+						r.reply(id,true)
+						return
+					}
+					r.reply(id,false)
+				}(r.node,r.id)
+				return true
+			}
+		}
+
 	}
+	return false
 }
 
 func (r *ReadIndex) run() {

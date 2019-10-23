@@ -391,25 +391,26 @@ func (log *Log) loadMd5() (string,error) {
 	}
 	return string(b),nil
 }
-func (log *Log) Update() {
+func (log *Log) Update()bool {
 	if log.work{
 		log.work=false
-		func(){
-			defer func() {if err := recover(); err != nil {}}()
-			defer func() {log.work=true}()
-			log.batchMu.Lock()
-			defer log.batchMu.Unlock()
-			if len(log.readyEntries)>log.maxBatch{
-				entries:=log.readyEntries[:log.maxBatch]
-				log.readyEntries=log.readyEntries[log.maxBatch:]
-				log.ticker(entries)
-			}else  if len(log.readyEntries)>0{
-				entries:=log.readyEntries[:]
-				log.readyEntries=log.readyEntries[len(log.readyEntries):]
-				log.ticker(entries)
-			}
-		}()
+		defer func() {if err := recover(); err != nil {}}()
+		defer func() {log.work=true}()
+		log.batchMu.Lock()
+		defer log.batchMu.Unlock()
+		if len(log.readyEntries)>log.maxBatch{
+			entries:=log.readyEntries[:log.maxBatch]
+			log.readyEntries=log.readyEntries[log.maxBatch:]
+			log.ticker(entries)
+			return true
+		}else  if len(log.readyEntries)>0{
+			entries:=log.readyEntries[:]
+			log.readyEntries=log.readyEntries[len(log.readyEntries):]
+			log.ticker(entries)
+			return true
+		}
 	}
+	return false
 }
 
 func (log *Log) run()  {

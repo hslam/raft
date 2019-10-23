@@ -6,7 +6,7 @@ import (
 
 const (
 	DefaultStartWait = 3*1000*time.Millisecond
-	DefaultNodeTick = time.Millisecond
+	DefaultNodeTick = time.Millisecond*100
 	DefaultNodeTracePrintTick = 1000 * time.Millisecond
 	DefaultCompactionTick 	=	60*1000 * time.Millisecond
 	DefaultHeartbeatTick = 100 * time.Millisecond
@@ -24,11 +24,6 @@ const (
 	DefaultMaxConcurrency = 1024*1024
 	DefaultMaxCacheEntries=1024*1024
 	DefaultMaxBatch = 1024*1024
-	DefaultMaxDelay	=	  time.Millisecond
-	DefaultMaxReadDelay	=	  time.Millisecond
-	DefaultCheckDelay	=	time.Millisecond*5
-	DefaultCommitDelay	=	 time.Millisecond*5
-	DefaultRetryTimes	=	5
 	DefaultTarTick	=	 time.Hour
 
 	DefaultDataDir = "default.raft"

@@ -2,7 +2,6 @@ package raft
 
 import(
 	"sync"
-	"time"
 	"math"
 )
 
@@ -11,7 +10,6 @@ type Peer struct {
 	node					*Node
 	address					string
 	alive					bool
-	appendEntriesTicker		*time.Ticker
 	nextIndex				uint64
 	lastPrintNextIndex		uint64
 	send 					bool
@@ -27,7 +25,6 @@ func newPeer(node *Node, address string) *Peer {
 	p:=&Peer{
 		node :					node,
 		address :				address,
-		appendEntriesTicker:	time.NewTicker(DefaultMaxDelay*5),
 		send:					true,
 		tarWork: 				true,
 		install:				true,

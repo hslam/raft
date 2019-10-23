@@ -45,8 +45,9 @@ type Node struct {
 	checkLogTicker					*time.Ticker
 	state							State
 	changeStateChan 				chan int
-	ticker							*timer.FuncTicker
-
+	ticker							*time.Ticker
+	workTicker 						*timer.FuncTicker
+	deferTime 						time.Time
 	//persistent state on all servers
 	currentTerm						*PersistentUint64
 	votedFor   						*PersistentString
@@ -102,7 +103,7 @@ func NewNode(host string, port int,data_dir string,context interface{})(*Node,er
 		detectTicker:time.NewTicker(DefaultDetectTick),
 		keepAliveTicker:time.NewTicker(DefaultKeepAliveTick),
 		checkLogTicker:time.NewTicker(DefaultCheckLogTick),
-		ticker:timer.NewFuncTicker(DefaultNodeTick,nil),
+		ticker:time.NewTicker(DefaultNodeTick),
 		stop:make(chan bool,1),
 		changeStateChan: make(chan int,1),
 		heartbeatTick:DefaultHeartbeatTick,
@@ -123,7 +124,6 @@ func NewNode(host string, port int,data_dir string,context interface{})(*Node,er
 	n.raft=newRaft(n)
 	n.server=newServer(n,fmt.Sprintf(":%d",port))
 	n.currentTerm=newPersistentUint64(n,DefaultTerm,0)
-	//n.lastLogIndex=newPersistentUint64(n,DefaultLastLogIndex)
 	n.commitIndex=newPersistentUint64(n,DefaultCommitIndex,time.Second)
 	n.votedFor=newPersistentString(n,DefaultVoteFor)
 	n.state=newFollowerState(n)
@@ -142,30 +142,42 @@ func (n *Node) Start() {
 	n.running=true
 }
 func (n *Node) run() {
-	n.ticker.Tick(func() {
-		if !n.running{
-			return
-		}
-		func(){
-			defer func() {if err := recover(); err != nil {}}()
-			select {
-			case i := <-n.changeStateChan:
-				if i == 1 {
-					n.setState(n.state.NextState())
-				} else if i == -1 {
-					n.setState(n.state.StepDown())
-				}else if i == 0 {
-					n.state.Reset()
-				}
-			default:
-				n.state.Update()
-				n.log.Update()
-				n.readIndex.Update()
-			}
-		}()
-	})
 	for {
 		select {
+		case <-n.ticker.C:
+			func(){
+				defer func() {if err := recover(); err != nil {}}()
+				if !n.running{
+					return
+				}
+				select {
+				case i := <-n.changeStateChan:
+					if i == 1 {
+						n.setState(n.state.NextState())
+					} else if i == -1 {
+						n.setState(n.state.StepDown())
+					}else if i == 0 {
+						n.state.Reset()
+					}
+				default:
+					if n.workTicker!=nil&&n.deferTime.Add(DefaultCommandTimeout).Before(time.Now()){
+						n.workTicker.Stop()
+						n.workTicker=nil
+					}
+					n.state.Update()
+					if n.log.Update()||n.readIndex.Update(){
+						if n.workTicker==nil{
+							n.deferTime=time.Now()
+							n.workTicker=timer.NewFuncTicker(time.Millisecond, func() {
+								defer func() {if err := recover(); err != nil {}}()
+								n.state.Update()
+								n.log.Update()
+								n.readIndex.Update()
+							})
+						}
+					}
+				}
+			}()
 		case <-n.printTicker.C:
 			func(){
 				defer func() {if err := recover(); err != nil {}}()
