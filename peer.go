@@ -51,7 +51,7 @@ func (p *Peer) heartbeat() {
 		}
 	}
 	//Tracef("Peer.heartbeat %s %d %d",p.address,prevLogIndex,prevLogTerm)
-	nextIndex, term,_,ok:=p.node.raft.Hearbeat(p.address,prevLogIndex,prevLogTerm)
+	nextIndex, term,_,ok:=p.node.raft.Heartbeat(p.address,prevLogIndex,prevLogTerm)
 	if !ok{
 		p.alive=false
 	}else if nextIndex>0&&term>0&&ok{

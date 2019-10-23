@@ -5,7 +5,7 @@ import (
 )
 
 type Raft interface {
-	Hearbeat(addr string,prevLogIndex,prevLogTerm uint64)  (nextIndex ,term uint64,success ,ok bool)
+	Heartbeat(addr string,prevLogIndex,prevLogTerm uint64)  (nextIndex ,term uint64,success ,ok bool)
 	RequestVote(addr string) (ok bool)
 	AppendEntries(addr string,prevLogIndex,prevLogTerm uint64,entries []*Entry)  (nextIndex,term uint64,success ,ok bool)
 	InstallSnapshot(addr string,LastIncludedIndex,LastIncludedTerm,Offset uint64,Data []byte,Done bool) (offset,nextIndex uint64,ok bool)
@@ -33,7 +33,7 @@ func newRaft(node	*Node) Raft{
 	}
 }
 
-func (r *raft) Hearbeat(addr string,prevLogIndex,prevLogTerm uint64)  (nextIndex uint64,term uint64,success bool,ok bool){
+func (r *raft) Heartbeat(addr string,prevLogIndex,prevLogTerm uint64)  (nextIndex uint64,term uint64,success bool,ok bool){
 	var req =&AppendEntriesRequest{}
 	req.Term=r.node.currentTerm.Id()
 	req.LeaderId=r.node.leader
