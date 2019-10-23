@@ -10,7 +10,6 @@ import (
 )
 
 const (
-	HeaderLength = 8*2
 )
 type Snapshot interface {
 	Save(context interface{},w io.Writer) (int, error)
@@ -56,18 +55,21 @@ func newSnapshotReadWriter(node *Node,name string)*SnapshotReadWriter  {
 func (s *SnapshotReadWriter) Reset(lastIncludedIndex,lastIncludedTerm uint64) {
 	s.lastIncludedIndex.Set(lastIncludedIndex)
 	s.lastIncludedTerm.Set(lastIncludedTerm)
-	s.node.storage.Truncate(s.name,0)
+	s.node.storage.Truncate(s.name+DefaultTmp,0)
 	s.ret=0
 	s.read_ret=0
 }
 func (s *SnapshotReadWriter) Write(p []byte) (n int, err error){
-	err=s.node.storage.SeekWrite(s.name,s.ret,p)
+	err=s.node.storage.SeekWrite(s.name+DefaultTmp,s.ret,p)
 	if err!=nil{
 		return 0,err
 	}
 	n=len(p)
 	s.ret+=uint64(n)
 	return n,nil
+}
+func (s *SnapshotReadWriter) Rename()error{
+	return s.node.storage.Rename(s.name+DefaultTmp,s.name)
 }
 func (s *SnapshotReadWriter) Append(offset uint64,p []byte) (n int, err error){
 	err=s.node.storage.SeekWrite(DefaultTarGz,offset,p)
@@ -163,7 +165,7 @@ func (s *SnapshotReadWriter) RecoverFile(source *os.File,name string) error {
 			s.node.storage.SeekWrite(name,offsize,buf[:n])
 			offsize+=DefaultReadFileBufferSize
 			if size-offsize<=DefaultReadFileBufferSize{
-				n, err = source.Read(buf)
+				n, err = source.Read(buf[:size-offsize])
 				if err!=nil && err != io.EOF {
 					return err
 				}
@@ -174,7 +176,7 @@ func (s *SnapshotReadWriter) RecoverFile(source *os.File,name string) error {
 		}
 	}else {
 		buf = make([]byte, size)
-		n, err = source.Read(buf[:])
+		n, err = source.Read(buf)
 		if err!=nil && err != io.EOF {
 			return err
 		}
@@ -247,7 +249,8 @@ func (s *SnapshotReadWriter) untar() error {
 	s.RecoverFile(source,DefaultCommitIndex)
 	s.RecoverFile(source,DefaultLastIncludedIndex)
 	s.RecoverFile(source,DefaultLastIncludedTerm)
-	s.RecoverFile(source,DefaultSnapshot)
+	s.RecoverFile(source,DefaultSnapshot+DefaultTmp)
+	s.Rename()
 	s.RecoverFile(source,DefaultIndex)
 	s.RecoverFile(source,DefaultLog)
 	if s.node.storage.Exists(DefaultTar){

@@ -8,6 +8,7 @@ import (
 	"crypto/md5"
 	"fmt"
 	"errors"
+	"syscall"
 )
 
 type Storage struct {
@@ -95,6 +96,9 @@ func (s *Storage)SafeOverWrite(file_name string, data []byte ) error {
 		return nil
 	}else {
 		tmp_file_path := path.Join(s.data_dir, file_name+DefaultTmp)
+		defer func() {
+			os.Rename(tmp_file_path, file_path)
+		}()
 		f , err := os.OpenFile(tmp_file_path, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0600)
 		if err != nil {
 			return err
@@ -106,9 +110,13 @@ func (s *Storage)SafeOverWrite(file_name string, data []byte ) error {
 		}else if n < len(data) {
 			return io.ErrShortWrite
 		}
-		f.Sync()
-		return os.Rename(tmp_file_path, file_path)
+		return f.Sync()
 	}
+}
+func (s *Storage) Rename(old_name, new_name string) error {
+	old_path := path.Join(s.data_dir, old_name)
+	new_path := path.Join(s.data_dir, new_name)
+	return os.Rename(old_path, new_path)
 }
 func (s *Storage) Load(file_name string) ([]byte,error) {
 	file_path := path.Join(s.data_dir, file_name)
@@ -127,25 +135,23 @@ func (s *Storage) Size(file_name string) (int64,error) {
 
 func (s *Storage) MD5(file_name string) string{
 	file_path := path.Join(s.data_dir, file_name)
-	testFile := file_path
-	file, inerr := os.Open(testFile)
+	file, err := os.Open(file_path)
 	defer file.Close()
-	if inerr == nil {
-		md5h := md5.New()
-		io.Copy(md5h, file)
-		return fmt.Sprintf("%x", md5h.Sum(nil))
+	if err == nil {
+		hash := md5.New()
+		io.Copy(hash, file)
+		return fmt.Sprintf("%x", hash.Sum(nil))
 	}
 	return ""
 }
 func (s *Storage) MD5Bytes(file_name string) []byte{
 	file_path := path.Join(s.data_dir, file_name)
-	testFile := file_path
-	file, inerr := os.Open(testFile)
+	file, err := os.Open(file_path)
 	defer file.Close()
-	if inerr == nil {
-		md5h := md5.New()
-		io.Copy(md5h, file)
-		return md5h.Sum(nil)
+	if err == nil {
+		hash := md5.New()
+		io.Copy(hash, file)
+		return hash.Sum(nil)
 	}
 	return []byte{}
 }
@@ -205,19 +211,7 @@ func (s *Storage)SeekWrite(file_name string,cursor uint64,data []byte) error {
 	}
 	return f.Sync()
 }
-func (s *Storage)Truncate(file_name string,size uint64) error {
-	file_path := path.Join(s.data_dir, file_name)
-	f, err := os.OpenFile(file_path, os.O_CREATE|os.O_WRONLY, 0600)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	err= f.Truncate(int64(size))
-	if err != nil {
-		return err
-	}
-	return f.Sync()
-}
+
 func (s *Storage) SeekRead(file_name string,cursor uint64,b []byte)(n int, err error) {
 	file_path := path.Join(s.data_dir, file_name)
 	f , err := os.OpenFile(file_path, os.O_RDONLY, 0600)
@@ -237,4 +231,43 @@ func (s *Storage)FileReader(file_name string) (*os.File,error) {
 func (s *Storage)FileWriter(file_name string) (*os.File,error) {
 	file_path := path.Join(s.data_dir, file_name)
 	return os.OpenFile(file_path, os.O_CREATE|os.O_WRONLY, 0600)
+}
+func (s *Storage)Truncate(file_name string,size uint64) error {
+	file_path := path.Join(s.data_dir, file_name)
+	f, err := os.OpenFile(file_path, os.O_CREATE|os.O_WRONLY, 0600)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	err= f.Truncate(int64(size))
+	if err != nil {
+		return err
+	}
+	return f.Sync()
+}
+func (s *Storage)TruncateBefore(file_name string,size uint64) error {
+	file_path := path.Join(s.data_dir, file_name)
+	f , err := os.OpenFile(file_path, os.O_CREATE|os.O_RDWR, 0600)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	fileInfo, err := f.Stat()
+	if err != nil {
+		return err
+	}
+	mmap, err := syscall.Mmap(int(f.Fd()), 0, int(fileInfo.Size()), syscall.PROT_READ|syscall.PROT_WRITE, syscall.MAP_SHARED)
+	if err != nil {
+		return err
+	}
+	copy(mmap[0:], mmap[size:])
+	err = syscall.Munmap(mmap)
+	if err != nil {
+		return err
+	}
+	err=f.Truncate(fileInfo.Size() - int64(size))
+	if err != nil {
+		return err
+	}
+	return f.Sync()
 }

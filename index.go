@@ -20,6 +20,7 @@ func init() {
 type Index struct {
 	node			*Node
 	metaPool 		*sync.Pool
+	cut 			uint64
 }
 func newIndex(node *Node) *Index {
 	i:=&Index{

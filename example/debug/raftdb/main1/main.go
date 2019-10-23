@@ -24,7 +24,7 @@ func init() {
 	flag.IntVar(&rpc_port, "c", 8001, "port")
 	flag.IntVar(&raft_port, "f", 9001, "port")
 	flag.StringVar(&addrs, "peers", "localhost:9001,localhost:9002,localhost:9003", "host:port,host:port")
-	flag.StringVar(&data_dir, "path", "defalut.raft.1", "path")
+	flag.StringVar(&data_dir, "path", "default.raft.1", "path")
 }
 
 func main() {

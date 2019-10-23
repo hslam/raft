@@ -85,7 +85,7 @@ func (s *StateMachine)SetSnapshotSyncType(snapshotSyncType SnapshotSyncType){
 	}
 }
 
-func (s *StateMachine)AppendSave(seconds,changes int){
+func (s *StateMachine)AppendSyncType(seconds,changes int){
 	s.mu.Lock()
 	defer s.mu.Unlock()
 }
@@ -97,12 +97,6 @@ func (s *StateMachine)SetSnapshot(snapshot Snapshot){
 }
 
 
-func (s *StateMachine)InstallSnapshot(p []byte) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	_,err:=s.snapshotReadWriter.Write(p)
-	return err
-}
 func (s *StateMachine)SaveSnapshot()error{
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -130,6 +124,7 @@ func (s *StateMachine)SaveSnapshot()error{
 			}
 			s.snapshotReadWriter.Reset(lastIncludedIndex,lastIncludedTerm)
 			_,err:=s.snapshot.Save(s.node.context,s.snapshotReadWriter)
+			s.snapshotReadWriter.Rename()
 			Tracef("StateMachine.SaveSnapshot %s lastIncludedIndex %d==%d",s.node.address,lastPrintLastIncludedIndex,s.snapshotReadWriter.lastIncludedIndex.Id())
 			return err
 		}
@@ -150,7 +145,11 @@ func (s *StateMachine) recover() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.node.storage.IsEmpty(DefaultSnapshot){
-		return errors.New(DefaultSnapshot+" file is empty")
+		if !s.node.storage.IsEmpty(DefaultSnapshot+DefaultTmp){
+			s.snapshotReadWriter.Rename()
+		}else {
+			return errors.New(DefaultSnapshot+" file is empty")
+		}
 	}
 	if s.snapshotReadWriter.lastIncludedIndex.Id()<=s.lastApplied&&s.lastApplied>0&&s.snapshotReadWriter.lastIncludedIndex.Id()>0{
 		return nil
