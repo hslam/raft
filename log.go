@@ -11,7 +11,7 @@ type Log struct {
 	batchMu 				sync.Mutex
 	node					*Node
 	indexs 					*Index
-	ret						uint64
+	size					uint64
 	entryChan             	chan *Entry
 	readyEntries			[]*Entry
 	maxBatch				int
@@ -128,12 +128,12 @@ func (log *Log) deleteAfter(index uint64) {
 	if lastLogIndex>0{
 		meta:=log.indexs.lookup(lastLogIndex)
 		log.node.lastLogTerm=meta.Term
-		log.ret=meta.Ret+meta.Offset
+		log.size=meta.Position+meta.Offset
 	}else {
 		log.node.lastLogTerm=0
-		log.ret=0
+		log.size=0
 	}
-	log.node.storage.Truncate(DefaultLog,log.ret)
+	log.node.storage.Truncate(DefaultLog,log.size)
 }
 
 func (log *Log) copyAfter(index uint64,max int)(entries []*Entry) {
@@ -205,7 +205,7 @@ func (log *Log) appendEntries(entries []*Entry)bool {
 			return false
 		}
 	}
-	data,metas,_:=log.Encode(entries,log.ret)
+	data,metas,_:=log.Encode(entries,log.size)
 	log.putEmtyEntries(entries)
 	if !log.node.isLeader(){
 		if !log.indexs.check(metas){
@@ -227,7 +227,7 @@ func (log *Log) read(meta *Meta)*Entry {
 		return nil
 	}
 	b:=make([]byte,meta.Offset)
-	_,err:=log.node.storage.SeekRead(DefaultLog,meta.Ret,b)
+	_,err:=log.node.storage.SeekRead(DefaultLog,meta.Position,b)
 	if err!=nil{
 		return nil
 	}
@@ -244,8 +244,8 @@ func (log *Log) batchRead(metas []*Meta)[]*Entry {
 	if len(metas)==0{
 		return nil
 	}
-	cursor:=metas[0].Ret
-	offset:=metas[len(metas)-1].Ret+metas[len(metas)-1].Offset
+	cursor:=metas[0].Position
+	offset:=metas[len(metas)-1].Position+metas[len(metas)-1].Offset
 	b:=make([]byte,offset-cursor)
 	if _,err:=log.node.storage.SeekRead(DefaultLog,cursor,b);err!=nil{
 		return nil
@@ -257,8 +257,8 @@ func (log *Log) batchRead(metas []*Meta)[]*Entry {
 }
 
 func (log *Log) append(b []byte) {
-	log.node.storage.SeekWrite(DefaultLog,log.ret,b)
-	log.ret+=uint64(len(b))
+	log.node.storage.SeekWrite(DefaultLog,log.size,b)
+	log.size+=uint64(len(b))
 }
 
 func (log *Log) load() error {
@@ -275,7 +275,7 @@ func (log *Log) load() error {
 	if log.node.lastLogIndex>0{
 		meta:=log.indexs.lookup(log.node.lastLogIndex)
 		log.node.lastLogTerm=meta.Term
-		log.ret=meta.Ret+meta.Offset
+		log.size=meta.Position+meta.Offset
 		log.node.recoverLogIndex=log.node.lastLogIndex
 		log.node.nextIndex=log.node.lastLogIndex+1
 	}
@@ -290,7 +290,7 @@ func (log *Log)Decode(data []byte,metas []*Meta,cursor uint64,)([]*Entry,uint64,
 	entries:=make([]*Entry,0,length)
 	var log_ret uint64
 	for j:=0;j<length;j++{
-		ret:=metas[j].Ret-cursor
+		ret:=metas[j].Position-cursor
 		offset:=metas[j].Offset
 		//if ret+offset>uint64(len(data))||ret>uint64(len(data)){
 		//	break
@@ -324,7 +324,7 @@ func (log *Log)Encode(entries []*Entry,ret uint64)([]byte,[]*Meta,error)  {
 		meta:=&Meta{}
 		meta.Index=entry.Index
 		meta.Term=entry.Term
-		meta.Ret=ret
+		meta.Position=ret
 		length:=uint64(len(b))
 		meta.Offset=length
 		ret+=length

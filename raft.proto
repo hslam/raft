@@ -58,7 +58,7 @@ message InstallSnapshotResponse {
 message Meta {
     uint64      Index       = 1;
     uint64      Term        = 2;
-    uint64      Ret         = 3;
+    uint64      Position    = 3;
     uint64      Offset      = 4;
 }
 

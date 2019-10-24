@@ -245,7 +245,7 @@ func (s *Storage)Truncate(file_name string,size uint64) error {
 	}
 	return f.Sync()
 }
-func (s *Storage)TruncateBefore(file_name string,size uint64) error {
+func (s *Storage)TruncateTop(file_name string,size uint64) error {
 	file_path := path.Join(s.data_dir, file_name)
 	f , err := os.OpenFile(file_path, os.O_CREATE|os.O_RDWR, 0600)
 	if err != nil {
@@ -270,4 +270,196 @@ func (s *Storage)TruncateBefore(file_name string,size uint64) error {
 		return err
 	}
 	return f.Sync()
+}
+func (s *Storage)Copy(src_name string,dst_name string,size uint64) error {
+	src_path := path.Join(s.data_dir, src_name)
+	dst_path := path.Join(s.data_dir, dst_name)
+	src_file , err := os.OpenFile(src_path, os.O_CREATE|os.O_RDWR, 0600)
+	if err != nil {
+		return err
+	}
+	defer src_file.Close()
+	dst_file , err := os.OpenFile(dst_path, os.O_CREATE|os.O_RDWR, 0600)
+	if err != nil {
+		return err
+	}
+	defer dst_file.Close()
+	err=dst_file.Truncate(int64(size))
+	if err != nil {
+		return err
+	}
+	dst_mmap, err := syscall.Mmap(int(dst_file.Fd()), 0, int(size), syscall.PROT_READ|syscall.PROT_WRITE, syscall.MAP_SHARED)
+	if err != nil {
+		return err
+	}
+	src_fileInfo, err := src_file.Stat()
+	if err != nil {
+		return err
+	}
+	src_size:=src_fileInfo.Size()
+	src_mmap, err := syscall.Mmap(int(src_file.Fd()), 0, int(src_size), syscall.PROT_READ|syscall.PROT_WRITE, syscall.MAP_SHARED)
+	if err != nil {
+		return err
+	}
+	copy(dst_mmap[0:], src_mmap[:size])
+	err = syscall.Munmap(src_mmap)
+	if err != nil {
+		return err
+	}
+	err = syscall.Munmap(dst_mmap)
+	if err != nil {
+		return err
+	}
+	return dst_file.Sync()
+}
+func (s *Storage)AppendCopy(src_name string,dst_name string,size uint64) error {
+	src_path := path.Join(s.data_dir, src_name)
+	dst_path := path.Join(s.data_dir, dst_name)
+	src_file , err := os.OpenFile(src_path, os.O_CREATE|os.O_RDWR, 0600)
+	if err != nil {
+		return err
+	}
+	defer src_file.Close()
+	dst_file , err := os.OpenFile(dst_path, os.O_CREATE|os.O_RDWR, 0600)
+	if err != nil {
+		return err
+	}
+	defer dst_file.Close()
+	dst_fileInfo, err := dst_file.Stat()
+	if err != nil {
+		return err
+	}
+	dst_size:=dst_fileInfo.Size()
+	err=dst_file.Truncate(dst_size+int64(size))
+	if err != nil {
+		return err
+	}
+	dst_mmap, err := syscall.Mmap(int(dst_file.Fd()), 0, int(size), syscall.PROT_READ|syscall.PROT_WRITE, syscall.MAP_SHARED)
+	if err != nil {
+		return err
+	}
+	src_fileInfo, err := src_file.Stat()
+	if err != nil {
+		return err
+	}
+	src_size:=src_fileInfo.Size()
+	src_mmap, err := syscall.Mmap(int(src_file.Fd()), 0, int(src_size), syscall.PROT_READ|syscall.PROT_WRITE, syscall.MAP_SHARED)
+	if err != nil {
+		return err
+	}
+	copy(dst_mmap[dst_size:], src_mmap[:size])
+	err = syscall.Munmap(src_mmap)
+	if err != nil {
+		return err
+	}
+	err = syscall.Munmap(dst_mmap)
+	if err != nil {
+		return err
+	}
+	return dst_file.Sync()
+}
+func (s *Storage)Backup(src_name string,dst_name string,size uint64) error {
+	src_path := path.Join(s.data_dir, src_name)
+	dst_path := path.Join(s.data_dir, dst_name)
+	src_file , err := os.OpenFile(src_path, os.O_CREATE|os.O_RDWR, 0600)
+	if err != nil {
+		return err
+	}
+	defer src_file.Close()
+	dst_file , err := os.OpenFile(dst_path, os.O_CREATE|os.O_RDWR, 0600)
+	if err != nil {
+		return err
+	}
+	defer dst_file.Close()
+	err=dst_file.Truncate(int64(size))
+	if err != nil {
+		return err
+	}
+	dst_mmap, err := syscall.Mmap(int(dst_file.Fd()), 0, int(size), syscall.PROT_READ|syscall.PROT_WRITE, syscall.MAP_SHARED)
+	if err != nil {
+		return err
+	}
+	src_fileInfo, err := src_file.Stat()
+	if err != nil {
+		return err
+	}
+	src_size:=src_fileInfo.Size()
+	src_mmap, err := syscall.Mmap(int(src_file.Fd()), 0, int(src_size), syscall.PROT_READ|syscall.PROT_WRITE, syscall.MAP_SHARED)
+	if err != nil {
+		return err
+	}
+	copy(dst_mmap[0:], src_mmap[:size])
+	copy(src_mmap[0:], src_mmap[size:])
+	err = syscall.Munmap(src_mmap)
+	if err != nil {
+		return err
+	}
+	err = syscall.Munmap(dst_mmap)
+	if err != nil {
+		return err
+	}
+	err=src_file.Truncate(src_size - int64(size))
+	if err != nil {
+		return err
+	}
+	err=src_file.Sync()
+	if err != nil {
+		return err
+	}
+	return dst_file.Sync()
+}
+func (s *Storage)AppendBackup(src_name string,dst_name string,size uint64) error {
+	src_path := path.Join(s.data_dir, src_name)
+	dst_path := path.Join(s.data_dir, dst_name)
+	src_file , err := os.OpenFile(src_path, os.O_CREATE|os.O_RDWR, 0600)
+	if err != nil {
+		return err
+	}
+	defer src_file.Close()
+	dst_file , err := os.OpenFile(dst_path, os.O_CREATE|os.O_RDWR, 0600)
+	if err != nil {
+		return err
+	}
+	defer dst_file.Close()
+	dst_fileInfo, err := dst_file.Stat()
+	if err != nil {
+		return err
+	}
+	dst_size:=dst_fileInfo.Size()
+	err=dst_file.Truncate(dst_size+int64(size))
+	if err != nil {
+		return err
+	}
+	dst_mmap, err := syscall.Mmap(int(dst_file.Fd()), 0, int(size), syscall.PROT_READ|syscall.PROT_WRITE, syscall.MAP_SHARED)
+	if err != nil {
+		return err
+	}
+	src_fileInfo, err := src_file.Stat()
+	if err != nil {
+		return err
+	}
+	src_size:=src_fileInfo.Size()
+	src_mmap, err := syscall.Mmap(int(src_file.Fd()), 0, int(src_size), syscall.PROT_READ|syscall.PROT_WRITE, syscall.MAP_SHARED)
+	if err != nil {
+		return err
+	}
+	copy(dst_mmap[dst_size:], src_mmap[:size])
+	copy(src_mmap[0:], src_mmap[size:])
+	err = syscall.Munmap(src_mmap)
+	if err != nil {
+		return err
+	}
+	err = syscall.Munmap(dst_mmap)
+	if err != nil {
+		return err
+	}
+	err=src_file.Truncate(src_size - int64(size))
+	if err != nil {
+		return err
+	}
+	err=src_file.Sync()
+	if err != nil {
+		return err
+	}
+	return dst_file.Sync()
 }

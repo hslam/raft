@@ -6,7 +6,9 @@ import (
 	"math"
 )
 
-const metaSize  = 32
+const (
+	metaSize  = 32
+)
 var (
 	metaBytesPool			*sync.Pool
 )
@@ -20,7 +22,7 @@ func init() {
 type Index struct {
 	node			*Node
 	metaPool 		*sync.Pool
-	cut 			uint64
+	firstIndex 		uint64
 }
 func newIndex(node *Node) *Index {
 	i:=&Index{
@@ -39,7 +41,7 @@ func (i *Index) getEmtyMeta()*Meta {
 func (i *Index) putEmtyMeta(meta *Meta) {
 	meta.Index=0
 	meta.Term=0
-	meta.Ret=0
+	meta.Position=0
 	meta.Offset=0
 	i.metaPool.Put(meta)
 }
@@ -71,7 +73,6 @@ func (i *Index)check(metas []*Meta)(bool)  {
 		if metas[i].Index==lastIndex+1{
 			lastIndex=metas[i].Index
 		}else {
-			//fmt.Println(lastIndex,metas[i].Index)
 			return false
 		}
 	}
@@ -136,6 +137,7 @@ func (i *Index) read(index uint64)*Meta {
 	meta:=i.getEmtyMeta()
 	meta.Decode(b)
 	metaBytesPool.Put(b)
+	//meta.Index=index
 	return meta
 }
 func (i *Index) batchRead(startIndex uint64,endIndex uint64)[]*Meta {
@@ -158,6 +160,9 @@ func (i *Index) batchRead(startIndex uint64,endIndex uint64)[]*Meta {
 		//	panic("err")
 		//}
 		//Tracef("Index.batchRead %s startIndex %d endIndex %d",i.node.address,metas[0].Index,metas[len(metas)-1].Index)
+		//for index:=startIndex;index<=endIndex;index++{
+		//	metas[index-startIndex].Index=index
+		//}
 		return metas
 	}
 	return nil
@@ -210,10 +215,6 @@ func (i *Index)Encode(metas []*Meta)([]byte,error)  {
 	}
 	return data,nil
 }
-func (i *Index)Name(index uint64)(string)  {
-	if index<1{
-		return ""
-	}
-	file_index:=uint64(math.Ceil(float64(index)/DefaultMaxEntriesPerFile)*DefaultMaxEntriesPerFile)
-	return FormatName(file_index)
+func (i *Index)Segment(index uint64)(uint64)  {
+	return uint64(math.Ceil(float64(index)/DefaultMaxEntriesPerFile)*DefaultMaxEntriesPerFile)
 }

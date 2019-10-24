@@ -9,7 +9,7 @@ const MetaSize  = 32
 func (meta *Meta)Encode()[]byte  {
 	indexBytes := uint64ToBytes(meta.Index)
 	termBytes :=uint64ToBytes(meta.Term)
-	retBytes := uint64ToBytes(meta.Ret)
+	retBytes := uint64ToBytes(meta.Position)
 	offsetBytes := uint64ToBytes(meta.Offset)
 	Bytes:=make([]byte,0,32)
 	Bytes=append(Bytes,indexBytes...)
@@ -29,7 +29,7 @@ func (meta *Meta)Decode(data []byte)  {
 	meta.Term= bytesToUint64(termBytes)
 	retBytes:=make([]byte , 8)
 	buf.Read(retBytes)
-	meta.Ret= bytesToUint64(retBytes)
+	meta.Position= bytesToUint64(retBytes)
 	offsetBytes:=make([]byte , 8)
 	buf.Read(offsetBytes)
 	meta.Offset= bytesToUint64(offsetBytes)
