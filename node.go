@@ -46,6 +46,7 @@ type Node struct {
 	state							State
 	changeStateChan 				chan int
 	ticker							*time.Ticker
+	updateTicker					*time.Ticker
 	workTicker 						*timer.FuncTicker
 	deferTime 						time.Time
 	//persistent state on all servers
@@ -56,6 +57,7 @@ type Node struct {
 	commitIndex						*PersistentUint64
 
 	lastLogIndex					uint64
+	firstLogIndex					uint64
 	//lastLogIndex					*PersistentUint64
 	lastLogTerm						uint64
 	nextIndex						uint64
@@ -104,6 +106,7 @@ func NewNode(host string, port int,data_dir string,context interface{})(*Node,er
 		keepAliveTicker:time.NewTicker(DefaultKeepAliveTick),
 		checkLogTicker:time.NewTicker(DefaultCheckLogTick),
 		ticker:time.NewTicker(DefaultNodeTick),
+		updateTicker:time.NewTicker(DefaultUpdateTick),
 		stop:make(chan bool,1),
 		changeStateChan: make(chan int,1),
 		heartbeatTick:DefaultHeartbeatTick,
@@ -142,6 +145,39 @@ func (n *Node) Start() {
 	n.running=true
 }
 func (n *Node) run() {
+	updateStop :=make(chan bool,1)
+	go func(updateTicker *time.Ticker,updateStop chan bool) {
+		for{
+			select {
+			case <-updateStop:
+				goto endfor
+			case <-n.updateTicker.C:
+				func(){
+					defer func() {if err := recover(); err != nil {}}()
+					if !n.running{
+						return
+					}
+					if n.workTicker!=nil&&n.deferTime.Add(DefaultCommandTimeout).Before(time.Now()){
+						n.workTicker.Stop()
+						n.workTicker=nil
+					}
+					n.state.Update()
+					if n.log.Update()||n.readIndex.Update(){
+						if n.workTicker==nil{
+							n.deferTime=time.Now()
+							n.workTicker=timer.NewFuncTicker(time.Millisecond, func() {
+								defer func() {if err := recover(); err != nil {}}()
+								n.state.Update()
+								n.log.Update()
+								n.readIndex.Update()
+							})
+						}
+					}
+				}()
+			}
+		}
+	endfor:
+	}(n.updateTicker,updateStop)
 	for {
 		select {
 		case <-n.ticker.C:
@@ -160,22 +196,7 @@ func (n *Node) run() {
 						n.state.Reset()
 					}
 				default:
-					if n.workTicker!=nil&&n.deferTime.Add(DefaultCommandTimeout).Before(time.Now()){
-						n.workTicker.Stop()
-						n.workTicker=nil
-					}
-					n.state.Update()
-					if n.log.Update()||n.readIndex.Update(){
-						if n.workTicker==nil{
-							n.deferTime=time.Now()
-							n.workTicker=timer.NewFuncTicker(time.Millisecond, func() {
-								defer func() {if err := recover(); err != nil {}}()
-								n.state.Update()
-								n.log.Update()
-								n.readIndex.Update()
-							})
-						}
-					}
+					n.state.FixedUpdate()
 				}
 			}()
 		case <-n.printTicker.C:

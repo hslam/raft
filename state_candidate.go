@@ -22,6 +22,9 @@ func (state *CandidateState)Reset(){
 	Debugf("%s CandidateState.Reset Term :%d",state.node.address,state.node.currentTerm.Id())
 }
 func (state *CandidateState) Update(){
+
+}
+func (state *CandidateState)FixedUpdate(){
 	if state.node.election.Timeout(){
 		Tracef("%s CandidateState.Update ElectionTimeout",state.node.address)
 		state.node.stay()

@@ -9,6 +9,7 @@ const (
 type State interface{
 	Reset()
 	Update()
+	FixedUpdate()
 	String()string
 	StepDown()State
 	NextState()State

@@ -26,11 +26,6 @@ func (state *FollowerState)Reset(){
 }
 
 func (state *FollowerState) Update(){
-	if state.node.election.Timeout(){
-		Tracef("%s FollowerState.Update ElectionTimeout",state.node.address)
-		state.node.nextState()
-		return
-	}
 	if state.work{
 		if state.node.commitIndex.Id()>0&&state.node.commitIndex.Id()>state.node.stateMachine.lastApplied{
 			state.work=false
@@ -56,6 +51,13 @@ func (state *FollowerState) Update(){
 	}
 }
 
+func (state *FollowerState)FixedUpdate(){
+	if state.node.election.Timeout(){
+		Tracef("%s FollowerState.Update ElectionTimeout",state.node.address)
+		state.node.nextState()
+		return
+	}
+}
 func (state *FollowerState) String()string{
 	return Follower
 }

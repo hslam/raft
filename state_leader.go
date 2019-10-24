@@ -55,6 +55,10 @@ func (state *LeaderState)Reset(){
 }
 
 func (state *LeaderState) Update(){
+	state.node.commit()
+	state.node.check()
+}
+func (state *LeaderState)FixedUpdate(){
 	if state.node.election.Timeout(){
 		state.node.lease=false
 		state.node.stepDown()
@@ -64,8 +68,6 @@ func (state *LeaderState) Update(){
 		state.node.lease=true
 		state.node.election.Reset()
 	}
-	state.node.check()
-	state.node.commit()
 }
 
 func (state *LeaderState) String()string{

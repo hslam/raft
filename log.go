@@ -9,6 +9,7 @@ import (
 type Log struct {
 	mu 						sync.Mutex
 	batchMu 				sync.Mutex
+	pauseMu 				sync.Mutex
 	node					*Node
 	indexs 					*Index
 	size					uint64
@@ -20,6 +21,7 @@ type Log struct {
 	stop					chan bool
 	finish 					chan bool
 	work 					bool
+	paused 					bool
 }
 
 func newLog(node *Node) *Log {
@@ -58,6 +60,24 @@ func (log *Log) putEmtyEntries(entries []*Entry) {
 		log.putEmtyEntry(entry)
 	}
 }
+func (log *Log) pause(p bool){
+	log.pauseMu.Lock()
+	defer log.pauseMu.Unlock()
+	log.paused=p
+}
+func (log *Log) isPaused()bool{
+	log.pauseMu.Lock()
+	defer log.pauseMu.Unlock()
+	return log.paused
+}
+func (log *Log) checkPaused(){
+	for{
+		if !log.isPaused(){
+			break
+		}
+		time.Sleep(time.Millisecond*100)
+	}
+}
 func (log *Log) checkIndex(index uint64)bool {
 	return log.indexs.checkIndex(index)
 }
@@ -65,6 +85,7 @@ func (log *Log) checkIndex(index uint64)bool {
 func (log *Log) lookup(index uint64)*Entry {
 	log.mu.Lock()
 	defer log.mu.Unlock()
+	log.checkPaused()
 	meta:=log.indexs.lookup(index)
 	return log.read(meta)
 }
@@ -106,18 +127,21 @@ func (log *Log)check(entries []*Entry)(bool)  {
 func (log *Log) lookupLast(index uint64)*Entry {
 	log.mu.Lock()
 	defer log.mu.Unlock()
+	log.checkPaused()
 	meta:=log.indexs.lookupLast(index)
 	return log.read(meta)
 }
 func (log *Log) lookupNext(index uint64)*Entry {
 	log.mu.Lock()
 	defer log.mu.Unlock()
+	log.checkPaused()
 	meta:=log.indexs.lookupNext(index)
 	return log.read(meta)
 }
 func (log *Log) deleteAfter(index uint64) {
 	log.mu.Lock()
 	defer log.mu.Unlock()
+	log.checkPaused()
 	if index<=1{
 		log.node.lastLogIndex=0
 		return
@@ -139,6 +163,7 @@ func (log *Log) deleteAfter(index uint64) {
 func (log *Log) copyAfter(index uint64,max int)(entries []*Entry) {
 	log.mu.Lock()
 	defer log.mu.Unlock()
+	log.checkPaused()
 	metas:=log.indexs.copyAfter(index,max)
 	return log.batchRead(metas)
 }
@@ -150,6 +175,7 @@ func (log *Log) copyRange(startIndex uint64,endIndex uint64) []*Entry{
 func (log *Log) applyCommited() {
 	log.mu.Lock()
 	defer log.mu.Unlock()
+	log.checkPaused()
 	lastLogIndex:=log.node.lastLogIndex
 	if lastLogIndex==0{
 		return
@@ -200,6 +226,7 @@ func (log *Log) applyCommitedRange(startIndex uint64,endIndex uint64) {
 func (log *Log) appendEntries(entries []*Entry)bool {
 	log.mu.Lock()
 	defer log.mu.Unlock()
+	log.checkPaused()
 	if !log.node.isLeader(){
 		if !log.check(entries){
 			return false
@@ -264,6 +291,7 @@ func (log *Log) append(b []byte) {
 func (log *Log) load() error {
 	log.mu.Lock()
 	defer log.mu.Unlock()
+	log.checkPaused()
 	lastLogIndex:=log.node.lastLogIndex
 	err:=log.indexs.load()
 	if err!=nil{
@@ -292,9 +320,6 @@ func (log *Log)Decode(data []byte,metas []*Meta,cursor uint64,)([]*Entry,uint64,
 	for j:=0;j<length;j++{
 		ret:=metas[j].Position-cursor
 		offset:=metas[j].Offset
-		//if ret+offset>uint64(len(data))||ret>uint64(len(data)){
-		//	break
-		//}
 		func(){
 			defer func() {
 				if err := recover(); err != nil {
@@ -398,6 +423,9 @@ func (log *Log) Update()bool {
 		defer func() {log.work=true}()
 		log.batchMu.Lock()
 		defer log.batchMu.Unlock()
+		if log.isPaused(){
+			return true
+		}
 		if len(log.readyEntries)>log.maxBatch{
 			entries:=log.readyEntries[:log.maxBatch]
 			log.readyEntries=log.readyEntries[log.maxBatch:]
@@ -420,7 +448,7 @@ func (log *Log) run()  {
 				log.batchMu.Lock()
 				defer log.batchMu.Unlock()
 				log.readyEntries=append(log.readyEntries, entry)
-				if len(log.readyEntries)>=log.maxBatch{
+				if len(log.readyEntries)>=log.maxBatch&&!log.isPaused(){
 					entries:=log.readyEntries[:]
 					log.readyEntries=nil
 					log.readyEntries=make([]*Entry,0)

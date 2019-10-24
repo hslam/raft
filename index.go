@@ -124,23 +124,25 @@ func (i *Index) copyAfter(index uint64,max int)(metas []*Meta) {
 func (i *Index) copyRange(startIndex uint64,endIndex uint64) []*Meta{
 	return i.batchRead(startIndex,endIndex)
 }
-func (i *Index) read(index uint64)*Meta {
+func (i *Index) readIndex(index uint64)*Meta {
 	if index<1{
 		return nil
 	}
-	ret:=(index-1)*32
+	position:=(index-1)*32
+	return i.read(position)
+}
+func (i *Index) read(position uint64)*Meta {
 	b:=metaBytesPool.Get().([]byte)
-	_,err:=i.node.storage.SeekRead(DefaultIndex,ret,b)
+	_,err:=i.node.storage.SeekRead(DefaultIndex,position,b)
 	if err!=nil{
 		return nil
 	}
 	meta:=i.getEmtyMeta()
 	meta.Decode(b)
 	metaBytesPool.Put(b)
-	//meta.Index=index
 	return meta
 }
-func (i *Index) batchRead(startIndex uint64,endIndex uint64)[]*Meta {
+func (i *Index) batchReadIndex(startIndex uint64,endIndex uint64)[]*Meta {
 	if startIndex<1||endIndex<1||startIndex>endIndex{
 		return nil
 	}
@@ -148,21 +150,16 @@ func (i *Index) batchRead(startIndex uint64,endIndex uint64)[]*Meta {
 	if length<1||startIndex>length||endIndex>length{
 		return nil
 	}
-	cursor:=(startIndex-1)*metaSize
+	position:=(startIndex-1)*metaSize
 	offset:=endIndex*metaSize
-	b:=make([]byte,offset-cursor)
-	if _,err:=i.node.storage.SeekRead(DefaultIndex,cursor,b);err!=nil{
+	return i.batchRead(position,offset)
+}
+func (i *Index) batchRead(position uint64,offset uint64)[]*Meta {
+	b:=make([]byte,offset-position)
+	if _,err:=i.node.storage.SeekRead(DefaultIndex,position,b);err!=nil{
 		return nil
 	}
 	if metas,err := i.Decode(b); err == nil {
-		//if metas[0].Index!=startIndex||metas[len(metas)-1].Index!=endIndex{
-		//	fmt.Printf("%d %d, %d %d %t",startIndex,metas[0].Index,endIndex,metas[len(metas)-1].Index,i.check(metas))
-		//	panic("err")
-		//}
-		//Tracef("Index.batchRead %s startIndex %d endIndex %d",i.node.address,metas[0].Index,metas[len(metas)-1].Index)
-		//for index:=startIndex;index<=endIndex;index++{
-		//	metas[index-startIndex].Index=index
-		//}
 		return metas
 	}
 	return nil
@@ -187,9 +184,17 @@ func (i *Index) load() error {
 	if err!=nil{
 		return err
 	}
-	i.node.lastLogIndex=uint64(size/metaSize)
+	var position uint64=0
+	meta:=i.read(position)
+	i.node.firstLogIndex=meta.Index
+	i.putEmtyMeta(meta)
+	position=uint64(size)-32
+	meta=i.read(position)
+	i.node.lastLogIndex=meta.Index
+	i.putEmtyMeta(meta)
 	return nil
 }
+
 
 func (i *Index) length() uint64 {
 	return i.node.lastLogIndex
