@@ -82,21 +82,21 @@ func (i *Index) lookup(index uint64)*Meta {
 	if !i.checkIndex(index){
 		return nil
 	}
-	return i.read(index)
+	return i.readIndex(index)
 }
 func (i *Index) lookupLast(index uint64)*Meta {
 	lastIndex:=index-1
 	if !i.checkIndex(lastIndex){
 		return nil
 	}
-	return i.read(lastIndex)
+	return i.readIndex(lastIndex)
 }
 func (i *Index) lookupNext(index uint64)*Meta {
 	nextIndex:=index+1
 	if !i.checkIndex(nextIndex){
 		return nil
 	}
-	return i.read(nextIndex)
+	return i.readIndex(nextIndex)
 }
 func (i *Index) deleteAfter(index uint64){
 	i.node.storage.Truncate(DefaultIndex,(index-1)*metaSize)
@@ -122,7 +122,7 @@ func (i *Index) copyAfter(index uint64,max int)(metas []*Meta) {
 	return i.copyRange(startIndex,endIndex)
 }
 func (i *Index) copyRange(startIndex uint64,endIndex uint64) []*Meta{
-	return i.batchRead(startIndex,endIndex)
+	return i.batchReadIndex(startIndex,endIndex)
 }
 func (i *Index) readIndex(index uint64)*Meta {
 	if index<1{
