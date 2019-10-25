@@ -7,12 +7,12 @@ func TestMetaEncode(t *testing.T) {
 	meta:=&Meta{}
 	meta.Index=1
 	meta.Term=1
-	meta.Ret=10
+	meta.Position=10
 	meta.Offset=10
 	b:=meta.Encode()
 	meta1:=&Meta{}
 	meta1.Decode(b)
-	if meta1.Index!=meta.Index||meta1.Term!=meta.Term||meta1.Ret!=meta.Ret||meta1.Offset!=meta.Offset{
+	if meta1.Index!=meta.Index||meta1.Term!=meta.Term||meta1.Position!=meta.Position||meta1.Offset!=meta.Offset{
 		t.Error(nil)
 	}
 	if len(b)!=32{
@@ -23,19 +23,19 @@ func TestMetaCodecEncode(t *testing.T) {
 	meta:=&Meta{}
 	meta.Index=1
 	meta.Term=1
-	meta.Ret=10
+	meta.Position=10
 	meta.Offset=10
 	codec:=&ProtoCodec{}
 	b,_:=codec.Encode(meta)
 	meta1:=&Meta{}
 	codec.Decode(b,meta1)
-	if meta1.Index!=meta.Index||meta1.Term!=meta.Term||meta1.Ret!=meta.Ret||meta1.Offset!=meta.Offset{
+	if meta1.Index!=meta.Index||meta1.Term!=meta.Term||meta1.Position!=meta.Position||meta1.Offset!=meta.Offset{
 		t.Error(nil)
 	}
 	//var Max int64 = -1 ^ (-1 << 63)
 	//meta.Index=uint64(Max)
 	//meta.Term=uint64(Max)
-	//meta.Ret=uint64(Max)
+	//meta.Position=uint64(Max)
 	//meta.Offset=uint64(Max)
 	//b,_=codec.Encode(meta)
 	//if len(b)>0{
@@ -47,7 +47,7 @@ func BenchmarkMetaEncode(t *testing.B) {
 	meta:=&Meta{}
 	meta.Index=1
 	meta.Term=1
-	meta.Ret=10
+	meta.Position=10
 	meta.Offset=10
 	t.ResetTimer()
 	for i := 0; i < t.N; i++ {
@@ -58,7 +58,7 @@ func BenchmarkMetaDecode(t *testing.B) {
 	meta:=&Meta{}
 	meta.Index=1
 	meta.Term=1
-	meta.Ret=10
+	meta.Position=10
 	meta.Offset=10
 	b:=meta.Encode()
 	t.ResetTimer()
@@ -70,7 +70,7 @@ func BenchmarkMetaEncodeDecode(t *testing.B) {
 	meta:=&Meta{}
 	meta.Index=1
 	meta.Term=1
-	meta.Ret=10
+	meta.Position=10
 	meta.Offset=10
 	t.ResetTimer()
 	for i := 0; i < t.N; i++ {
@@ -84,7 +84,7 @@ func BenchmarkMetaCodecEncode(t *testing.B) {
 	meta:=&Meta{}
 	meta.Index=1
 	meta.Term=1
-	meta.Ret=10
+	meta.Position=10
 	meta.Offset=10
 	codec:=&ProtoCodec{}
 	t.ResetTimer()
@@ -96,7 +96,7 @@ func BenchmarkMetaCodecDecode(t *testing.B) {
 	meta:=&Meta{}
 	meta.Index=1
 	meta.Term=1
-	meta.Ret=10
+	meta.Position=10
 	meta.Offset=10
 	codec:=&ProtoCodec{}
 	b,_:=codec.Encode(meta)
@@ -109,7 +109,7 @@ func BenchmarkMetaCodecEncodeDecode(t *testing.B) {
 	meta:=&Meta{}
 	meta.Index=1
 	meta.Term=1
-	meta.Ret=10
+	meta.Position=10
 	meta.Offset=10
 	codec:=&ProtoCodec{}
 	t.ResetTimer()
