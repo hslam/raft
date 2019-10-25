@@ -33,7 +33,6 @@ const (
 	DefaultLog = "log"
 	DefaultCompaction = "compaction"
 	DefaultIndex = "index"
-	DefaultLastLogIndex = "lastlogindex"
 	DefaultCommitIndex = "commitindex"
 	DefaultTerm = "term"
 	DefaultVoteFor = "votefor"
@@ -48,11 +47,11 @@ const (
 	DefaultTarGz = "tar.gz"
 	DefaultTmp = ".tmp"
 	DefaultReadFileBufferSize= 1 << 24
-	CommandTypeAddPeer =-1
-	CommandTypeRemovePeer =-2
-	CommandTypeNoOperation =-3
-	CommandTypeReadIndex =-4
 
+	CommandTypeNoOperation =-1
+	CommandTypeAddPeer =-2
+	CommandTypeRemovePeer =-3
+	
 	DefaultNumInstallSnapshot = 1<<27
 	DefaultMaxEntriesPerFile = 1 << 27
 	DefaultChunkSize int64 = 1 << 24
