@@ -5,7 +5,6 @@ import (
 )
 
 type Raft interface {
-	Heartbeat(addr string,prevLogIndex,prevLogTerm uint64)  (nextIndex ,term uint64,success ,ok bool)
 	RequestVote(addr string) (ok bool)
 	AppendEntries(addr string,prevLogIndex,prevLogTerm uint64,entries []*Entry)  (nextIndex,term uint64,success ,ok bool)
 	InstallSnapshot(addr string,LastIncludedIndex,LastIncludedTerm,Offset uint64,Data []byte,Done bool) (offset,nextIndex uint64,ok bool)
@@ -13,7 +12,6 @@ type Raft interface {
 	HandleAppendEntries(req *AppendEntriesRequest, res *AppendEntriesResponse)error
 	HandleInstallSnapshot(req *InstallSnapshotRequest,res *InstallSnapshotResponse)error
 }
-
 
 type raft struct {
 	node	*Node
@@ -33,40 +31,6 @@ func newRaft(node	*Node) Raft{
 	}
 }
 
-func (r *raft) Heartbeat(addr string,prevLogIndex,prevLogTerm uint64)  (nextIndex uint64,term uint64,success bool,ok bool){
-	var req =&AppendEntriesRequest{}
-	req.Term=r.node.currentTerm.Id()
-	req.LeaderId=r.node.leader
-	req.LeaderCommit=r.node.commitIndex.Id()
-	req.PrevLogIndex=prevLogIndex
-	req.PrevLogTerm=prevLogTerm
-	req.Entries=[]*Entry{}
-	var ch =make(chan *AppendEntriesResponse,1)
-	var errCh =make(chan error,1)
-	go func (rpcs *RPCs,addr string,req *AppendEntriesRequest, ch chan *AppendEntriesResponse,errCh chan error) {
-		var res =&AppendEntriesResponse{}
-		if err := r.node.rpcs.CallAppendEntries(addr,req, res); err != nil {
-			errCh<-err
-		} else {
-			ch <- res
-		}
-	}(r.node.rpcs,addr,req,ch,errCh)
-	select {
-	case res:=<-ch:
-		if res.Term>r.node.currentTerm.Id(){
-			r.node.currentTerm.Set(res.Term)
-			r.node.stepDown()
-		}
-		//Tracef("raft.Hearbeat %s -> %s",r.node.address,addr)
-		return res.NextIndex,res.Term,res.Success,true
-	case err:=<-errCh:
-		Tracef("raft.Hearbeat %s -> %s error %s",r.node.address,addr,err.Error())
-		return 0,0,false,false
-	case <-time.After(r.hearbeatTimeout):
-		Tracef("raft.Hearbeat %s -> %s time out",r.node.address,addr)
-	}
-	return 0,0,false,false
-}
 func (r *raft) RequestVote(addr string) (ok bool){
 	var req =&RequestVoteRequest{}
 	req.Term=r.node.currentTerm.Id()
@@ -105,6 +69,7 @@ func (r *raft) RequestVote(addr string) (ok bool){
 	}
 	return false
 }
+
 func (r *raft) AppendEntries(addr string,prevLogIndex,prevLogTerm uint64,entries []*Entry)  (nextIndex uint64,term uint64,success bool,ok bool){
 	var req =&AppendEntriesRequest{}
 	req.Term=r.node.currentTerm.Id()
@@ -113,6 +78,10 @@ func (r *raft) AppendEntries(addr string,prevLogIndex,prevLogTerm uint64,entries
 	req.PrevLogIndex=prevLogIndex
 	req.PrevLogTerm=prevLogTerm
 	req.Entries=entries
+	var timeout=r.appendEntriesTimeout
+	if len(entries)==0{
+		timeout=r.hearbeatTimeout
+	}
 	var ch =make(chan *AppendEntriesResponse,1)
 	var errCh =make(chan error,1)
 	go func (rpcs *RPCs,addr string,req *AppendEntriesRequest, ch chan *AppendEntriesResponse,errCh chan error) {
@@ -137,11 +106,12 @@ func (r *raft) AppendEntries(addr string,prevLogIndex,prevLogTerm uint64,entries
 	case err:=<-errCh:
 		Tracef("raft.AppendEntries %s -> %s error %s",r.node.address,addr,err.Error())
 		return 0,0,false,false
-	case <-time.After(r.appendEntriesTimeout):
+	case <-time.After(timeout):
 		Tracef("raft.AppendEntries %s -> %s time out",r.node.address,addr)
 	}
 	return 0,0,false,false
 }
+
 func (r *raft) InstallSnapshot(addr string,LastIncludedIndex,LastIncludedTerm,Offset uint64,Data []byte,Done bool)(offset uint64,nextIndex uint64,ok bool){
 	var req =&InstallSnapshotRequest{}
 	req.Term=r.node.currentTerm.Id()
@@ -199,6 +169,7 @@ func (r *raft) HandleRequestVote(req *RequestVoteRequest, res *RequestVoteRespon
 	return nil
 
 }
+
 func (r *raft) HandleAppendEntries(req *AppendEntriesRequest, res *AppendEntriesResponse)error {
 	res.Term=r.node.currentTerm.Id()
 	res.NextIndex=r.node.nextIndex
@@ -257,6 +228,7 @@ func (r *raft) HandleAppendEntries(req *AppendEntriesRequest, res *AppendEntries
 	res.Success=false
 	return nil
 }
+
 func (r *raft) HandleInstallSnapshot(req *InstallSnapshotRequest,res *InstallSnapshotResponse)error {
 	res.Term=r.node.currentTerm.Id()
 	if req.Term<r.node.currentTerm.Id(){

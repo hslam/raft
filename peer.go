@@ -33,31 +33,7 @@ func newPeer(node *Node, address string) *Peer {
 }
 
 func (p *Peer) heartbeat() {
-	if !p.alive{
-		return
-	}
-	var prevLogIndex,prevLogTerm uint64
-	if p.nextIndex<=1{
-		prevLogIndex=0
-		prevLogTerm=0
-	}else {
-		entry:=p.node.log.lookup(p.nextIndex-1)
-		if entry==nil{
-			prevLogIndex=0
-			prevLogTerm=0
-		}else {
-			prevLogIndex=p.nextIndex-1
-			prevLogTerm=entry.Term
-		}
-	}
-	//Tracef("Peer.heartbeat %s %d %d",p.address,prevLogIndex,prevLogTerm)
-	nextIndex, term,_,ok:=p.node.raft.Heartbeat(p.address,prevLogIndex,prevLogTerm)
-	if !ok{
-		p.alive=false
-	}else if nextIndex>0&&term>0&&ok{
-		p.nextIndex=nextIndex
-	}
-	//Tracef("Peer.heartbeat %s %d %d %t %d",p.address,nextIndex, term,ok,p.nextIndex)
+	p.appendEntries([]*Entry{})
 }
 
 func (p *Peer) requestVote() {
@@ -68,6 +44,9 @@ func (p *Peer) requestVote() {
 }
 
 func (p *Peer) appendEntries(entries []*Entry) (nextIndex uint64,term uint64,success bool,ok bool){
+	if !p.alive{
+		return
+	}
 	var prevLogIndex,prevLogTerm uint64
 	if p.nextIndex<=1{
 		prevLogIndex=0
@@ -84,6 +63,14 @@ func (p *Peer) appendEntries(entries []*Entry) (nextIndex uint64,term uint64,suc
 	}
 	//Tracef("Peer.run %s %d %d %d ",p.address,prevLogIndex,prevLogTerm,len(entries))
 	nextIndex, term,success,ok=p.node.raft.AppendEntries(p.address,prevLogIndex,prevLogTerm,entries)
+	if success&&ok{
+		//Tracef("Peer.run %s nextIndex %d==>%d",p.address,p.nextIndex,nextIndex)
+		p.nextIndex=nextIndex
+	}else if ok&&term==p.node.currentTerm.Id(){
+		p.nextIndex=nextIndex
+	}else if !ok{
+		p.alive=false
+	}
 	return
 }
 func (p *Peer) installSnapshot(offset uint64,data []byte,Done bool)(recv_offset uint64) {
@@ -199,15 +186,7 @@ func (p *Peer) check() {
 					}()
 					entries:=p.node.log.copyAfter(p.nextIndex,DefaultMaxBatch)
 					if len(entries)>0{
-						nextIndex,term,success,ok:=p.appendEntries(entries)
-						if success&&ok{
-							//Tracef("Peer.run %s nextIndex %d==>%d",p.address,p.nextIndex,nextIndex)
-							p.nextIndex=nextIndex
-						}else if ok&&term==p.node.currentTerm.Id(){
-							p.nextIndex=nextIndex
-						}else if !ok{
-							p.alive=false
-						}
+						p.appendEntries(entries)
 					}
 				}()
 			}
