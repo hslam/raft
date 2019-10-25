@@ -18,7 +18,7 @@ const (
 	DefaultHearbeatTimeout = 100 * time.Millisecond
 	DefaultRequestVoteTimeout = 1000 * time.Millisecond
 	DefaultAppendEntriesTimeout = 10*1000 * time.Millisecond
-	DefaultInstallSnapshotTimeout = 10*1000 * time.Millisecond
+	DefaultInstallSnapshotTimeout = 60*1000 * time.Millisecond
 
 	DefaultCommandTimeout = 60*1000 * time.Millisecond
 	DefaultMaxConcurrencyRead = 1024*1024
