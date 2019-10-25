@@ -54,9 +54,9 @@ func (state *LeaderState)Reset(){
 	}(state.node,state.node.currentTerm.Id())
 }
 
-func (state *LeaderState) Update(){
-	state.node.commit()
+func (state *LeaderState) Update()bool{
 	state.node.check()
+	return state.node.commit()
 }
 func (state *LeaderState)FixedUpdate(){
 	if state.node.election.Timeout(){

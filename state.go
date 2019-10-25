@@ -8,7 +8,7 @@ const (
 
 type State interface{
 	Reset()
-	Update()
+	Update()bool
 	FixedUpdate()
 	String()string
 	StepDown()State

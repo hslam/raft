@@ -161,8 +161,7 @@ func (n *Node) run() {
 						n.workTicker.Stop()
 						n.workTicker=nil
 					}
-					n.state.Update()
-					if n.log.Update()||n.readIndex.Update(){
+					if n.state.Update()||n.log.Update()||n.readIndex.Update(){
 						if n.workTicker==nil{
 							n.deferTime=time.Now()
 							n.workTicker=timer.NewFuncTicker(DefaultMaxDelay, func() {
@@ -691,7 +690,7 @@ func (n *Node) print(){
 	}
 	n.printPeers()
 }
-func (n *Node) commit() error {
+func (n *Node) commit() bool {
 	n.nodesMut.RLock()
 	defer n.nodesMut.RUnlock()
 	//var commitIndex=n.commitIndex
@@ -711,9 +710,10 @@ func (n *Node) commit() error {
 					n.log.applyCommited()
 					//Tracef("Node.Commit %s lastApplied %d==>%d",n.address,lastApplied,n.stateMachine.lastApplied)
 				}()
+				return true
 			}
 		}
-		return nil
+		return false
 	}
 	quorum:=n.quorum()
 	var lastLogIndexCount =make(map[uint64]int)
@@ -745,11 +745,12 @@ func (n *Node) commit() error {
 							n.log.applyCommited()
 							//Tracef("Node.Commit %s lastApplied %d==>%d",n.address,lastApplied,n.stateMachine.lastApplied)
 						}()
+						return true
 					}
 				}
 				break
 			}
 		}
 	}
-	return nil
+	return false
 }

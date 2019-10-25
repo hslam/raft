@@ -25,7 +25,7 @@ func (state *FollowerState)Reset(){
 	Debugf("%s FollowerState.Reset Term :%d",state.node.address,state.node.currentTerm.Id())
 }
 
-func (state *FollowerState) Update(){
+func (state *FollowerState) Update()bool{
 	if state.work{
 		if state.node.commitIndex.Id()>0&&state.node.commitIndex.Id()>state.node.stateMachine.lastApplied{
 			state.work=false
@@ -47,8 +47,10 @@ func (state *FollowerState) Update(){
 					Tracef("%s FollowerState.Update applyCommited time out",state.node.address)
 				}
 			}()
+			return true
 		}
 	}
+	return false
 }
 
 func (state *FollowerState)FixedUpdate(){
