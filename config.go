@@ -26,6 +26,7 @@ const (
 	DefaultMaxCacheEntries=1024*1024
 	DefaultMaxBatch = 1024*1024
 	DefaultTarTick	=	 time.Hour
+	DefaultMaxDelay = time.Millisecond
 
 	DefaultDataDir = "default.raft"
 	DefaultConfig = "config"

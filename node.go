@@ -165,7 +165,7 @@ func (n *Node) run() {
 					if n.log.Update()||n.readIndex.Update(){
 						if n.workTicker==nil{
 							n.deferTime=time.Now()
-							n.workTicker=timer.NewFuncTicker(time.Millisecond, func() {
+							n.workTicker=timer.NewFuncTicker(DefaultMaxDelay, func() {
 								defer func() {if err := recover(); err != nil {}}()
 								n.state.Update()
 								n.log.Update()
@@ -225,6 +225,7 @@ func (n *Node) run() {
 				n.votes.AddVote(v)
 			}()
 		case <-n.stop:
+			updateStop<-true
 			goto endfor
 		}
 	}
@@ -238,6 +239,8 @@ endfor:
 	n.detectTicker=nil
 	n.ticker.Stop()
 	n.ticker=nil
+	n.updateTicker.Stop()
+	n.updateTicker=nil
 }
 
 func (n *Node)Running() bool{
