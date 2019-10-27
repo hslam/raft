@@ -6,9 +6,9 @@ import (
 	"path"
 	"io/ioutil"
 	"crypto/md5"
-	"fmt"
 	"errors"
 	"syscall"
+	"fmt"
 )
 
 type Storage struct {
@@ -260,7 +260,7 @@ func (s *Storage)TruncateTop(file_name string,size uint64) error {
 	if err != nil {
 		return err
 	}
-	copy(mmap[0:], mmap[size:])
+	copy(mmap[0:fileInfo.Size() - int64(size)], mmap[size:])
 	err = syscall.Munmap(mmap)
 	if err != nil {
 		return err
@@ -271,7 +271,7 @@ func (s *Storage)TruncateTop(file_name string,size uint64) error {
 	}
 	return f.Sync()
 }
-func (s *Storage)Copy(src_name string,dst_name string,size uint64) error {
+func (s *Storage)Copy(src_name string,dst_name string,offset, size uint64) error {
 	src_path := path.Join(s.data_dir, src_name)
 	dst_path := path.Join(s.data_dir, dst_name)
 	src_file , err := os.OpenFile(src_path, os.O_CREATE|os.O_RDWR, 0600)
@@ -292,16 +292,14 @@ func (s *Storage)Copy(src_name string,dst_name string,size uint64) error {
 	if err != nil {
 		return err
 	}
-	src_fileInfo, err := src_file.Stat()
+	src_mmap, err := syscall.Mmap(int(src_file.Fd()), 0, int(offset+size), syscall.PROT_READ|syscall.PROT_WRITE, syscall.MAP_SHARED)
 	if err != nil {
 		return err
 	}
-	src_size:=src_fileInfo.Size()
-	src_mmap, err := syscall.Mmap(int(src_file.Fd()), 0, int(src_size), syscall.PROT_READ|syscall.PROT_WRITE, syscall.MAP_SHARED)
-	if err != nil {
-		return err
+	n:=copy(dst_mmap, src_mmap[offset:])
+	if n!=int(size){
+		return errors.New("error length")
 	}
-	copy(dst_mmap[0:], src_mmap[:size])
 	err = syscall.Munmap(src_mmap)
 	if err != nil {
 		return err

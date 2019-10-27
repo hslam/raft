@@ -253,7 +253,7 @@ func (r *raft) HandleInstallSnapshot(req *InstallSnapshotRequest,res *InstallSna
 		r.node.stateMachine.snapshotReadWriter.untar()
 		r.node.recover()
 	}
-	offset,err:=r.node.storage.Size(DefaultTarGz)
+	offset,err:=r.node.storage.Size(r.node.stateMachine.snapshotReadWriter.FileName())
 	if err!=nil{
 		return nil
 	}

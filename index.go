@@ -2,7 +2,6 @@ package raft
 
 import (
 	"sync"
-	"errors"
 	"math"
 )
 
@@ -22,11 +21,16 @@ func init() {
 type Index struct {
 	node			*Node
 	metaPool 		*sync.Pool
-	firstIndex 		uint64
+	name 			string
+	tmpName 		string
+	flushName 		string
 }
 func newIndex(node *Node) *Index {
 	i:=&Index{
 		node:node,
+		name:DefaultIndex,
+		tmpName:DefaultIndex+DefaultTmp,
+		flushName:DefaultIndex+DefaultFlush,
 	}
 	i.metaPool= &sync.Pool{
 		New: func() interface{} {
@@ -58,11 +62,10 @@ func (i *Index) checkIndex(index uint64)bool {
 	if index==0{
 		return false
 	}
-	length:=i.length()
-	if length==0{
+	if i.length()==0{
 		return false
 	}
-	if index<1||index>length{
+	if index<i.node.firstLogIndex||index>i.node.lastLogIndex{
 		return false
 	}
 	return true
@@ -85,55 +88,119 @@ func (i *Index) lookup(index uint64)*Meta {
 	return i.readIndex(index)
 }
 func (i *Index) lookupLast(index uint64)*Meta {
-	lastIndex:=index-1
-	if !i.checkIndex(lastIndex){
-		return nil
-	}
-	return i.readIndex(lastIndex)
+	return i.lookup(index-1)
 }
 func (i *Index) lookupNext(index uint64)*Meta {
-	nextIndex:=index+1
-	if !i.checkIndex(nextIndex){
-		return nil
-	}
-	return i.readIndex(nextIndex)
+	return i.lookup(index+1)
 }
 func (i *Index) deleteAfter(index uint64){
-	i.node.storage.Truncate(DefaultIndex,(index-1)*metaSize)
-	Tracef("Index.deleteAfter %s delete %d and after",i.node.address, index)
-}
-func (i *Index) copyAfter(index uint64,max int)(metas []*Meta) {
-	length:=i.length()
-	if length==0{
+	if !i.checkIndex(index){
 		return
 	}
-	var startIndex uint64
-	var endIndex uint64
-	if index<1{
-		startIndex=1
-	}else {
-		startIndex=index
+	i.node.storage.Truncate(i.name,(index-1)*metaSize)
+}
+func (i *Index) deleteBefore(index uint64)uint64{
+	if !i.checkIndex(index){
+		return 0
 	}
-	if length<startIndex+uint64(max){
-		endIndex=length
+	cutoff:=i.flush(index)
+	if i.firstIndexName(i.flushName)==index+1||i.lastIndexName(i.flushName)==i.node.lastLogIndex{
+		i.node.storage.Rename(i.name,i.tmpName)
+		i.node.storage.Rename(i.flushName,i.name)
+		i.load()
+		return cutoff
 	}else {
-		endIndex=startIndex+uint64(max)
+		if i.node.storage.Exists(i.flushName){
+			i.node.storage.Rm(i.flushName)
+		}
+		return 0
 	}
+	return cutoff
+}
+func (i *Index) flush(index uint64)uint64{
+	meta:=i.lookupNext(index)
+	cutoff:=meta.Position
+	firstLogIndex:=meta.Index
+	var startIndex =meta.Index
+	var endIndex =i.node.lastLogIndex
+	if startIndex>endIndex{
+		return 0
+	}
+	max:=uint64(DefaultReadFileBufferSize/metaSize)
+	if endIndex-startIndex>max{
+		batch_index:=startIndex
+		for {
+			i.batchFlush(batch_index,batch_index+max,firstLogIndex,cutoff)
+			batch_index+=max
+			if endIndex-batch_index<=max{
+				i.batchFlush(batch_index,endIndex,firstLogIndex,cutoff)
+				break
+			}
+		}
+	}else {
+		i.batchFlush(startIndex,endIndex,firstLogIndex,cutoff)
+	}
+	return cutoff
+}
+func (i *Index) batchFlush(startIndex uint64,endIndex uint64,firstLogIndex,cutoff uint64)error{
+	position:=i.position(startIndex)
+	offset:=(endIndex-startIndex+1)*metaSize
+	src:=i.batchReadBytes(position,offset)
+	metas,err:=i.Decode(src)
+	if err!=nil{
+		return err
+	}
+	for j:=0;j<len(metas);j++{
+		metas[j].Position-=cutoff
+	}
+	src,err=i.Encode(metas)
+	if err!=nil{
+		return err
+	}
+	var ret uint64=0
+	if startIndex>0{
+		ret=uint64((startIndex-firstLogIndex)*metaSize)
+	}else {
+		ret=0
+	}
+	i.node.storage.SeekWrite(i.flushName,ret,src)
+	return nil
+}
+func (i *Index) startIndex(index uint64)uint64{
+	return maxUint64(i.node.firstLogIndex,index)
+}
+func (i *Index) endIndex(index uint64)uint64{
+	return minUint64(index,i.node.lastLogIndex)
+}
+func (i *Index) copyAfter(index uint64,max int)(metas []*Meta) {
+	if i.length()==0{
+		return
+	}
+	startIndex:=i.startIndex(index)
+	endIndex:=i.endIndex(startIndex+uint64(max))
 	return i.copyRange(startIndex,endIndex)
 }
+
 func (i *Index) copyRange(startIndex uint64,endIndex uint64) []*Meta{
 	return i.batchReadIndex(startIndex,endIndex)
 }
+func (i *Index) position(index uint64)uint64{
+	return (index-i.node.firstLogIndex)*metaSize
+}
+
 func (i *Index) readIndex(index uint64)*Meta {
-	if index<1{
+	if !i.checkIndex(index){
 		return nil
 	}
-	position:=(index-1)*32
+	position:=i.position(index)
 	return i.read(position)
 }
 func (i *Index) read(position uint64)*Meta {
+	return i.readName(i.name,position)
+}
+func (i *Index) readName(name string,position uint64)*Meta {
 	b:=metaBytesPool.Get().([]byte)
-	_,err:=i.node.storage.SeekRead(DefaultIndex,position,b)
+	_,err:=i.node.storage.SeekRead(name,position,b)
 	if err!=nil{
 		return nil
 	}
@@ -143,20 +210,16 @@ func (i *Index) read(position uint64)*Meta {
 	return meta
 }
 func (i *Index) batchReadIndex(startIndex uint64,endIndex uint64)[]*Meta {
-	if startIndex<1||endIndex<1||startIndex>endIndex{
+	if !i.checkIndex(startIndex)||!i.checkIndex(endIndex)||startIndex>endIndex||i.length()==0{
 		return nil
 	}
-	length:=i.length()
-	if length<1||startIndex>length||endIndex>length{
-		return nil
-	}
-	position:=(startIndex-1)*metaSize
-	offset:=endIndex*metaSize
+	position:=i.position(startIndex)
+	offset:=(endIndex-startIndex+1)*metaSize
 	return i.batchRead(position,offset)
 }
 func (i *Index) batchRead(position uint64,offset uint64)[]*Meta {
-	b:=make([]byte,offset-position)
-	if _,err:=i.node.storage.SeekRead(DefaultIndex,position,b);err!=nil{
+	b:=i.batchReadBytes(position,offset)
+	if b==nil{
 		return nil
 	}
 	if metas,err := i.Decode(b); err == nil {
@@ -164,40 +227,64 @@ func (i *Index) batchRead(position uint64,offset uint64)[]*Meta {
 	}
 	return nil
 }
+func (i *Index) batchReadBytes(position uint64,offset uint64)[]byte{
+	b:=make([]byte,offset)
+	if _,err:=i.node.storage.SeekRead(i.name,position,b);err!=nil{
+		return nil
+	}
+	return b
+}
 
 func (i *Index) append(b []byte) {
-	lastLogIndex:=i.node.lastLogIndex
 	var ret uint64=0
-	if lastLogIndex>0{
-		ret=uint64(lastLogIndex*metaSize)
+	if i.node.lastLogIndex>0{
+		ret=uint64((i.node.lastLogIndex-i.node.firstLogIndex+1)*metaSize)
 	}else {
 		ret=0
 	}
-	i.node.storage.SeekWrite(DefaultIndex,ret,b)
+	i.node.storage.SeekWrite(i.name,ret,b)
 }
 
 func (i *Index) load() error {
-	if !i.node.storage.Exists(DefaultIndex){
-		return errors.New(DefaultIndex+" file is not existed")
-	}
-	size,err:=i.node.storage.Size(DefaultIndex)
-	if err!=nil{
-		return err
-	}
-	var position uint64=0
-	meta:=i.read(position)
-	i.node.firstLogIndex=meta.Index
-	i.putEmtyMeta(meta)
-	position=uint64(size)-32
-	meta=i.read(position)
-	i.node.lastLogIndex=meta.Index
-	i.putEmtyMeta(meta)
+	i.node.firstLogIndex=i.firstIndex()
+	i.node.lastLogIndex=i.lastIndex()
 	return nil
 }
-
-
+func (i *Index) firstIndex() (uint64) {
+	return i.firstIndexName(i.name)
+}
+func (i *Index) firstIndexName(name string) (uint64) {
+	if !i.node.storage.Exists(name){
+		return 1
+	}
+	var firstIndex uint64
+	meta:=i.readName(name,0)
+	firstIndex=meta.Index
+	i.putEmtyMeta(meta)
+	if firstIndex==0{
+		firstIndex=1
+	}
+	return firstIndex
+}
+func (i *Index) lastIndex() (uint64) {
+	return i.lastIndexName(i.name)
+}
+func (i *Index) lastIndexName(name string) (uint64) {
+	if !i.node.storage.Exists(name){
+		return 0
+	}
+	size,err:=i.node.storage.Size(name)
+	if err!=nil&&size<metaSize{
+		return 0
+	}
+	var lastIndex uint64
+	meta:=i.readName(name,uint64(size)-metaSize)
+	lastIndex=meta.Index
+	i.putEmtyMeta(meta)
+	return lastIndex
+}
 func (i *Index) length() uint64 {
-	return i.node.lastLogIndex
+	return i.node.lastLogIndex-i.node.firstLogIndex+1
 }
 
 func (i *Index)Decode(data []byte)([]*Meta,error)  {
@@ -212,6 +299,7 @@ func (i *Index)Decode(data []byte)([]*Meta,error)  {
 	//Tracef("Index.Decode %s Metas length %d",i.node.address,length)
 	return metas,nil
 }
+
 func (i *Index)Encode(metas []*Meta)([]byte,error)  {
 	var data=make([]byte,0,len(metas)*metaSize)
 	for j:=0;j<len(metas);j++{
@@ -220,6 +308,7 @@ func (i *Index)Encode(metas []*Meta)([]byte,error)  {
 	}
 	return data,nil
 }
+
 func (i *Index)Segment(index uint64)(uint64)  {
 	return uint64(math.Ceil(float64(index)/DefaultMaxEntriesPerFile)*DefaultMaxEntriesPerFile)
 }

@@ -56,14 +56,15 @@ type Node struct {
 	//volatile state on all servers
 	commitIndex						*PersistentUint64
 
-	lastLogIndex					uint64
 	firstLogIndex					uint64
+	lastLogIndex					uint64
 	//lastLogIndex					*PersistentUint64
 	lastLogTerm						uint64
 	nextIndex						uint64
 
 	//init
 	recoverLogIndex					uint64
+	lastPrintFirstLogIndex			uint64
 	lastPrintLastLogIndex			uint64
 	lastPrintCommitIndex			uint64
 	lastPrintLastApplied			uint64
@@ -358,12 +359,31 @@ func (n *Node) Context()interface{}{
 	defer n.mu.RUnlock()
 	return n.context
 }
+
+func (n *Node)GzipSnapshot(){
+	n.stateMachine.snapshotReadWriter.Gzip(true)
+}
+
 func (n *Node)SetSnapshotSyncType(snapshotSyncType SnapshotSyncType){
 	n.stateMachine.SetSnapshotSyncType(snapshotSyncType)
 }
+
 func (n *Node)SetSnapshot(snapshot Snapshot){
 	n.stateMachine.SetSnapshot(snapshot)
 }
+
+func (n *Node)ClearSyncType(){
+	n.stateMachine.ClearSyncType()
+}
+
+func (n *Node)AppendSyncType(seconds,changes int){
+	n.stateMachine.AppendSyncType(seconds,changes)
+}
+
+func (n *Node)SetSyncType(saves [][]int){
+	n.stateMachine.SetSyncType(saves)
+}
+
 func (n *Node)RegisterCommand(command Command) (error){
 	if command == nil {
 		return ErrCommandNil
@@ -582,11 +602,11 @@ func (n *Node) load(){
 func (n *Node) recover() error {
 	Tracef("Node.recover %s start",n.address)
 	if n.storage.IsEmpty(DefaultIndex){
-		if !n.storage.IsEmpty(DefaultTarGz){
+		if !n.storage.IsEmpty(n.stateMachine.snapshotReadWriter.FileName()){
 			n.stateMachine.snapshotReadWriter.untar()
 		}
 	}else if n.storage.IsEmpty(DefaultLog){
-		if !n.storage.IsEmpty(DefaultTarGz){
+		if !n.storage.IsEmpty(n.stateMachine.snapshotReadWriter.FileName()){
 			n.stateMachine.snapshotReadWriter.untar()
 		}
 	}
@@ -605,6 +625,7 @@ func (n *Node) recover() error {
 	endfor:
 	}()
 	n.stateMachine.recover()
+	n.print()
 	n.log.applyCommited()
 	n.print()
 	recoverApplyStop<-true
@@ -621,6 +642,9 @@ func (n *Node) checkLog() error {
 	if n.storage.IsEmpty(DefaultLastIncludedTerm){
 		n.stateMachine.snapshotReadWriter.lastIncludedTerm.save()
 	}
+	if n.storage.IsEmpty(DefaultLastTarIndex){
+		n.stateMachine.snapshotReadWriter.lastTarIndex.save()
+	}
 	if n.storage.IsEmpty(DefaultTerm){
 		n.currentTerm.save()
 	}
@@ -633,12 +657,12 @@ func (n *Node) checkLog() error {
 	if n.storage.IsEmpty(DefaultSnapshot)&&n.stateMachine.snapshot!=nil&&!n.storage.IsEmpty(DefaultIndex)&&!n.storage.IsEmpty(DefaultLog)&&!n.storage.IsEmpty(DefaultCommitIndex){
 		n.stateMachine.SaveSnapshot()
 	}
-	if n.isLeader()&&n.storage.IsEmpty(DefaultTarGz)&&!n.storage.IsEmpty(DefaultIndex)&&!n.storage.IsEmpty(DefaultLog)&&!n.storage.IsEmpty(DefaultCommitIndex)&&!n.storage.IsEmpty(DefaultSnapshot){
+	if n.isLeader()&&n.storage.IsEmpty(n.stateMachine.snapshotReadWriter.FileName())&&!n.storage.IsEmpty(DefaultIndex)&&!n.storage.IsEmpty(DefaultLog)&&!n.storage.IsEmpty(DefaultCommitIndex)&&!n.storage.IsEmpty(DefaultSnapshot)&&!n.storage.IsEmpty(DefaultLastIncludedIndex)&&!n.storage.IsEmpty(DefaultLastIncludedTerm){
 		n.stateMachine.snapshotReadWriter.lastTarIndex.Set(0)
 		n.stateMachine.snapshotReadWriter.Tar()
 	}
 	if n.storage.IsEmpty(DefaultIndex){
-		if !n.storage.IsEmpty(DefaultTarGz){
+		if !n.storage.IsEmpty(n.stateMachine.snapshotReadWriter.FileName()){
 			n.stateMachine.snapshotReadWriter.untar()
 			n.load()
 		}else {
@@ -646,7 +670,7 @@ func (n *Node) checkLog() error {
 			//n.reset()
 		}
 	}else if n.storage.IsEmpty(DefaultLog){
-		if !n.storage.IsEmpty(DefaultTarGz){
+		if !n.storage.IsEmpty(n.stateMachine.snapshotReadWriter.FileName()){
 			n.stateMachine.snapshotReadWriter.untar()
 			n.load()
 		}else {
@@ -672,6 +696,10 @@ func (n *Node) printPeers(){
 }
 
 func (n *Node) print(){
+	if n.firstLogIndex>n.lastPrintFirstLogIndex{
+		Tracef("Node.print %s firstLogIndex %d==>%d",n.address,n.lastPrintFirstLogIndex,n.firstLogIndex)
+		n.lastPrintFirstLogIndex=n.firstLogIndex
+	}
 	if n.lastLogIndex>n.lastPrintLastLogIndex{
 		Tracef("Node.print %s lastLogIndex %d==>%d",n.address,n.lastPrintLastLogIndex,n.lastLogIndex)
 		n.lastPrintLastLogIndex=n.lastLogIndex

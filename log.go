@@ -22,6 +22,10 @@ type Log struct {
 	finish 					chan bool
 	work 					bool
 	paused 					bool
+	name 			string
+	tmpName 		string
+	flushName 		string
+
 }
 
 func newLog(node *Node) *Log {
@@ -35,6 +39,9 @@ func newLog(node *Node) *Log {
 		stop:make(chan bool,1),
 		finish:make(chan bool,1),
 		work:true,
+		name:DefaultLog,
+		tmpName:DefaultLog+DefaultTmp,
+		flushName:DefaultLog+DefaultFlush,
 	}
 	log.entryPool= &sync.Pool{
 		New: func() interface{} {
@@ -141,8 +148,9 @@ func (log *Log) lookupNext(index uint64)*Entry {
 func (log *Log) deleteAfter(index uint64) {
 	log.mu.Lock()
 	defer log.mu.Unlock()
-	log.checkPaused()
-	if index<=1{
+	log.pause(true)
+	defer log.pause(false)
+	if index==0{
 		log.node.lastLogIndex=0
 		return
 	}
@@ -159,7 +167,35 @@ func (log *Log) deleteAfter(index uint64) {
 	}
 	log.node.storage.Truncate(DefaultLog,log.size)
 }
+func (log *Log) clear(index uint64) {
+	log.deleteBefore(index-1)
+}
+func (log *Log) deleteBefore(index uint64) {
+	log.mu.Lock()
+	defer log.mu.Unlock()
+	log.checkPaused()
+	log.pause(true)
+	defer log.pause(false)
+	cutoff:=log.indexs.deleteBefore(index)
+	if cutoff>0{
+		log.node.storage.Copy(log.name,log.flushName,cutoff,log.size-cutoff)
+		log.node.storage.Rename(log.name,log.tmpName)
+		log.node.storage.Rename(log.flushName,log.name)
+		log.node.storage.Rm(log.indexs.tmpName)
+		log.node.storage.Rm(log.tmpName)
+		lastLogIndex:=log.node.lastLogIndex
+		if lastLogIndex>0{
+			meta:=log.indexs.lookup(lastLogIndex)
+			log.node.lastLogTerm=meta.Term
+			log.size=meta.Position+meta.Offset
+		}else {
+			log.node.lastLogTerm=0
+			log.size=0
+		}
+	}
+	Tracef("Log.deleteBefore %s deleteBefore %d cutoff %d logSize %d",log.node.address,index,cutoff,log.size)
 
+}
 func (log *Log) copyAfter(index uint64,max int)(entries []*Entry) {
 	log.mu.Lock()
 	defer log.mu.Unlock()
@@ -330,7 +366,7 @@ func (log *Log)Decode(data []byte,metas []*Meta,cursor uint64,)([]*Entry,uint64,
 			entry:=log.getEmtyEntry()
 			err:=log.node.raftCodec.Decode(b,entry)
 			if err!=nil{
-				Errorf("Log.Decode %d %d %s",ret,offset,string(b))
+				Errorf("Log.Decode %d %d %d %s",cursor,ret,offset,string(b))
 			}
 			entries=append(entries, entry)
 			log_ret=uint64(ret+offset)

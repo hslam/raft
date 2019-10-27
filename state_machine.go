@@ -13,23 +13,18 @@ type StateMachine struct {
 	snapshot						Snapshot
 	snapshotReadWriter				*SnapshotReadWriter
 	snapshotSyncType				SnapshotSyncType
-	snapshotSyncTicker				*time.Ticker
-	stop 							chan bool
-	finish 							chan bool
+	snapshotSyncs					[]*SnapshotSync
 	saves 							[][]int
 	saveLog 						bool
+	always 							bool
 }
 func newStateMachine(node *Node)*StateMachine {
 	s:=&StateMachine{
 		node:node,
-		snapshotReadWriter:newSnapshotReadWriter(node,DefaultSnapshot),
-		saves:[][]int{
-			{SecondsSaveSnapshot1,ChangesSaveSnapshot1},
-			{SecondsSaveSnapshot2,ChangesSaveSnapshot2},
-			{SecondsSaveSnapshot3,ChangesSaveSnapshot3},
-			},
+		snapshotReadWriter:newSnapshotReadWriter(node,DefaultSnapshot,false),
+		saves:[][]int{},
 	}
-	s.SetSnapshotSyncType(Never)
+	s.SetSnapshotSyncType(DefalutSave)
 	return s
 }
 func (s *StateMachine)Apply(index uint64,command Command) (interface{},error){
@@ -46,56 +41,83 @@ func (s *StateMachine)Apply(index uint64,command Command) (interface{},error){
 		reply,err=command.Do(s.node)
 	}
 	s.lastApplied=index
+	if s.always{
+		s.SaveSnapshot()
+	}
 	return reply,err
 }
 
 func (s *StateMachine)SetSnapshotSyncType(snapshotSyncType SnapshotSyncType){
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	s.setSnapshotSyncType(snapshotSyncType)
+}
+
+func (s *StateMachine)setSnapshotSyncType(snapshotSyncType SnapshotSyncType){
 	s.snapshotSyncType=snapshotSyncType
+	s.always=false
 	switch s.snapshotSyncType {
 	case Never:
 	case EverySecond:
 		s.Stop()
-		s.snapshotSyncTicker=time.NewTicker(time.Minute)
-		s.stop=make(chan bool,1)
-		s.finish=make(chan bool,1)
+		s.snapshotSyncs=append(s.snapshotSyncs, newSnapshotSync(s,1,1))
 		go s.run()
 	case EveryMinute:
 		s.Stop()
-		s.snapshotSyncTicker=time.NewTicker(time.Minute)
-		s.stop=make(chan bool,1)
-		s.finish=make(chan bool,1)
+		s.snapshotSyncs=append(s.snapshotSyncs, newSnapshotSync(s,60,1))
 		go s.run()
 	case EveryHour:
 		s.Stop()
-		s.snapshotSyncTicker=time.NewTicker(time.Hour)
-		s.stop=make(chan bool,1)
-		s.finish=make(chan bool,1)
+		s.snapshotSyncs=append(s.snapshotSyncs, newSnapshotSync(s,3600,1))
 		go s.run()
 	case EveryDay:
 		s.Stop()
-		s.snapshotSyncTicker=time.NewTicker(time.Hour*24)
-		s.stop=make(chan bool,1)
-		s.finish=make(chan bool,1)
+		s.snapshotSyncs=append(s.snapshotSyncs, newSnapshotSync(s,86400,1))
 		go s.run()
 	case DefalutSave:
+		s.Stop()
+		s.saves=[][]int{
+		{SecondsSaveSnapshot1,ChangesSaveSnapshot1},
+		{SecondsSaveSnapshot2,ChangesSaveSnapshot2},
+		{SecondsSaveSnapshot3,ChangesSaveSnapshot3},
+		}
+		for _,v:=range s.saves{
+			s.snapshotSyncs=append(s.snapshotSyncs, newSnapshotSync(s,v[0],v[1]))
+		}
+		go s.run()
 	case Save:
+		s.Stop()
+		for _,v:=range s.saves{
+			s.snapshotSyncs=append(s.snapshotSyncs, newSnapshotSync(s,v[0],v[1]))
+		}
+		go s.run()
 	case Always:
+		s.Stop()
+		s.always=true
 	}
 }
 
+func (s *StateMachine)ClearSyncType(){
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.saves=[][]int{}
+}
 func (s *StateMachine)AppendSyncType(seconds,changes int){
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	s.saves=append(s.saves, []int{seconds,changes})
 }
-
+func (s *StateMachine)SetSyncType(saves [][]int){
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.saves=saves
+	s.setSnapshotSyncType(Save)
+}
 func (s *StateMachine)SetSnapshot(snapshot Snapshot){
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.snapshot=snapshot
 }
-
 
 func (s *StateMachine)SaveSnapshot()error{
 	s.mu.Lock()
@@ -125,7 +147,11 @@ func (s *StateMachine)SaveSnapshot()error{
 			s.snapshotReadWriter.Reset(lastIncludedIndex,lastIncludedTerm)
 			_,err:=s.snapshot.Save(s.node.context,s.snapshotReadWriter)
 			s.snapshotReadWriter.Rename()
-			Tracef("StateMachine.SaveSnapshot %s lastIncludedIndex %d==%d",s.node.address,lastPrintLastIncludedIndex,s.snapshotReadWriter.lastIncludedIndex.Id())
+			startTime:=time.Now().UnixNano()
+			s.node.log.clear(lastIncludedIndex)
+			go s.snapshotReadWriter.Tar()
+			duration:=(time.Now().UnixNano()-startTime)/1000000
+			Tracef("StateMachine.SaveSnapshot %s lastIncludedIndex %d==%d duration:%dms",s.node.address,lastPrintLastIncludedIndex,s.snapshotReadWriter.lastIncludedIndex.Id(),duration)
 			return err
 		}
 		return nil
@@ -182,30 +208,18 @@ func (s *StateMachine) append(offset uint64,p []byte) {
 }
 
 func (s *StateMachine)run()  {
-	go func() {
-		for range s.snapshotSyncTicker.C{
-			if s.snapshotSyncType==EverySecond||s.snapshotSyncType==EveryMinute||s.snapshotSyncType==EveryHour{
-				s.SaveSnapshot()
-			}
-		}
-	}()
-	select {
-	case <-s.stop:
-		close(s.stop)
-		s.stop=nil
+	Tracef("StateMachine.run %d",len(s.snapshotSyncs))
+	for _,snapshotSync:=range s.snapshotSyncs{
+		go snapshotSync.run()
 	}
-	s.snapshotSyncTicker.Stop()
-	s.snapshotSyncTicker=nil
-	s.finish<-true
 }
 func (s *StateMachine)Stop()  {
-	if s.stop==nil{
-		return
+	Tracef("StateMachine.Stop %d",len(s.snapshotSyncs))
+	for _,snapshotSync:=range s.snapshotSyncs{
+		if snapshotSync!=nil{
+			snapshotSync.Stop()
+			snapshotSync=nil
+		}
 	}
-	s.stop<-true
-	select {
-	case <-s.finish:
-		close(s.finish)
-		s.finish=nil
-	}
+	s.snapshotSyncs=make([]*SnapshotSync,0)
 }

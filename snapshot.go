@@ -21,6 +21,10 @@ type SnapshotReadWriter struct {
 	node				*Node
 	work 				bool
 	name 				string
+	tmpName 			string
+	flushName 			string
+	tarName				string
+	tarGzName			string
 	ret 				uint64
 	read_ret 			uint64
 	lastIncludedIndex 	*PersistentUint64
@@ -28,39 +32,53 @@ type SnapshotReadWriter struct {
 	lastTarIndex		*PersistentUint64
 	length				uint64
 	ticker				*time.Ticker
-	stop 				chan bool
-	finish 				chan bool
 	tarWork 			bool
 	done 				bool
+	gzip 					bool
 }
-func newSnapshotReadWriter(node *Node,name string)*SnapshotReadWriter  {
+func newSnapshotReadWriter(node *Node,name string,gzip bool)*SnapshotReadWriter  {
 	s:=&SnapshotReadWriter{
 		node:node,
 		work:true,
 		name:name,
+		tmpName:name+DefaultTmp,
+		flushName:name+DefaultFlush,
+		tarName:DefaultTar,
+		tarGzName:DefaultTarGz,
 		ret:0,
 		read_ret:0,
 		ticker:time.NewTicker(DefaultTarTick),
 		lastIncludedIndex:newPersistentUint64(node,DefaultLastIncludedIndex,0),
 		lastIncludedTerm:newPersistentUint64(node,DefaultLastIncludedTerm,0),
 		lastTarIndex:newPersistentUint64(node,DefaultLastTarIndex,0),
-		stop:make(chan bool,1),
-		finish:make(chan bool,1),
 		tarWork:true,
+		gzip:gzip,
 	}
 	go s.run()
 	return s
 }
-
+func (s *SnapshotReadWriter)Gz()bool{
+	return s.gzip
+}
+func (s *SnapshotReadWriter) Gzip(gz bool){
+	s.gzip=gz
+}
+func (s *SnapshotReadWriter) FileName()string{
+	name:=s.tarName
+	if s.gzip{
+		name=s.tarGzName
+	}
+	return name
+}
 func (s *SnapshotReadWriter) Reset(lastIncludedIndex,lastIncludedTerm uint64) {
 	s.lastIncludedIndex.Set(lastIncludedIndex)
 	s.lastIncludedTerm.Set(lastIncludedTerm)
-	s.node.storage.Truncate(s.name+DefaultTmp,0)
+	s.node.storage.Truncate(s.flushName,0)
 	s.ret=0
 	s.read_ret=0
 }
 func (s *SnapshotReadWriter) Write(p []byte) (n int, err error){
-	err=s.node.storage.SeekWrite(s.name+DefaultTmp,s.ret,p)
+	err=s.node.storage.SeekWrite(s.flushName,s.ret,p)
 	if err!=nil{
 		return 0,err
 	}
@@ -69,10 +87,16 @@ func (s *SnapshotReadWriter) Write(p []byte) (n int, err error){
 	return n,nil
 }
 func (s *SnapshotReadWriter) Rename()error{
-	return s.node.storage.Rename(s.name+DefaultTmp,s.name)
+	defer func() {
+		if s.node.storage.Exists(s.tmpName){
+			s.node.storage.Rm(s.tmpName)
+		}
+	}()
+	s.node.storage.Rename(s.name,s.tmpName)
+	return s.node.storage.Rename(s.flushName,s.name)
 }
 func (s *SnapshotReadWriter) Append(offset uint64,p []byte) (n int, err error){
-	err=s.node.storage.SeekWrite(DefaultTarGz,offset,p)
+	err=s.node.storage.SeekWrite(s.FileName(),offset,p)
 	if err!=nil{
 		return 0,err
 	}
@@ -187,8 +211,8 @@ func (s *SnapshotReadWriter) RecoverFile(source *os.File,name string) error {
 func (s *SnapshotReadWriter) Tar()error{
 	if s.canTar(){
 		s.disableTar()
+		defer s.enableTar()
 		err:=s.tar()
-		s.enableTar()
 		return err
 	}
 	return nil
@@ -217,6 +241,7 @@ func (s *SnapshotReadWriter) tar() error {
 	}
 	s.done=false
 	lastTarIndex:=s.lastTarIndex.Id()
+	s.lastTarIndex.Set(s.lastIncludedIndex.Id())
 	s.node.storage.Truncate(DefaultTar,0)
 	s.AppendFile(DefaultLastTarIndex)
 	s.AppendFile(DefaultCommitIndex)
@@ -225,21 +250,26 @@ func (s *SnapshotReadWriter) tar() error {
 	s.AppendFile(DefaultSnapshot)
 	s.AppendFile(DefaultIndex)
 	s.AppendFile(DefaultLog)
-	s.gz()
-	s.lastTarIndex.Set(s.lastIncludedIndex.Id())
+	if s.gzip{
+		s.gz()
+	}
 	Tracef("SnapshotReadWriter.tar %s lastTarIndex %d==%d",s.node.address,lastTarIndex,s.lastTarIndex.Id())
 	s.done=true
-	s.node.storage.Rm(DefaultTar)
+	if s.gzip{
+		s.node.storage.Rm(s.tarName)
+	}
 	return nil
 }
 func (s *SnapshotReadWriter) untar() error {
-	if s.node.storage.IsEmpty(DefaultTarGz){
-		return errors.New(DefaultTarGz+" file is empty")
+	if s.node.storage.IsEmpty(s.FileName()){
+		return errors.New(s.FileName()+" file is empty")
 	}
 	if !s.done{
 		return nil
 	}
-	s.ungz()
+	if s.gzip{
+		s.ungz()
+	}
 	source,err:=s.node.storage.FileReader(DefaultTar)
 	if err!=nil{
 		return err
@@ -249,19 +279,22 @@ func (s *SnapshotReadWriter) untar() error {
 	s.RecoverFile(source,DefaultCommitIndex)
 	s.RecoverFile(source,DefaultLastIncludedIndex)
 	s.RecoverFile(source,DefaultLastIncludedTerm)
-	s.RecoverFile(source,DefaultSnapshot+DefaultTmp)
-	s.Rename()
+	s.RecoverFile(source,s.name)
 	s.RecoverFile(source,DefaultIndex)
 	s.RecoverFile(source,DefaultLog)
-	if s.node.storage.Exists(DefaultTar){
-		s.node.storage.Rm(DefaultTar)
+	//if !s.node.isLeader(){
+	//	if s.node.storage.Exists(DefaultTar){
+	//		s.node.storage.Rm(DefaultTar)
+	//	}
+	if s.gzip{
+		if s.node.storage.Exists(DefaultTarGz){
+			s.node.storage.Rm(DefaultTarGz)
+		}
 	}
-	if s.node.storage.Exists(DefaultTarGz){
-		s.node.storage.Rm(DefaultTarGz)
-	}
-	if s.node.storage.Exists(DefaultLastTarIndex){
-		s.node.storage.Rm(DefaultLastTarIndex)
-	}
+	//	if s.node.storage.Exists(DefaultLastTarIndex){
+	//		s.node.storage.Rm(DefaultLastTarIndex)
+	//	}
+	//}
 	return nil
 }
 func (s *SnapshotReadWriter) gz() error {
@@ -326,7 +359,7 @@ func (s *SnapshotReadWriter) ungz() error {
 	return nil
 }
 func (s *SnapshotReadWriter) clear() error {
-	return s.node.storage.Truncate(DefaultTarGz,0)
+	return s.node.storage.Truncate(s.FileName(),0)
 }
 func (s *SnapshotReadWriter)canTar() bool {
 	s.mut.RLock()
@@ -345,29 +378,15 @@ func (s *SnapshotReadWriter)enableTar() {
 }
 
 func (s *SnapshotReadWriter)run()  {
-	go func() {
-		for range s.ticker.C{
-			if s.node.install()&&s.lastIncludedIndex.Id()>s.lastTarIndex.Id()&&s.node.isLeader(){
-				s.Tar()
-			}
+	for range s.ticker.C{
+		if s.node.install()&&s.lastIncludedIndex.Id()>s.lastTarIndex.Id()&&s.node.isLeader(){
+			s.Tar()
 		}
-	}()
-	select {
-	case <-s.stop:
-		close(s.stop)
-		s.stop=nil
 	}
-	s.ticker.Stop()
-	s.finish<-true
 }
 func (s *SnapshotReadWriter)Stop()  {
-	if s.stop==nil{
-		return
-	}
-	s.stop<-true
-	select {
-	case <-s.finish:
-		close(s.finish)
-		s.finish=nil
+	if s.ticker!=nil{
+		s.ticker.Stop()
+		s.ticker=nil
 	}
 }

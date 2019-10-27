@@ -90,7 +90,7 @@ type WrkClient struct {
 
 func (c *WrkClient)Call()(int64,int64,bool){
 	A:= RandString(4)
-	B:= RandString(32)
+	B:= RandString(0)
 	req := &node.Request{Key:A,Value:B}
 	var res node.Response
 	c.Conn.Call("S.Set", req, &res)
@@ -101,7 +101,7 @@ func (c *WrkClient)Call()(int64,int64,bool){
 }
 
 func RandString(len int) string {
-	r:= rand.New(rand.NewSource(time.Now().Unix()))
+	r:= rand.New(rand.NewSource(time.Now().UnixNano()))
 	bytes := make([]byte, len)
 	for i := 0; i < len; i++ {
 		b := r.Intn(26) + 65

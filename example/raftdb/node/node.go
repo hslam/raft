@@ -59,8 +59,16 @@ func NewNode(data_dir string, host string, port ,rpc_port,raft_port int,peers []
 	n.raft_node.SetNode(peers)
 	n.raft_node.RegisterCommand(&SetCommand{})
 	n.raft_node.SetSnapshot(&Snapshot{})
-	n.raft_node.SetSnapshotSyncType(raft.EveryHour)
+	n.raft_node.SetSyncType([][]int{
+		{86400,1},
+		{14400,1000},
+		{3600,10000},
+		{1800,50000},
+		{900,200000},
+		{60,5000000},
+	})
 	n.raft_node.SetCodec(&raft.ProtoCodec{})
+	n.raft_node.GzipSnapshot()
 	n.http_server = &http.Server{
 		Addr:    fmt.Sprintf(":%d", n.port),
 		Handler: n.router,

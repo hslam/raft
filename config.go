@@ -46,6 +46,7 @@ const (
 	DefaultTar = "tar"
 	DefaultTarGz = "tar.gz"
 	DefaultTmp = ".tmp"
+	DefaultFlush = ".flush"
 	DefaultReadFileBufferSize= 1 << 24
 
 	CommandTypeNoOperation =-1

@@ -92,12 +92,12 @@ func (p *Peer) ping() {
 }
 func (p *Peer) check() {
 	if p.node.lastLogIndex>p.nextIndex-1&&p.nextIndex>0{
-		if (p.nextIndex==1&&p.node.commitIndex.Id()>1)||p.node.lastLogIndex-(p.nextIndex-1)>DefaultNumInstallSnapshot&&p.install{
+		if ((p.nextIndex==1||p.nextIndex-1<p.node.firstLogIndex)&&p.node.commitIndex.Id()>1)||p.node.lastLogIndex-(p.nextIndex-1)>DefaultNumInstallSnapshot&&p.install{
 			p.install=false
 			defer func() {
 				p.install=true
 			}()
-			if p.node.storage.IsEmpty(DefaultTarGz)&&p.tarWork{
+			if p.node.storage.IsEmpty(p.node.stateMachine.snapshotReadWriter.FileName())&&p.tarWork{
 				p.tarWork=false
 				go func() {
 					defer func() {
@@ -116,7 +116,7 @@ func (p *Peer) check() {
 							p.send=true
 						}()
 						if p.chunk==0{
-							size,err:=p.node.storage.Size(DefaultTarGz)
+							size,err:=p.node.storage.Size(p.node.stateMachine.snapshotReadWriter.FileName())
 							if err!=nil{
 								return
 							}
@@ -126,7 +126,7 @@ func (p *Peer) check() {
 						if p.chunkNum>1{
 							if p.chunk<p.chunkNum-1{
 								b := make([]byte, DefaultChunkSize)
-								n,err:=p.node.storage.SeekRead(DefaultTarGz,p.offset,b)
+								n,err:=p.node.storage.SeekRead(p.node.stateMachine.snapshotReadWriter.FileName(),p.offset,b)
 								if err!=nil{
 									return
 								}
@@ -139,7 +139,7 @@ func (p *Peer) check() {
 								}
 							}else {
 								b := make([]byte, p.size-p.offset)
-								n,err:=p.node.storage.SeekRead(DefaultTarGz,p.offset,b)
+								n,err:=p.node.storage.SeekRead(p.node.stateMachine.snapshotReadWriter.FileName(),p.offset,b)
 								if err!=nil{
 									return
 								}
@@ -158,7 +158,7 @@ func (p *Peer) check() {
 						}else {
 							b := make([]byte, p.size)
 							p.offset=0
-							n,err:=p.node.storage.SeekRead(DefaultTarGz,p.offset,b)
+							n,err:=p.node.storage.SeekRead(p.node.stateMachine.snapshotReadWriter.FileName(),p.offset,b)
 							if err!=nil{
 								return
 							}
