@@ -8,8 +8,6 @@ import (
 type ReadIndex struct {
 	mu 						sync.Mutex
 	node					*Node
-	stop					chan bool
-	finish 					chan bool
 	readChan 				chan chan bool
 	m 						map[uint64][]chan bool
 	id 						uint64
@@ -19,8 +17,6 @@ type ReadIndex struct {
 func newReadIndex(node *Node) *ReadIndex {
 	r:=&ReadIndex{
 		node:					node,
-		stop:					make(chan bool,1),
-		finish:					make(chan bool,1),
 		readChan: 				make(chan chan bool,DefaultMaxConcurrencyRead),
 		m: 						make(map[uint64][]chan bool),
 		work:true,
@@ -78,42 +74,26 @@ func (r *ReadIndex) Update() bool{
 				return true
 			}
 		}
-
 	}
 	return false
 }
 
 func (r *ReadIndex) run() {
-	go func() {
-		for ch := range r.readChan {
-			func(){
-				r.mu.Lock()
-				defer r.mu.Unlock()
-				if _,ok:=r.m[r.id];!ok{
-					r.m[r.id]=[]chan bool{}
-				}
-				r.m[r.id]=append(r.m[r.id],ch)
-			}()
-		}
-	}()
-	select {
-	case <-r.stop:
-		close(r.stop)
-		r.stop=nil
-		goto endfor
+	for ch := range r.readChan {
+		func(){
+			r.mu.Lock()
+			defer r.mu.Unlock()
+			if _,ok:=r.m[r.id];!ok{
+				r.m[r.id]=[]chan bool{}
+			}
+			r.m[r.id]=append(r.m[r.id],ch)
+		}()
 	}
-endfor:
-	r.finish<-true
 }
 
 func (r *ReadIndex)Stop()  {
-	if r.stop==nil{
-		return
-	}
-	r.stop<-true
-	select {
-	case <-r.finish:
-		close(r.finish)
-		r.finish=nil
+	if r.readChan!=nil{
+		close(r.readChan)
+		r.readChan=nil
 	}
 }
