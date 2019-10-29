@@ -41,6 +41,7 @@ func (p *PersistentString) String()string {
 
 func (p *PersistentString) save() {
 	p.node.storage.OverWrite(p.name,[]byte(p.value))
+	p.node.storage.Sync(p.name)
 }
 
 func (p *PersistentString) load() error {

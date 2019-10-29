@@ -53,7 +53,7 @@ const (
 	CommandTypeAddPeer =-2
 	CommandTypeRemovePeer =-3
 
-	DefaultNumInstallSnapshot = 1<<27
+	DefaultNumInstallSnapshot = 1<<24
 	DefaultMaxEntriesPerFile = 1 << 27
 	DefaultChunkSize int64 = 1 << 24
 

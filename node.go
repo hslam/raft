@@ -118,7 +118,7 @@ func NewNode(host string, port int,data_dir string,context interface{})(*Node,er
 		commandType:&CommandType{types:make(map[int32]Command)},
 		nextIndex:1,
 	}
-	n.storage=newStorage(n,data_dir)
+	n.storage=newStorage(data_dir)
 	n.votes=newVotes(n)
 	n.readIndex=newReadIndex(n)
 	n.stateMachine=newStateMachine(n)
@@ -458,9 +458,6 @@ func (n *Node)ReadIndex()bool{
 	}
 	return n.readIndex.Read()
 }
-func (n *Node) fast() bool {
-	return n.isLeader()&&len(n.peers)>0
-}
 func (n *Node) Peers() []string {
 	n.nodesMut.Lock()
 	defer n.nodesMut.Unlock()
@@ -775,6 +772,8 @@ func (n *Node) commit() bool {
 		if v,ok:=lastLogIndexCount[index];ok{
 			if v+1>=quorum{
 				if index>n.commitIndex.Id()&&index<n.nextIndex{
+					n.storage.Sync(n.log.name)
+					n.storage.Sync(n.log.indexs.name)
 					n.commitIndex.Set(index)
 					//Tracef("Node.Commit %s commitIndex %d==>%d",n.address,commitIndex,n.commitIndex)
 				}

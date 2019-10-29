@@ -54,6 +54,7 @@ func (p *PersistentUint64) Id()uint64 {
 
 func (p *PersistentUint64) save() {
 	p.node.storage.OverWrite(p.name,uint64ToBytes(p.value))
+	p.node.storage.Sync(p.name)
 }
 
 func (p *PersistentUint64) load() error {
