@@ -48,9 +48,9 @@ func newSnapshotReadWriter(node *Node,name string,gzip bool)*SnapshotReadWriter 
 		ret:0,
 		read_ret:0,
 		ticker:time.NewTicker(DefaultTarTick),
-		lastIncludedIndex:newPersistentUint64(node,DefaultLastIncludedIndex,0),
-		lastIncludedTerm:newPersistentUint64(node,DefaultLastIncludedTerm,0),
-		lastTarIndex:newPersistentUint64(node,DefaultLastTarIndex,0),
+		lastIncludedIndex:newPersistentUint64(node,DefaultLastIncludedIndex,true,0),
+		lastIncludedTerm:newPersistentUint64(node,DefaultLastIncludedTerm,true,0),
+		lastTarIndex:newPersistentUint64(node,DefaultLastTarIndex,true,0),
 		tarWork:true,
 		gzip:gzip,
 	}

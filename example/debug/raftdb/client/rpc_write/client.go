@@ -33,12 +33,12 @@ func init()  {
 	flag.StringVar(&compress, "compress", "gzip", "compress: -compress=no|flate|zlib|gzip")
 	flag.StringVar(&host, "h", "127.0.0.1", "host: -h=127.0.0.1")
 	flag.IntVar(&port, "p", 8001, "port: -p=8001")
-	flag.IntVar(&parallel, "parallel", 512, "parallel: -parallel=512")
+	flag.IntVar(&parallel, "parallel", 1024, "parallel: -parallel=512")
 	flag.IntVar(&total_calls, "total", 1000000, "total_calls: -total=10000")
 	flag.BoolVar(&batch, "batch", true, "batch: -batch=false")
 	flag.BoolVar(&batch_async, "batch_async", true, "batch_async: -batch_async=false")
 	flag.BoolVar(&multiplexing, "multiplexing", false, "multiplexing: -multiplexing=false")
-	flag.IntVar(&clients, "clients", 8, "num: -clients=1")
+	flag.IntVar(&clients, "clients", 4, "num: -clients=1")
 	flag.BoolVar(&bar, "bar", false, "bar: -bar=true")
 	log.SetFlags(0)
 	flag.Parse()
@@ -90,7 +90,7 @@ type WrkClient struct {
 
 func (c *WrkClient)Call()(int64,int64,bool){
 	A:= RandString(4)
-	B:= RandString(0)
+	B:= RandString(32)
 	req := &node.Request{Key:A,Value:B}
 	var res node.Response
 	c.Conn.Call("S.Set", req, &res)

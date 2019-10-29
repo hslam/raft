@@ -14,15 +14,17 @@ type PersistentUint64 struct {
 	name 							string
 	ticker 							*time.Ticker
 	lastSaveValue 					uint64
-	deferSync  						bool
+	syncNow 						bool
+	deferSave  						bool
 }
-func newPersistentUint64(node *Node,name string,tick time.Duration) *PersistentUint64 {
+func newPersistentUint64(node *Node,name string,syncNow bool,tick time.Duration) *PersistentUint64 {
 	p:=&PersistentUint64{
 		node:node,
 		name:name,
+		syncNow:syncNow,
 	}
 	if tick>0{
-		p.deferSync=true
+		p.deferSave=true
 		p.ticker=time.NewTicker(tick)
 		go p.run()
 	}
@@ -33,7 +35,7 @@ func (p *PersistentUint64) Incre()uint64 {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.value+=1
-	if !p.deferSync{
+	if !p.deferSave{
 		p.save()
 	}
 	return p.value
@@ -42,7 +44,7 @@ func (p *PersistentUint64) Set(t uint64) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.value=t
-	if !p.deferSync{
+	if !p.deferSave{
 		p.save()
 	}
 }
@@ -54,7 +56,9 @@ func (p *PersistentUint64) Id()uint64 {
 
 func (p *PersistentUint64) save() {
 	p.node.storage.OverWrite(p.name,uint64ToBytes(p.value))
-	p.node.storage.Sync(p.name)
+	if p.syncNow{
+		p.node.storage.Sync(p.name)
+	}
 }
 
 func (p *PersistentUint64) load() error {

@@ -127,8 +127,8 @@ func NewNode(host string, port int,data_dir string,context interface{})(*Node,er
 	n.election=newElection(n,DefaultElectionTimeout)
 	n.raft=newRaft(n)
 	n.server=newServer(n,fmt.Sprintf(":%d",port))
-	n.currentTerm=newPersistentUint64(n,DefaultTerm,0)
-	n.commitIndex=newPersistentUint64(n,DefaultCommitIndex,time.Second)
+	n.currentTerm=newPersistentUint64(n,DefaultTerm,true,0)
+	n.commitIndex=newPersistentUint64(n,DefaultCommitIndex,false,time.Second)
 	n.votedFor=newPersistentString(n,DefaultVoteFor)
 	n.state=newFollowerState(n)
 	n.pipeline=NewPipeline(n,DefaultMaxConcurrency)
@@ -508,6 +508,11 @@ func (n *Node) quorum() int {
 func (n *Node) AliveCount() int {
 	n.nodesMut.RLock()
 	defer n.nodesMut.RUnlock()
+	return n.aliveCount()
+}
+func (n *Node) aliveCount() int {
+	n.nodesMut.RLock()
+	defer n.nodesMut.RUnlock()
 	cnt:=1
 	for _,v:=range n.peers{
 		if v.alive==true{
@@ -516,7 +521,6 @@ func (n *Node) AliveCount() int {
 	}
 	return cnt
 }
-
 func (n *Node) requestVotes() error {
 	n.nodesMut.RLock()
 	defer n.nodesMut.RUnlock()
@@ -737,6 +741,8 @@ func (n *Node) commit() bool {
 	if len(n.peers)==0{
 		index:=n.lastLogIndex
 		if index>n.commitIndex.Id(){
+			n.storage.Sync(n.log.name)
+			n.storage.Sync(n.log.indexs.name)
 			n.commitIndex.Set(index)
 			//Tracef("Node.Commit %s commitIndex %d==>%d",n.address,commitIndex,n.commitIndex)
 		}
@@ -755,43 +761,35 @@ func (n *Node) commit() bool {
 		}
 		return false
 	}
-	quorum:=n.quorum()
-	var lastLogIndexCount =make(map[uint64]int)
-	var lastLogIndexs	=make([]uint64,0)
+	var lastLogIndexs	=make([]uint64,1)
+	lastLogIndexs[0]=n.lastLogIndex
 	for _,v :=range n.peers{
-		if _,ok:=lastLogIndexCount[v.nextIndex-1];!ok{
-			lastLogIndexCount[v.nextIndex-1]=1
-			lastLogIndexs=append(lastLogIndexs, v.nextIndex-1)
-		}else {
-			lastLogIndexCount[v.nextIndex-1]+=1
-		}
+		lastLogIndexs=append(lastLogIndexs, v.nextIndex-1)
 	}
 	quickSort(lastLogIndexs,-999,-999)
-	for i:=len(lastLogIndexs)-1;i>=0;i--{
-		index:=lastLogIndexs[i]
-		if v,ok:=lastLogIndexCount[index];ok{
-			if v+1>=quorum{
-				if index>n.commitIndex.Id()&&index<n.nextIndex{
-					n.storage.Sync(n.log.name)
-					n.storage.Sync(n.log.indexs.name)
-					n.commitIndex.Set(index)
-					//Tracef("Node.Commit %s commitIndex %d==>%d",n.address,commitIndex,n.commitIndex)
-				}
-				if n.commitWork{
-					if n.commitIndex.Id()<=n.recoverLogIndex&&n.commitIndex.Id()>n.stateMachine.lastApplied{
-						n.commitWork=false
-						go func(){
-							defer func() {if err := recover(); err != nil {}}()
-							defer func() {n.commitWork=true}()
-							//var lastApplied=n.stateMachine.lastApplied
-							n.log.applyCommited()
-							//Tracef("Node.Commit %s lastApplied %d==>%d",n.address,lastApplied,n.stateMachine.lastApplied)
-						}()
-						return true
-					}
-				}
-				break
-			}
+	index:=lastLogIndexs[len(lastLogIndexs)/2]
+	skipIndex:=lastLogIndexs[len(lastLogIndexs)/2-1]
+	if n.aliveCount()>n.quorum()&&skipIndex>n.commitIndex.Id()&&false{
+		n.commitIndex.Set(skipIndex)
+		//Tracef("Node.Commit %s commitIndex %d==>%d",n.address,commitIndex,n.commitIndex)
+	}else if index>n.commitIndex.Id(){
+		n.storage.Sync(n.log.name)
+		n.storage.Sync(n.log.indexs.name)
+		n.commitIndex.Set(index)
+		//Tracef("Node.Commit %s commitIndex %d==>%d",n.address,commitIndex,n.commitIndex)
+	}
+
+	if n.commitWork{
+		if n.commitIndex.Id()<=n.recoverLogIndex&&n.commitIndex.Id()>n.stateMachine.lastApplied{
+			n.commitWork=false
+			go func(){
+				defer func() {if err := recover(); err != nil {}}()
+				defer func() {n.commitWork=true}()
+				//var lastApplied=n.stateMachine.lastApplied
+				n.log.applyCommited()
+				//Tracef("Node.Commit %s lastApplied %d==>%d",n.address,lastApplied,n.stateMachine.lastApplied)
+			}()
+			return true
 		}
 	}
 	return false
