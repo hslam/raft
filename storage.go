@@ -26,13 +26,14 @@ func newStorage(node *Node,data_dir string)*Storage {
 	s.MkDir(s.data_dir)
 	return s
 }
-func (s *Storage)Exists(file_name string) bool {
+func (s *Storage)Sync(file_name string) error {
 	file_path := path.Join(s.data_dir, file_name)
-	var exist = true
-	if _, err := os.Stat(file_path); os.IsNotExist(err) {
-		exist = false
+	f, err := os.OpenFile(file_path, os.O_CREATE|os.O_RDWR, 0600)
+	if err != nil {
+		return err
 	}
-	return exist
+	defer f.Close()
+	return f.Sync()
 }
 func (s *Storage)IsEmpty(file_name string) bool {
 	var empty bool
@@ -62,6 +63,14 @@ func (s *Storage)SafeRecover(file_name string) bool {
 		return false
 	}
 	return true
+}
+func (s *Storage)Exists(file_name string) bool {
+	file_path := path.Join(s.data_dir, file_name)
+	var exist = true
+	if _, err := os.Stat(file_path); os.IsNotExist(err) {
+		exist = false
+	}
+	return exist
 }
 func (s *Storage)MkDir(dir_name string) {
 	if err := os.MkdirAll(dir_name, 0744); err != nil {

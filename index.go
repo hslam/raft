@@ -104,7 +104,7 @@ func (i *Index) deleteBefore(index uint64)uint64{
 		return 0
 	}
 	cutoff:=i.flush(index)
-	if i.firstIndexName(i.flushName)==index+1||i.lastIndexName(i.flushName)==i.node.lastLogIndex{
+	if i.firstIndexName(i.flushName)==index+1&&i.lastIndexName(i.flushName)==i.node.lastLogIndex{
 		i.node.storage.Rename(i.name,i.tmpName)
 		i.node.storage.Rename(i.flushName,i.name)
 		i.load()

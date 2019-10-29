@@ -30,6 +30,7 @@ func (state *FollowerState) Update()bool{
 		if state.node.commitIndex.Id()>0&&state.node.commitIndex.Id()>state.node.stateMachine.lastApplied{
 			state.work=false
 			func() {
+				defer func() {state.work=true}()
 				var ch =make(chan bool,1)
 				go func (ch chan bool) {
 					defer func() {if err := recover(); err != nil {}}()
@@ -41,10 +42,9 @@ func (state *FollowerState) Update()bool{
 				select {
 				case <-ch:
 					close(ch)
-					state.work=true
 				case <-time.After(time.Minute):
-					state.work=true
 					Tracef("%s FollowerState.Update applyCommited time out",state.node.address)
+					Tracef("%s FollowerState.Update first-%d last-%d",state.node.address,state.node.firstLogIndex,state.node.lastLogIndex)
 				}
 			}()
 			return true

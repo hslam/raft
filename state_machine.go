@@ -30,21 +30,29 @@ func newStateMachine(node *Node)*StateMachine {
 func (s *StateMachine)Apply(index uint64,command Command) (interface{},error){
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	return s.apply(index,command)
+}
+func (s *StateMachine)Lock(){
+	s.mu.Lock()
+}
+func (s *StateMachine)Unlock(){
+	s.mu.Unlock()
+}
+func (s *StateMachine)apply(index uint64,command Command) (interface{},error){
 	if index<=s.lastApplied{
 		return nil,nil
 	}
-	var reply interface{}
-	var err error
+	defer func() {
+		s.lastApplied=index
+		if s.always{
+			s.saveSnapshot()
+		}
+	}()
 	if command.Type()>=0{
-		reply,err=command.Do(s.node.context)
+		return command.Do(s.node.context)
 	}else {
-		reply,err=command.Do(s.node)
+		return command.Do(s.node)
 	}
-	s.lastApplied=index
-	if s.always{
-		s.SaveSnapshot()
-	}
-	return reply,err
 }
 
 func (s *StateMachine)SetSnapshotSyncType(snapshotSyncType SnapshotSyncType){
@@ -58,6 +66,7 @@ func (s *StateMachine)setSnapshotSyncType(snapshotSyncType SnapshotSyncType){
 	s.always=false
 	switch s.snapshotSyncType {
 	case Never:
+		s.Stop()
 	case EverySecond:
 		s.Stop()
 		s.snapshotSyncs=append(s.snapshotSyncs, newSnapshotSync(s,1,1))
@@ -122,11 +131,15 @@ func (s *StateMachine)SetSnapshot(snapshot Snapshot){
 func (s *StateMachine)SaveSnapshot()error{
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	return s.saveSnapshot()
+}
+func (s *StateMachine)saveSnapshot()error{
 	if s.snapshot!=nil{
 		if !s.node.storage.Exists(DefaultSnapshot)&&s.snapshotReadWriter.work{
 			s.snapshotReadWriter.lastIncludedIndex.Set(0)
 		}
 		if s.lastApplied>s.snapshotReadWriter.lastIncludedIndex.Id()&&s.snapshotReadWriter.work{
+			Tracef("StateMachine.SaveSnapshot %s Start",s.node.address)
 			s.snapshotReadWriter.work=false
 			defer func() {
 				s.snapshotReadWriter.work=true
@@ -148,10 +161,18 @@ func (s *StateMachine)SaveSnapshot()error{
 			_,err:=s.snapshot.Save(s.node.context,s.snapshotReadWriter)
 			s.snapshotReadWriter.Rename()
 			startTime:=time.Now().UnixNano()
-			s.node.log.clear(lastIncludedIndex)
-			go s.snapshotReadWriter.Tar()
+			if s.node.isLeader(){
+				s.node.log.clear(minUint64(s.node.minNextIndex(),lastIncludedIndex))
+			}else {
+				s.node.log.clear(lastIncludedIndex)
+			}
+			go func() {
+				if s.node.isLeader(){
+					s.snapshotReadWriter.Tar()
+				}
+			}()
 			duration:=(time.Now().UnixNano()-startTime)/1000000
-			Tracef("StateMachine.SaveSnapshot %s lastIncludedIndex %d==%d duration:%dms",s.node.address,lastPrintLastIncludedIndex,s.snapshotReadWriter.lastIncludedIndex.Id(),duration)
+			Tracef("StateMachine.SaveSnapshot %s lastIncludedIndex %d==>%d duration:%dms",s.node.address,lastPrintLastIncludedIndex,s.snapshotReadWriter.lastIncludedIndex.Id(),duration)
 			return err
 		}
 		return nil

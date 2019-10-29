@@ -67,6 +67,12 @@ func (log *Log) putEmtyEntries(entries []*Entry) {
 		log.putEmtyEntry(entry)
 	}
 }
+func (log *Log)Lock(){
+	log.mu.Lock()
+}
+func (log *Log)Unlock(){
+	log.mu.Unlock()
+}
 func (log *Log) pause(p bool){
 	log.pauseMu.Lock()
 	defer log.pauseMu.Unlock()
@@ -168,7 +174,9 @@ func (log *Log) deleteAfter(index uint64) {
 	log.node.storage.Truncate(DefaultLog,log.size)
 }
 func (log *Log) clear(index uint64) {
-	log.deleteBefore(index-1)
+	if index>1{
+		log.deleteBefore(index-1)
+	}
 }
 func (log *Log) deleteBefore(index uint64) {
 	log.mu.Lock()
@@ -209,6 +217,8 @@ func (log *Log) copyRange(startIndex uint64,endIndex uint64) []*Entry{
 	return log.batchRead(metas)
 }
 func (log *Log) applyCommited() {
+	log.node.stateMachine.Lock()
+	defer log.node.stateMachine.Unlock()
 	log.mu.Lock()
 	defer log.mu.Unlock()
 	log.checkPaused()
@@ -237,10 +247,12 @@ func (log *Log) applyCommited() {
 }
 
 func (log *Log) applyCommitedRange(startIndex uint64,endIndex uint64) {
+	//Tracef("Log.applyCommitedRange %s startIndex %d endIndex %d Start",log.node.address,startIndex,endIndex)
 	entries:=log.copyRange(startIndex,endIndex)
-	if len(entries)==0{
+	if entries==nil||len(entries)==0{
 		return
 	}
+	//Tracef("Log.applyCommitedRange %s startIndex %d endIndex %d length %d",log.node.address,startIndex,endIndex,len(entries))
 	for i:=0;i<len(entries);i++{
 		//Tracef("Log.applyCommitedRange %s Index %d Type %d",log.node.address,entries[i].Index,entries[i].CommandType)
 		command:=log.node.commandType.clone(entries[i].CommandType)
@@ -251,12 +263,13 @@ func (log *Log) applyCommitedRange(startIndex uint64,endIndex uint64) {
 			err=log.node.commandCodec.Decode(entries[i].Command,command)
 		}
 		if err==nil{
-			log.node.stateMachine.Apply(entries[i].Index,command)
+			log.node.stateMachine.apply(entries[i].Index,command)
+		}else {
+			Errorf("Log.applyCommitedRange %s error %s",log.node.address,err)
 		}
-
 	}
 	log.putEmtyEntries(entries)
-	//Tracef("Log.applyCommitedRange %s startIndex %d endIndex %d",log.node.address,startIndex,endIndex)
+	//Tracef("Log.applyCommitedRange %s startIndex %d endIndex %d End %d",log.node.address,startIndex,endIndex,len(entries))
 }
 
 func (log *Log) appendEntries(entries []*Entry)bool {

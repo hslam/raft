@@ -34,7 +34,7 @@ func init()  {
 	flag.StringVar(&host, "h", "127.0.0.1", "host: -h=127.0.0.1")
 	flag.IntVar(&port, "p", 8001, "port: -p=8001")
 	flag.IntVar(&parallel, "parallel", 512, "parallel: -parallel=512")
-	flag.IntVar(&total_calls, "total", 1000000, "total_calls: -total=10000")
+	flag.IntVar(&total_calls, "total", 3000000, "total_calls: -total=10000")
 	flag.BoolVar(&batch, "batch", true, "batch: -batch=false")
 	flag.BoolVar(&batch_async, "batch_async", true, "batch_async: -batch_async=false")
 	flag.BoolVar(&multiplexing, "multiplexing", false, "multiplexing: -multiplexing=false")

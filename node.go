@@ -580,6 +580,21 @@ func (n *Node) check() error {
 	}
 	return nil
 }
+func (n *Node) minNextIndex() uint64 {
+	n.nodesMut.RLock()
+	defer n.nodesMut.RUnlock()
+	var min uint64
+	for _,v :=range n.peers{
+		if v.alive==true&&v.nextIndex>0{
+			if min==0{
+				min=v.nextIndex
+			}else {
+				min=minUint64(min,v.nextIndex)
+			}
+		}
+	}
+	return min
+}
 func (n *Node) reset(){
 	n.recoverLogIndex=0
 	n.lastPrintNextIndex=1

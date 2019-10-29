@@ -253,7 +253,7 @@ func (s *SnapshotReadWriter) tar() error {
 	if s.gzip{
 		s.gz()
 	}
-	Tracef("SnapshotReadWriter.tar %s lastTarIndex %d==%d",s.node.address,lastTarIndex,s.lastTarIndex.Id())
+	Tracef("SnapshotReadWriter.tar %s lastTarIndex %d==>%d",s.node.address,lastTarIndex,s.lastTarIndex.Id())
 	s.done=true
 	if s.gzip{
 		s.node.storage.Rm(s.tarName)
@@ -282,19 +282,19 @@ func (s *SnapshotReadWriter) untar() error {
 	s.RecoverFile(source,s.name)
 	s.RecoverFile(source,DefaultIndex)
 	s.RecoverFile(source,DefaultLog)
-	//if !s.node.isLeader(){
-	//	if s.node.storage.Exists(DefaultTar){
-	//		s.node.storage.Rm(DefaultTar)
-	//	}
+	if !s.node.isLeader(){
+		if s.node.storage.Exists(DefaultTar){
+			s.node.storage.Rm(DefaultTar)
+		}
+		if s.node.storage.Exists(DefaultLastTarIndex){
+			s.node.storage.Rm(DefaultLastTarIndex)
+		}
+	}
 	if s.gzip{
 		if s.node.storage.Exists(DefaultTarGz){
 			s.node.storage.Rm(DefaultTarGz)
 		}
 	}
-	//	if s.node.storage.Exists(DefaultLastTarIndex){
-	//		s.node.storage.Rm(DefaultLastTarIndex)
-	//	}
-	//}
 	return nil
 }
 func (s *SnapshotReadWriter) gz() error {
