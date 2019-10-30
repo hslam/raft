@@ -212,8 +212,6 @@ func (r *raft) HandleAppendEntries(req *AppendEntriesRequest, res *AppendEntries
 
 	if req.LeaderCommit>r.node.commitIndex.Id() {
 		//var commitIndex=r.node.commitIndex
-		r.node.storage.Sync(r.node.log.name)
-		r.node.storage.Sync(r.node.log.indexs.name)
 		r.node.commitIndex.Set(minUint64(req.LeaderCommit,r.node.lastLogIndex))
 		//if r.node.commitIndex>commitIndex{
 		//	Tracef("raft.HandleAppendEntries %s commitIndex %d==>%d",r.node.address, commitIndex,r.node.commitIndex)

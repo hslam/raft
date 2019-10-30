@@ -12,13 +12,15 @@ import (
 )
 
 type Storage struct {
+	node							*Node
 	data_dir    					string
 }
 
 var errSeeker = errors.New("seeker can't seek")
 
-func newStorage(data_dir string)*Storage {
+func newStorage(node *Node,data_dir string)*Storage {
 	s:=&Storage{
+		node:node,
 		data_dir:data_dir,
 	}
 	s.MkDir(s.data_dir)
@@ -88,22 +90,40 @@ func (s *Storage)Rm(file_name string) {
 }
 func (s *Storage)SafeOverWrite(file_name string, data []byte ) error {
 	file_path := path.Join(s.data_dir, file_name)
-	tmp_file_path := path.Join(s.data_dir, file_name+DefaultTmp)
-	defer func() {
-		os.Rename(tmp_file_path, file_path)
-	}()
-	f , err := os.OpenFile(tmp_file_path, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0600)
-	if err != nil {
-		return err
+	if s.node.fast(){
+		f , err := os.OpenFile(file_path, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0600)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+		n, err := f.Write(data)
+		if err != nil {
+			return err
+		}else if n < len(data) {
+			return io.ErrShortWrite
+		}
+		return nil
+	}else {
+		tmp_file_path := path.Join(s.data_dir, file_name+DefaultTmp)
+		flush_file_path := path.Join(s.data_dir, file_name+DefaultFlush)
+		defer func() {
+			os.Rename(file_path, tmp_file_path)
+			os.Rename(flush_file_path, file_path)
+			os.Remove(tmp_file_path)
+		}()
+		f , err := os.OpenFile(flush_file_path, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0600)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+		n, err := f.Write(data)
+		if err != nil {
+			return err
+		}else if n < len(data) {
+			return io.ErrShortWrite
+		}
+		return f.Sync()
 	}
-	defer f.Close()
-	n, err := f.Write(data)
-	if err != nil {
-		return err
-	}else if n < len(data) {
-		return io.ErrShortWrite
-	}
-	return f.Sync()
 }
 func (s *Storage) Rename(old_name, new_name string) error {
 	old_path := path.Join(s.data_dir, old_name)
@@ -160,7 +180,10 @@ func (s *Storage)OverWrite(file_name string, data []byte ) error {
 	}else if n < len(data) {
 		return io.ErrShortWrite
 	}
-	return nil
+	if s.node.fast(){
+		return nil
+	}
+	return f.Sync()
 }
 
 func (s *Storage)AppendWrite(file_name string, data []byte) error {
@@ -176,7 +199,10 @@ func (s *Storage)AppendWrite(file_name string, data []byte) error {
 	}else if n < len(data) {
 		return io.ErrShortWrite
 	}
-	return nil
+	if s.node.fast(){
+		return nil
+	}
+	return f.Sync()
 }
 func (s *Storage)SeekWrite(file_name string,cursor uint64,data []byte) error {
 	file_path := path.Join(s.data_dir, file_name)
@@ -192,7 +218,10 @@ func (s *Storage)SeekWrite(file_name string,cursor uint64,data []byte) error {
 	}else if n < len(data) {
 		return io.ErrShortWrite
 	}
-	return nil
+	if s.node.fast(){
+		return nil
+	}
+	return f.Sync()
 }
 
 func (s *Storage) SeekRead(file_name string,cursor uint64,b []byte)(n int, err error) {

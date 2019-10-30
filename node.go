@@ -118,7 +118,7 @@ func NewNode(host string, port int,data_dir string,context interface{})(*Node,er
 		commandType:&CommandType{types:make(map[int32]Command)},
 		nextIndex:1,
 	}
-	n.storage=newStorage(data_dir)
+	n.storage=newStorage(n,data_dir)
 	n.votes=newVotes(n)
 	n.readIndex=newReadIndex(n)
 	n.stateMachine=newStateMachine(n)
@@ -127,8 +127,8 @@ func NewNode(host string, port int,data_dir string,context interface{})(*Node,er
 	n.election=newElection(n,DefaultElectionTimeout)
 	n.raft=newRaft(n)
 	n.server=newServer(n,fmt.Sprintf(":%d",port))
-	n.currentTerm=newPersistentUint64(n,DefaultTerm,true,0)
-	n.commitIndex=newPersistentUint64(n,DefaultCommitIndex,false,time.Second)
+	n.currentTerm=newPersistentUint64(n,DefaultTerm,0)
+	n.commitIndex=newPersistentUint64(n,DefaultCommitIndex,time.Second)
 	n.votedFor=newPersistentString(n,DefaultVoteFor)
 	n.state=newFollowerState(n)
 	n.pipeline=NewPipeline(n,DefaultMaxConcurrency)
@@ -458,6 +458,9 @@ func (n *Node)ReadIndex()bool{
 	}
 	return n.readIndex.Read()
 }
+func (n *Node) fast() bool {
+	return n.isLeader()&&len(n.peers)>0
+}
 func (n *Node) Peers() []string {
 	n.nodesMut.Lock()
 	defer n.nodesMut.Unlock()
@@ -683,7 +686,6 @@ func (n *Node) checkLog() error {
 			n.load()
 		}else {
 			n.nextIndex=1
-			//n.reset()
 		}
 	}else if n.storage.IsEmpty(DefaultLog){
 		if !n.storage.IsEmpty(n.stateMachine.snapshotReadWriter.FileName()){
@@ -691,7 +693,6 @@ func (n *Node) checkLog() error {
 			n.load()
 		}else {
 			n.nextIndex=1
-			//n.reset()
 		}
 	}
 	return nil
@@ -737,14 +738,12 @@ func (n *Node) print(){
 func (n *Node) commit() bool {
 	n.nodesMut.RLock()
 	defer n.nodesMut.RUnlock()
-	//var commitIndex=n.commitIndex
 	if len(n.peers)==0{
 		index:=n.lastLogIndex
 		if index>n.commitIndex.Id(){
 			n.storage.Sync(n.log.name)
 			n.storage.Sync(n.log.indexs.name)
 			n.commitIndex.Set(index)
-			//Tracef("Node.Commit %s commitIndex %d==>%d",n.address,commitIndex,n.commitIndex)
 		}
 		if n.commitWork{
 			if n.commitIndex.Id()<=n.recoverLogIndex&&n.commitIndex.Id()>n.stateMachine.lastApplied{
@@ -752,9 +751,7 @@ func (n *Node) commit() bool {
 				go func(){
 					defer func() {if err := recover(); err != nil {}}()
 					defer func() {n.commitWork=true}()
-					//var lastApplied=n.stateMachine.lastApplied
 					n.log.applyCommited()
-					//Tracef("Node.Commit %s lastApplied %d==>%d",n.address,lastApplied,n.stateMachine.lastApplied)
 				}()
 				return true
 			}
@@ -768,26 +765,18 @@ func (n *Node) commit() bool {
 	}
 	quickSort(lastLogIndexs,-999,-999)
 	index:=lastLogIndexs[len(lastLogIndexs)/2]
-	skipIndex:=lastLogIndexs[len(lastLogIndexs)/2-1]
-	if n.aliveCount()>n.quorum()&&skipIndex>n.commitIndex.Id()&&false{
-		n.commitIndex.Set(skipIndex)
-		//Tracef("Node.Commit %s commitIndex %d==>%d",n.address,commitIndex,n.commitIndex)
-	}else if index>n.commitIndex.Id(){
+	if index>n.commitIndex.Id(){
 		n.storage.Sync(n.log.name)
 		n.storage.Sync(n.log.indexs.name)
 		n.commitIndex.Set(index)
-		//Tracef("Node.Commit %s commitIndex %d==>%d",n.address,commitIndex,n.commitIndex)
 	}
-
 	if n.commitWork{
 		if n.commitIndex.Id()<=n.recoverLogIndex&&n.commitIndex.Id()>n.stateMachine.lastApplied{
 			n.commitWork=false
 			go func(){
 				defer func() {if err := recover(); err != nil {}}()
 				defer func() {n.commitWork=true}()
-				//var lastApplied=n.stateMachine.lastApplied
 				n.log.applyCommited()
-				//Tracef("Node.Commit %s lastApplied %d==>%d",n.address,lastApplied,n.stateMachine.lastApplied)
 			}()
 			return true
 		}
