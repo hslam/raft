@@ -4,7 +4,7 @@ import (
 	"sync"
 	"fmt"
 	"time"
-	"hslam.com/mgit/Mort/timer"
+	"hslam.com/git/x/timer"
 )
 
 func init() {

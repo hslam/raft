@@ -1,9 +1,9 @@
 package main
 
 import (
-	"hslam.com/mgit/Mort/rpc"
-	"hslam.com/mgit/Mort/stats"
-	"hslam.com/mgit/Mort/raft/example/raftdb/node"
+	"hslam.com/git/x/rpc"
+	"hslam.com/git/x/stats"
+	"hslam.com/git/x/raft/example/raftdb/node"
 	"math/rand"
 	"strconv"
 	"runtime"

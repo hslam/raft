@@ -8,7 +8,7 @@ import (
 	"strconv"
 	_ "net/http/pprof"
 	"net/http"
-	"hslam.com/mgit/Mort/raft/example/raftdb/node"
+	"hslam.com/git/x/raft/example/raftdb/node"
 )
 
 var(

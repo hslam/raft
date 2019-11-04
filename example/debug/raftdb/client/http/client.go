@@ -2,7 +2,7 @@ package main
 
 import (
 	"net/http"
-	"hslam.com/mgit/Mort/stats"
+	"hslam.com/git/x/stats"
 	"math/rand"
 	"time"
 	"flag"

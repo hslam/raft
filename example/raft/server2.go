@@ -1,7 +1,7 @@
 package main
 
 import (
-	"hslam.com/mgit/Mort/raft"
+	"hslam.com/git/x/raft"
 	"fmt"
 	"time"
 )

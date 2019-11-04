@@ -1,8 +1,8 @@
 package raft
 
 import (
-	"hslam.com/mgit/Mort/rpc"
-	"hslam.com/mgit/Mort/rpc/log"
+	"hslam.com/git/x/rpc"
+	"hslam.com/git/x/rpc/log"
 	"errors"
 	"sync"
 	"time"

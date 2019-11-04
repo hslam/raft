@@ -2,7 +2,7 @@ package main
 
 import (
 	"flag"
-	"hslam.com/mgit/Mort/raft/example/raftdb/node"
+	"hslam.com/git/x/raft/example/raftdb/node"
 	"log"
 	"strings"
 	"net/http"

@@ -62,7 +62,7 @@ func BenchmarkIndexCodecEncodeDecode(t *testing.B) {
 //--- PASS: TestMetaEncode (0.00s)
 //goos: darwin
 //goarch: amd64
-//pkg: hslam.com/mgit/Mort/raft
+//pkg: hslam.com/git/x/raft
  //BenchmarkIndexEncode-4               	   10000	    120250 ns/op	  209568 B/op	    3019 allocs/op
 //BenchmarkIndexDecode-4               	   50000	     24503 ns/op	       0 B/op	       0 allocs/op
 //BenchmarkIndexEncodeDecode-4         	   10000	    144627 ns/op	  209568 B/op	    3019 allocs/op

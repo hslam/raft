@@ -1,7 +1,7 @@
 package node
 
 import (
-	"hslam.com/mgit/Mort/rpc"
+	"hslam.com/git/x/rpc"
 	"errors"
 	"sync"
 	"time"
