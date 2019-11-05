@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"sync"
 	"hslam.com/git/x/raft"
-	"hslam.com/git/x/mux"
+	"hslam.com/git/x/rum"
 	"hslam.com/git/x/handler/proxy"
 	"hslam.com/git/x/handler/render"
 	"hslam.com/git/x/rpc"
@@ -32,7 +32,7 @@ type Node struct {
 	port		int
 	rpc_port	int
 	data_dir	string
-	router		*mux.Router
+	router		*rum.Router
 	render 		*render.Render
 	raft_node 	*raft.Node
 	http_server	*http.Server
@@ -47,7 +47,7 @@ func NewNode(data_dir string, host string, port ,rpc_port,raft_port int,peers []
 		rpc_port:rpc_port,
 		data_dir:   data_dir,
 		db:     	newDB(),
-		router: 	mux.New(),
+		router: 	rum.New(),
 		render:		render.NewRender(),
 	}
 	var err error
@@ -73,7 +73,7 @@ func NewNode(data_dir string, host string, port ,rpc_port,raft_port int,peers []
 		Addr:    fmt.Sprintf(":%d", n.port),
 		Handler: n.router,
 	}
-	n.router.Group("/cluster", func(router *mux.Router) {
+	n.router.Group("/cluster", func(router *rum.Router) {
 		router.HandleFunc("/status", n.statusHandler).All()
 		router.HandleFunc("/leader", n.leaderHandler).All()
 		router.HandleFunc("/ready", n.readyHandler).All()

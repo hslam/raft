@@ -40,7 +40,7 @@ func main()  {
 		conn.meth="POST"
 		wrkClients[i]= conn
 	}
-	stats.StartClientStats(parallel,total_calls,wrkClients)
+	stats.StartPrint(parallel,total_calls,wrkClients)
 }
 
 type WrkClient struct {
