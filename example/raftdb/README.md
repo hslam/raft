@@ -68,7 +68,7 @@ go-wrk -m="POST" -c=128 -t=8 -n=1000 -k=false -b="bar" http://127.0.0.1:7003/db/
 ### HTTP BENCHMARK SINGLETON
 ```
 Summary:
-	Conns:	200
+	Clients:	200
 	Parallels:	1
 	Total Calls:	100000
 	Total time:	10.67s
@@ -104,7 +104,7 @@ Result:
 ```
 ./client -network=tcp -codec=pb -compress=gzip -h=127.0.0.1 -p=8001 -parallel=512 -total=100000 -multiplexing=false -batch=true -batch_async=true -clients=8
 Summary:
-	Conns:	8
+	Clients:	8
 	Parallels:	512
 	Total Calls:	100000
 	Total time:	1.90s
@@ -139,7 +139,7 @@ Result:
 ### HTTP BENCHMARK THREE NODES
 ```
 Summary:
-	Conns:	200
+	Clients:	200
 	Parallels:	1
 	Total Calls:	100000
 	Total time:	25.35s
@@ -175,7 +175,7 @@ Result:
 ```
 ./client -network=tcp -codec=pb -compress=gzip -h=127.0.0.1 -p=8001 -parallel=512 -total=100000 -multiplexing=false -batch=true -batch_async=true -clients=8
 Summary:
-	Conns:	8
+	Clients:	8
 	Parallels:	512
 	Total Calls:	100000
 	Total time:	3.42s
