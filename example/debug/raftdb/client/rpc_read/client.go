@@ -37,7 +37,7 @@ func init()  {
 	flag.IntVar(&total_calls, "total", 1000000, "total_calls: -total=10000")
 	flag.BoolVar(&batch, "batch", true, "batch: -batch=false")
 	flag.BoolVar(&batch_async, "batch_async", true, "batch_async: -batch_async=false")
-	flag.BoolVar(&multiplexing, "multiplexing", false, "multiplexing: -multiplexing=false")
+	flag.BoolVar(&multiplexing, "multiplexing", true, "multiplexing: -multiplexing=false")
 	flag.IntVar(&clients, "clients", 2, "num: -clients=1")
 	flag.BoolVar(&bar, "bar", false, "bar: -bar=true")
 	log.SetFlags(0)

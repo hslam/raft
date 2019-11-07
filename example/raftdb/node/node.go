@@ -97,7 +97,8 @@ func (n *Node) ListenAndServe() error {
 	service.node=n
 	server:= rpc.NewServer()
 	server.RegisterName("S",service)
-	server.EnableAsyncHandleWithSize(1024*256)
+	//server.EnableAsyncHandleWithSize(1024*256)
+	server.EnableMultiplexingWithSize(1024*256)
 	rpc.SetLogLevel(99)
 	if len(rpcsPool)==0{
 		InitRPCProxy(MaxConnsPerHost)
