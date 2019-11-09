@@ -193,7 +193,7 @@ func (n *Node) run() {
 					} else if i == -1 {
 						n.setState(n.state.StepDown())
 					}else if i == 0 {
-						n.state.Reset()
+						n.state.Start()
 					}
 				default:
 					n.state.FixedUpdate()

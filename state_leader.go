@@ -21,12 +21,12 @@ func newLeaderState(node *Node) State {
 		notice:					make(chan bool,1),
 		heartbeatTicker:		time.NewTicker(node.heartbeatTick),
 	}
-	state.Reset()
+	state.Start()
 	go state.run()
 	return state
 }
 
-func (state *LeaderState)Reset(){
+func (state *LeaderState)Start(){
 	Debugf("%s LeaderState.Reset %s nextIndex:%d",state.node.address,state.node.address,state.node.nextIndex)
 	if len(state.node.peers)>0{
 		for _,v:=range state.node.peers{

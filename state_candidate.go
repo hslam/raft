@@ -8,11 +8,11 @@ func newCandidateState(node *Node) State {
 	state:=&CandidateState{
 		node:node,
 	}
-	state.Reset()
+	state.Start()
 	return state
 }
 
-func (state *CandidateState)Reset(){
+func (state *CandidateState)Start(){
 	state.node.election.Random(true)
 	state.node.election.Reset()
 	state.node.currentTerm.Incre()

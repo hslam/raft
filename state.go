@@ -7,7 +7,7 @@ const (
 )
 
 type State interface{
-	Reset()
+	Start()
 	Update()bool
 	FixedUpdate()
 	String()string

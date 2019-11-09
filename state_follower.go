@@ -14,11 +14,11 @@ func newFollowerState(node *Node) State {
 		work:true,
 	}
 	state.node.votedFor.Reset()
-	state.Reset()
+	state.Start()
 	return state
 }
 
-func (state *FollowerState)Reset(){
+func (state *FollowerState)Start(){
 	state.node.leader=""
 	state.node.election.Random(true)
 	state.node.election.Reset()
@@ -66,7 +66,7 @@ func (state *FollowerState) String()string{
 
 func (state *FollowerState)StepDown()State{
 	Tracef("%s FollowerState.PreState",state.node.address)
-	state.Reset()
+	state.Start()
 	return state
 }
 func (state *FollowerState)NextState()State{
