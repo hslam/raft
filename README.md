@@ -6,9 +6,7 @@
 * **CPU** 4 Cores 2.9 GHz
 * **Memory** 8 GiB
 
-### SINGLETON
-#### READINDEX
-##### HTTP READINDEX SINGLETON BENCHMARK
+#### HTTP READINDEX SINGLETON BENCHMARK
 ./http_read_index -p=7001 -parallel=1 -total=100000 -clients=200 -bar=false
 ```
 Summary:
@@ -38,7 +36,7 @@ Result:
 	Response ok:	100000 (100.00%)
 	Errors:	0 (0.00%)
 ```
-##### RPC READINDEX SINGLETON BENCHMARK
+#### RPC READINDEX SINGLETON BENCHMARK
 ./client -network=tcp -codec=pb -compress=gzip -h=127.0.0.1 -p=8001 -parallel=512 -total=100000 -multiplexing=true -batch=true -batch_async=true -clients=8
 ```
 Summary:
@@ -68,8 +66,7 @@ Result:
 	Response ok:	100000 (100.00%)
 	Errors:	0 (0.00%)
 ```
-#### WRITE
-##### HTTP WRITE SINGLETON BENCHMARK
+#### HTTP WRITE SINGLETON BENCHMARK
 ./http -p=7001 -parallel=1 -total=100000 -clients=200 -bar=false
 ```
 Summary:
@@ -99,7 +96,7 @@ Result:
 	Response ok:	100000 (100.00%)
 	Errors:	0 (0.00%)
 ```
-##### RPC WRITE SINGLETON BENCHMARK
+#### RPC WRITE SINGLETON BENCHMARK
 ./client -network=tcp -codec=pb -compress=gzip -h=127.0.0.1 -p=8001 -parallel=512 -total=100000 -multiplexing=true -batch=true -batch_async=true -clients=8
 ```
 Summary:
@@ -129,9 +126,8 @@ Result:
 	Response ok:	100000 (100.00%)
 	Errors:	0 (0.00%)
 ```
-### THREE NODES
-#### READINDEX
-##### HTTP READINDEX THREE NODES BENCHMARK
+
+#### HTTP READINDEX THREE NODES BENCHMARK
 ./http_read_index -p=7001 -parallel=1 -total=100000 -clients=200 -bar=false
 ```
 Summary:
@@ -162,7 +158,7 @@ Result:
 	Errors:	0 (0.00%)
 ```
 
-##### RPC READINDEX THREE NODES BENCHMARK
+#### RPC READINDEX THREE NODES BENCHMARK
 ./client -network=tcp -codec=pb -compress=gzip -h=127.0.0.1 -p=8001 -parallel=512 -total=100000 -multiplexing=true -batch=true -batch_async=true -clients=8
 ```
 Summary:
@@ -193,8 +189,7 @@ Result:
 	Errors:	0 (0.00%)
 ```
 
-#### WRITE
-##### HTTP WRITE THREE NODES BENCHMARK
+#### HTTP WRITE THREE NODES BENCHMARK
 ./http -p=7001 -parallel=1 -total=100000 -clients=200 -bar=false
 ```
 Summary:
@@ -225,7 +220,7 @@ Result:
 	Errors:	0 (0.00%)
 ```
 
-##### RPC WRITE THREE NODES BENCHMARK
+#### RPC WRITE THREE NODES BENCHMARK
 ./client -network=tcp -codec=pb -compress=gzip -h=127.0.0.1 -p=8001 -parallel=512 -total=100000 -multiplexing=true -batch=true -batch_async=true -clients=8
 ```
 Summary:
@@ -256,14 +251,11 @@ Result:
 	Errors:	0 (0.00%)
 ```
 
-### Linux Environment
+#### Linux Environment
 * **CPU** 12 Cores 3.1 GHz
 * **Memory** 24 GiB
 
-
-### SINGLETON
-#### READINDEX
-##### HTTP READINDEX SINGLETON BENCHMARK
+#### HTTP READINDEX SINGLETON BENCHMARK
 ./http_read_index -p=7001 -parallel=1 -total=100000 -clients=512 -bar=false
 ```
 Summary:
@@ -293,7 +285,7 @@ Result:
 	Response ok:	1000000 (100.00%)
 	Errors:	0 (0.00%)
 ```
-##### RPC READINDEX SINGLETON BENCHMARK
+#### RPC READINDEX SINGLETON BENCHMARK
 ./client -network=tcp -codec=pb -compress=gzip -h=127.0.0.1 -p=8001 -parallel=512 -total=1000000 -multiplexing=true -batch=true -batch_async=true -clients=8
 ```
 Summary:
@@ -323,9 +315,7 @@ Result:
 	Response ok:	1000000 (100.00%)
 	Errors:	0 (0.00%)
 ```
-#### WRITE
-
-##### HTTP WRITE SINGLETON BENCHMARK
+#### HTTP WRITE SINGLETON BENCHMARK
 ./http -p=7001 -parallel=1 -total=100000 -clients=512 -bar=false
 ```
 Summary:
@@ -355,7 +345,7 @@ Result:
 	Response ok:	1000000 (100.00%)
 	Errors:	0 (0.00%)
 ```
-##### RPC WRITE SINGLETON BENCHMARK
+#### RPC WRITE SINGLETON BENCHMARK
 ./client -network=tcp -codec=pb -compress=gzip -h=127.0.0.1 -p=8001 -parallel=512 -total=1000000 -multiplexing=true -batch=true -batch_async=true -clients=8
 ```
 Summary:
@@ -385,10 +375,7 @@ Result:
 	Response ok:	1000000 (100.00%)
 	Errors:	0 (0.00%)
 ```
-### THREE NODES
-#### READINDEX
-
-##### HTTP READINDEX THREE NODES BENCHMARK
+#### HTTP READINDEX THREE NODES BENCHMARK
 ./http_read_index -p=7001 -parallel=1 -total=100000 -clients=512 -bar=false
 ```
 Summary:
@@ -419,7 +406,7 @@ Result:
 	Errors:	0 (0.00%)
 ```
 
-##### RPC READINDEX THREE NODES BENCHMARK
+#### RPC READINDEX THREE NODES BENCHMARK
 ./client -network=tcp -codec=pb -compress=gzip -h=127.0.0.1 -p=8001 -parallel=512 -total=1000000 -multiplexing=true -batch=true -batch_async=true -clients=8
 ```
 Summary:
@@ -450,9 +437,7 @@ Result:
 	Errors:	0 (0.00%)
 ```
 
-#### WRITE
-
-##### HTTP WRITE THREE NODES BENCHMARK
+#### HTTP WRITE THREE NODES BENCHMARK
 ./http -p=7001 -parallel=1 -total=100000 -clients=512 -bar=false
 ```
 Summary:
@@ -483,7 +468,7 @@ Result:
 	Errors:	0 (0.00%)
 ```
 
-##### RPC WRITE THREE NODES BENCHMARK
+#### RPC WRITE THREE NODES BENCHMARK
 ./client -network=tcp -codec=pb -compress=gzip -h=127.0.0.1 -p=8001 -parallel=512 -total=1000000 -multiplexing=true -batch=true -batch_async=true -clients=8
 ```
 Summary:
