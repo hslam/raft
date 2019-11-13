@@ -6,7 +6,6 @@
 * **Memory** 8 GiB
 
 #### HTTP WRITE THREE NODES BENCHMARK
-./http -p=7001 -parallel=1 -total=100000 -clients=200 -bar=false
 ```
 Summary:
 	Clients:	200
@@ -29,7 +28,6 @@ Result:
 ```
 
 #### RPC WRITE THREE NODES BENCHMARK
-./client -network=tcp -codec=pb -compress=gzip -h=127.0.0.1 -p=8001 -parallel=512 -total=100000 -multiplexing=true -batch=true -batch_async=true -clients=8
 ```
 Summary:
 	Clients:	8
@@ -56,7 +54,6 @@ Result:
 * **Memory** 24 GiB
 
 #### HTTP WRITE THREE NODES BENCHMARK
-./http -p=7001 -parallel=1 -total=100000 -clients=512 -bar=false
 ```
 Summary:
 	Clients:	512
@@ -79,7 +76,6 @@ Result:
 ```
 
 #### RPC WRITE THREE NODES BENCHMARK
-./client -network=tcp -codec=pb -compress=gzip -h=127.0.0.1 -p=8001 -parallel=512 -total=1000000 -multiplexing=true -batch=true -batch_async=true -clients=8
 ```
 Summary:
 	Clients:	8
