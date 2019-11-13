@@ -6,8 +6,8 @@
 * **CPU** 4 Cores 2.9 GHz
 * **Memory** 8 GiB
 
-### SINGLETON
-#### READINDEX
+### Singleton
+#### ReadIndex
 ##### HTTP READINDEX SINGLETON BENCHMARK
 ./http_read_index -p=7001 -parallel=1 -total=100000 -clients=200 -bar=false
 ```
@@ -68,7 +68,7 @@ Result:
 	Response ok:	100000 (100.00%)
 	Errors:	0 (0.00%)
 ```
-#### WRITE
+#### Write
 ##### HTTP WRITE SINGLETON BENCHMARK
 ./http -p=7001 -parallel=1 -total=100000 -clients=200 -bar=false
 ```
@@ -129,8 +129,8 @@ Result:
 	Response ok:	100000 (100.00%)
 	Errors:	0 (0.00%)
 ```
-### THREE NODES
-#### READINDEX
+### Three nodes
+#### ReadIndex
 ##### HTTP READINDEX THREE NODES BENCHMARK
 ./http_read_index -p=7001 -parallel=1 -total=100000 -clients=200 -bar=false
 ```
@@ -193,7 +193,7 @@ Result:
 	Errors:	0 (0.00%)
 ```
 
-#### WRITE
+#### Write
 ##### HTTP WRITE THREE NODES BENCHMARK
 ./http -p=7001 -parallel=1 -total=100000 -clients=200 -bar=false
 ```
@@ -261,8 +261,8 @@ Result:
 * **Memory** 24 GiB
 
 
-### SINGLETON
-#### READINDEX
+### Singleton
+#### ReadIndex
 ##### HTTP READINDEX SINGLETON BENCHMARK
 ./http_read_index -p=7001 -parallel=1 -total=100000 -clients=512 -bar=false
 ```
@@ -323,7 +323,7 @@ Result:
 	Response ok:	1000000 (100.00%)
 	Errors:	0 (0.00%)
 ```
-#### WRITE
+#### Write
 
 ##### HTTP WRITE SINGLETON BENCHMARK
 ./http -p=7001 -parallel=1 -total=100000 -clients=512 -bar=false
@@ -385,8 +385,8 @@ Result:
 	Response ok:	1000000 (100.00%)
 	Errors:	0 (0.00%)
 ```
-### THREE NODES
-#### READINDEX
+### Three Nodes
+#### ReadIndex
 
 ##### HTTP READINDEX THREE NODES BENCHMARK
 ./http_read_index -p=7001 -parallel=1 -total=100000 -clients=512 -bar=false
@@ -450,7 +450,7 @@ Result:
 	Errors:	0 (0.00%)
 ```
 
-#### WRITE
+#### Write
 
 ##### HTTP WRITE THREE NODES BENCHMARK
 ./http -p=7001 -parallel=1 -total=100000 -clients=512 -bar=false
