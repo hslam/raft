@@ -57,10 +57,7 @@ func newRPCs(addrs []string) *RPCs{
 	for _, addr:= range addrs {
 		conn, err := r.NewConn(addr)
 		if err==nil{
-			conn.DisableRetry()
-			conn.SetCompressType("gzip")
-			conn.EnableBatch()
-			conn.EnableBatchAsync()
+
 			c:=&Client{conn,time.Now(),keepAlive}
 			r.conns[addr] = c
 		}
@@ -83,10 +80,6 @@ func (r *RPCs) GetConn(addr string) *Client {
 	}
 	conn, err := r.NewConn(addr)
 	if err==nil{
-		conn.DisableRetry()
-		conn.SetCompressType("gzip")
-		conn.EnableBatch()
-		conn.EnableBatchAsync()
 		c:=&Client{conn,time.Now(),keepAlive}
 		r.conns[addr] = c
 		return r.conns[addr]
@@ -106,7 +99,13 @@ func (r *RPCs) RemoveConn(addr string){
 	}
 }
 func (r *RPCs) NewConn(addr string) (rpc.Client, error){
-	return rpc.Dial(network,addr,codec)
+	opts:=rpc.DefaultOptions()
+	opts.SetRetry(false)
+	opts.SetCompressType("gzip")
+	opts.SetMultiplexing(true)
+	opts.SetBatch(true)
+	opts.SetBatchAsync(true)
+	return rpc.DialWithOptions(network,addr,codec,opts)
 }
 
 func (r *RPCs) Call(addr string,req *Request, res *Response)error {

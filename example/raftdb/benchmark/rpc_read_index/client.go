@@ -49,15 +49,17 @@ func init()  {
 func main()  {
 	fmt.Printf("./client -network=%s -codec=%s -compress=%s -h=%s -p=%d -parallel=%d -total=%d -multiplexing=%t -batch=%t -batch_async=%t -clients=%d\n",network,codec,compress,host,port,parallel,total_calls,multiplexing,batch,batch_async,clients)
 	var wrkClients []stats.Client
+	opts:=rpc.DefaultOptions()
+	opts.SetMaxRequests(parallel)
+	opts.SetCompressType(compress)
+	opts.SetBatch(batch)
+	opts.SetBatchAsync(batch_async)
+	opts.SetMultiplexing(multiplexing)
 	if clients>1{
-		pool,err := rpc.DialsWithMaxRequests(clients,network,addr,codec,parallel)
+		pool,err := rpc.DialsWithOptions(clients,network,addr,codec,opts)
 		if err != nil {
 			log.Fatalln("dailing error: ", err)
 		}
-		pool.SetCompressType(compress)
-		if batch {pool.EnableBatch()}
-		if batch_async{pool.EnableBatchAsync()}
-		if multiplexing{pool.EnableMultiplexing()}
 		wrkClients=make([]stats.Client,len(pool.All()))
 		for i:=0; i<len(pool.All());i++  {
 			wrkClients[i]=&WrkClient{pool.All()[i]}
@@ -66,15 +68,11 @@ func main()  {
 		}
 		parallel=pool.GetMaxRequests()
 	}else if clients==1 {
-		conn, err:= rpc.DialWithMaxRequests(network,addr,codec,parallel)
+		conn, err:= rpc.DialWithOptions(network,addr,codec,opts)
 		if err != nil {
 			log.Fatalln("dailing error: ", err)
 		}
 		defer conn.Close()
-		conn.SetCompressType(compress)
-		if batch {conn.EnableBatch()}
-		if batch_async{conn.EnableBatchAsync()}
-		if multiplexing{conn.EnableMultiplexing()}
 		parallel=conn.GetMaxRequests()
 		wrkClients=make([]stats.Client,1)
 		wrkClients[0]= &WrkClient{conn}

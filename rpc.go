@@ -27,6 +27,7 @@ func listenAndServe(address string,node *Node){
 	server:= rpc.NewServer()
 	server.RegisterName(ServiceName,service)
 	server.EnableMultiplexing()
+	server.SetLowDelay(true)
 	rpc.SetLogLevel(log.NoLevel)
 	Infoln(server.ListenAndServe(network,address))
 }
@@ -46,9 +47,6 @@ func newRPCs(addrs []string) *RPCs{
 	for _, addr:= range addrs {
 		conn, err := r.NewConn(addr)
 		if err==nil{
-			conn.DisableRetry()
-			conn.SetCompressType("gzip")
-			conn.EnableMultiplexing()
 			c:=&Client{conn,keepAlive}
 			r.conns[addr] = c
 		}
@@ -64,9 +62,6 @@ func (r *RPCs) GetConn(addr string) rpc.Client {
 	}
 	conn, err := r.NewConn(addr)
 	if err==nil{
-		conn.DisableRetry()
-		conn.SetCompressType("gzip")
-		conn.EnableMultiplexing()
 		c:=&Client{conn,keepAlive}
 		r.conns[addr] = c
 		return r.conns[addr]
@@ -88,7 +83,13 @@ func (r *RPCs) RemoveConn(addr string){
 }
 func (r *RPCs) NewConn(addr string) (rpc.Client, error){
 	//Debugf("RPCs.NewConn %s",addr)
-	return rpc.Dial(network,addr,codec)
+	opts:=rpc.DefaultOptions()
+	opts.SetMultiplexing(true)
+	opts.SetRetry(false)
+	opts.SetCompressType("gzip")
+	opts.SetLowDelay(true)
+
+	return rpc.DialWithOptions(network,addr,codec,opts)
 }
 func (r *RPCs) ServiceAppendEntriesName() string {
 	return ServiceName+"."+AppendEntriesName

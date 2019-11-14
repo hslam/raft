@@ -2,6 +2,8 @@ Example raftdb
 
 build
 ```
+go build -tags=use_cgo main.go
+
 docker run --rm -v $GOPATH/src:/go/src golang:1.12 bash -c 'cd $GOPATH/src/hslam.com/git/x/raft/example/raftdb && CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -tags=use_cgo main.go'
 ```
 
@@ -77,120 +79,116 @@ go-wrk -m="POST" -c=128 -t=8 -n=1000 -k=false -b="bar" http://127.0.0.1:7003/db/
 * **Memory** 8 GiB
 
 #### HTTP READINDEX SINGLETON BENCHMARK
-./http_read_index -p=7001 -parallel=1 -total=100000 -clients=200 -bar=false
 ```
 Summary:
 	Clients:	200
 	Parallel calls per client:	1
 	Total calls:	100000
-	Total time:	9.85s
-	Requests per second:	10150.97
-	Fastest time for request:	8.18ms
-	Average time per request:	19.68ms
-	Slowest time for request:	57.69ms
+	Total time:	9.82s
+	Requests per second:	10179.94
+	Fastest time for request:	8.33ms
+	Average time per request:	19.62ms
+	Slowest time for request:	77.90ms
 
 Time:
-	0.1%	time for request:	10.74ms
-	1%	time for request:	12.44ms
-	5%	time for request:	14.04ms
-	10%	time for request:	15.09ms
-	25%	time for request:	17.16ms
-	50%	time for request:	19.52ms
-	75%	time for request:	21.73ms
-	90%	time for request:	24.05ms
-	95%	time for request:	25.83ms
-	99%	time for request:	30.83ms
-	99.9%	time for request:	44.83ms
+	0.1%	time for request:	10.59ms
+	1%	time for request:	12.01ms
+	5%	time for request:	13.63ms
+	10%	time for request:	14.66ms
+	25%	time for request:	16.71ms
+	50%	time for request:	19.19ms
+	75%	time for request:	21.52ms
+	90%	time for request:	24.35ms
+	95%	time for request:	26.69ms
+	99%	time for request:	39.07ms
+	99.9%	time for request:	53.84ms
 
 Result:
-	Response ok:	100000 (100.00%)
-	Errors:	0 (0.00%)
+	Response ok:	99990 (99.99%)
+	Errors:	10 (0.01%)
 ```
 #### RPC READINDEX SINGLETON BENCHMARK
-./client -network=tcp -codec=pb -compress=gzip -h=127.0.0.1 -p=8001 -parallel=512 -total=100000 -multiplexing=true -batch=true -batch_async=true -clients=8
 ```
 Summary:
 	Clients:	8
 	Parallel calls per client:	512
 	Total calls:	100000
-	Total time:	1.10s
-	Requests per second:	90934.30
-	Fastest time for request:	15.10ms
-	Average time per request:	43.59ms
-	Slowest time for request:	93.56ms
+	Total time:	1.11s
+	Requests per second:	90342.32
+	Fastest time for request:	15.64ms
+	Average time per request:	43.93ms
+	Slowest time for request:	117.00ms
 
 Time:
-	0.1%	time for request:	16.30ms
-	1%	time for request:	19.96ms
-	5%	time for request:	23.74ms
-	10%	time for request:	25.25ms
-	25%	time for request:	29.21ms
-	50%	time for request:	39.08ms
-	75%	time for request:	55.79ms
-	90%	time for request:	66.65ms
-	95%	time for request:	73.91ms
-	99%	time for request:	85.80ms
-	99.9%	time for request:	91.39ms
+	0.1%	time for request:	17.03ms
+	1%	time for request:	21.91ms
+	5%	time for request:	24.42ms
+	10%	time for request:	25.86ms
+	25%	time for request:	29.73ms
+	50%	time for request:	37.03ms
+	75%	time for request:	56.18ms
+	90%	time for request:	65.65ms
+	95%	time for request:	77.28ms
+	99%	time for request:	103.13ms
+	99.9%	time for request:	115.64ms
 
 Result:
 	Response ok:	100000 (100.00%)
 	Errors:	0 (0.00%)
 ```
 #### HTTP WRITE SINGLETON BENCHMARK
-./http -p=7001 -parallel=1 -total=100000 -clients=200 -bar=false
 ```
 Summary:
 	Clients:	200
 	Parallel calls per client:	1
 	Total calls:	100000
-	Total time:	10.22s
-	Requests per second:	9788.85
-	Fastest time for request:	8.13ms
-	Average time per request:	20.38ms
-	Slowest time for request:	124.21ms
+	Total time:	9.85s
+	Requests per second:	10148.56
+	Fastest time for request:	8.04ms
+	Average time per request:	19.69ms
+	Slowest time for request:	80.52ms
 
 Time:
-	0.1%	time for request:	10.06ms
-	1%	time for request:	11.65ms
-	5%	time for request:	13.55ms
-	10%	time for request:	14.68ms
-	25%	time for request:	16.80ms
-	50%	time for request:	19.43ms
-	75%	time for request:	22.18ms
-	90%	time for request:	25.95ms
-	95%	time for request:	29.45ms
-	99%	time for request:	44.62ms
-	99.9%	time for request:	106.39ms
+	0.1%	time for request:	10.33ms
+	1%	time for request:	11.61ms
+	5%	time for request:	13.40ms
+	10%	time for request:	14.57ms
+	25%	time for request:	16.66ms
+	50%	time for request:	19.22ms
+	75%	time for request:	21.64ms
+	90%	time for request:	24.17ms
+	95%	time for request:	26.31ms
+	99%	time for request:	40.15ms
+	99.9%	time for request:	67.27ms
 
 Result:
 	Response ok:	100000 (100.00%)
 	Errors:	0 (0.00%)
 ```
 #### RPC WRITE SINGLETON BENCHMARK
-./client -network=tcp -codec=pb -compress=gzip -h=127.0.0.1 -p=8001 -parallel=512 -total=100000 -multiplexing=true -batch=true -batch_async=true -clients=8
 ```
 Summary:
 	Clients:	8
 	Parallel calls per client:	512
 	Total calls:	100000
-	Total time:	1.89s
-	Requests per second:	52974.04
-	Fastest time for request:	18.12ms
-	Average time per request:	75.38ms
-	Slowest time for request:	273.51ms
+	Total time:	1.92s
+	Requests per second:	52120.31
+	Fastest time for request:	14.32ms
+	Average time per request:	76.24ms
+	Slowest time for request:	217.68ms
 
 Time:
-	0.1%	time for request:	22.84ms
-	1%	time for request:	31.76ms
-	5%	time for request:	37.04ms
-	10%	time for request:	41.67ms
-	25%	time for request:	50.31ms
-	50%	time for request:	66.73ms
-	75%	time for request:	89.67ms
-	90%	time for request:	112.47ms
-	95%	time for request:	142.17ms
-	99%	time for request:	230.26ms
-	99.9%	time for request:	259.16ms
+	0.1%	time for request:	20.70ms
+	1%	time for request:	29.58ms
+	5%	time for request:	38.58ms
+	10%	time for request:	43.33ms
+	25%	time for request:	53.16ms
+	50%	time for request:	68.16ms
+	75%	time for request:	92.40ms
+	90%	time for request:	119.66ms
+	95%	time for request:	143.28ms
+	99%	time for request:	178.10ms
+	99.9%	time for request:	198.92ms
 
 Result:
 	Response ok:	100000 (100.00%)
@@ -198,92 +196,90 @@ Result:
 ```
 
 #### HTTP READINDEX THREE NODES BENCHMARK
-./http_read_index -p=7001 -parallel=1 -total=100000 -clients=200 -bar=false
 ```
 Summary:
 	Clients:	200
 	Parallel calls per client:	1
 	Total calls:	100000
-	Total time:	25.28s
-	Requests per second:	3956.42
-	Fastest time for request:	12.10ms
-	Average time per request:	50.47ms
-	Slowest time for request:	154.46ms
+	Total time:	23.36s
+	Requests per second:	4281.05
+	Fastest time for request:	13.39ms
+	Average time per request:	46.67ms
+	Slowest time for request:	90.54ms
 
 Time:
-	0.1%	time for request:	20.75ms
-	1%	time for request:	28.66ms
-	5%	time for request:	36.06ms
-	10%	time for request:	38.65ms
-	25%	time for request:	43.62ms
-	50%	time for request:	50.25ms
-	75%	time for request:	56.30ms
-	90%	time for request:	62.14ms
-	95%	time for request:	66.46ms
-	99%	time for request:	75.99ms
-	99.9%	time for request:	132.55ms
+	0.1%	time for request:	17.19ms
+	1%	time for request:	24.86ms
+	5%	time for request:	33.15ms
+	10%	time for request:	35.96ms
+	25%	time for request:	40.63ms
+	50%	time for request:	46.96ms
+	75%	time for request:	52.49ms
+	90%	time for request:	57.01ms
+	95%	time for request:	60.56ms
+	99%	time for request:	67.34ms
+	99.9%	time for request:	77.95ms
 
 Result:
 	Response ok:	100000 (100.00%)
 	Errors:	0 (0.00%)
+
 ```
 
 #### RPC READINDEX THREE NODES BENCHMARK
-./client -network=tcp -codec=pb -compress=gzip -h=127.0.0.1 -p=8001 -parallel=512 -total=100000 -multiplexing=true -batch=true -batch_async=true -clients=8
 ```
 Summary:
 	Clients:	8
 	Parallel calls per client:	512
 	Total calls:	100000
-	Total time:	2.61s
-	Requests per second:	38273.69
-	Fastest time for request:	31.67ms
-	Average time per request:	104.97ms
-	Slowest time for request:	467.87ms
+	Total time:	1.93s
+	Requests per second:	51943.17
+	Fastest time for request:	15.47ms
+	Average time per request:	75.95ms
+	Slowest time for request:	175.86ms
 
 Time:
-	0.1%	time for request:	33.10ms
-	1%	time for request:	34.60ms
-	5%	time for request:	42.70ms
-	10%	time for request:	49.92ms
-	25%	time for request:	60.70ms
-	50%	time for request:	84.53ms
-	75%	time for request:	120.91ms
-	90%	time for request:	149.47ms
-	95%	time for request:	283.86ms
-	99%	time for request:	429.59ms
-	99.9%	time for request:	463.28ms
+	0.1%	time for request:	18.25ms
+	1%	time for request:	21.86ms
+	5%	time for request:	35.67ms
+	10%	time for request:	41.07ms
+	25%	time for request:	52.78ms
+	50%	time for request:	64.37ms
+	75%	time for request:	101.10ms
+	90%	time for request:	116.75ms
+	95%	time for request:	143.79ms
+	99%	time for request:	169.92ms
+	99.9%	time for request:	175.83ms
 
 Result:
 	Response ok:	100000 (100.00%)
-	Errors:	0 (0.00%)
-```
+	Errors:	0 (0.00%)```
 
 #### HTTP WRITE THREE NODES BENCHMARK
-./http -p=7001 -parallel=1 -total=100000 -clients=200 -bar=false
 ```
+
 Summary:
 	Clients:	200
 	Parallel calls per client:	1
 	Total calls:	100000
-	Total time:	26.41s
-	Requests per second:	3786.26
-	Fastest time for request:	14.56ms
-	Average time per request:	52.77ms
-	Slowest time for request:	149.84ms
+	Total time:	24.09s
+	Requests per second:	4151.37
+	Fastest time for request:	10.85ms
+	Average time per request:	48.14ms
+	Slowest time for request:	104.61ms
 
 Time:
-	0.1%	time for request:	26.49ms
-	1%	time for request:	31.95ms
-	5%	time for request:	38.27ms
-	10%	time for request:	41.12ms
-	25%	time for request:	46.21ms
-	50%	time for request:	52.46ms
-	75%	time for request:	58.59ms
-	90%	time for request:	64.38ms
-	95%	time for request:	67.82ms
-	99%	time for request:	77.31ms
-	99.9%	time for request:	138.84ms
+	0.1%	time for request:	23.20ms
+	1%	time for request:	30.86ms
+	5%	time for request:	35.67ms
+	10%	time for request:	38.17ms
+	25%	time for request:	42.44ms
+	50%	time for request:	47.81ms
+	75%	time for request:	53.37ms
+	90%	time for request:	57.93ms
+	95%	time for request:	61.26ms
+	99%	time for request:	71.07ms
+	99.9%	time for request:	95.43ms
 
 Result:
 	Response ok:	100000 (100.00%)
@@ -291,30 +287,29 @@ Result:
 ```
 
 #### RPC WRITE THREE NODES BENCHMARK
-./client -network=tcp -codec=pb -compress=gzip -h=127.0.0.1 -p=8001 -parallel=512 -total=100000 -multiplexing=true -batch=true -batch_async=true -clients=8
 ```
 Summary:
 	Clients:	8
 	Parallel calls per client:	512
 	Total calls:	100000
-	Total time:	2.79s
-	Requests per second:	35870.73
-	Fastest time for request:	35.97ms
-	Average time per request:	109.79ms
-	Slowest time for request:	286.30ms
+	Total time:	2.81s
+	Requests per second:	35560.85
+	Fastest time for request:	28.83ms
+	Average time per request:	111.83ms
+	Slowest time for request:	306.85ms
 
 Time:
-	0.1%	time for request:	40.61ms
-	1%	time for request:	50.66ms
-	5%	time for request:	59.55ms
-	10%	time for request:	64.28ms
-	25%	time for request:	76.24ms
-	50%	time for request:	103.42ms
-	75%	time for request:	134.57ms
-	90%	time for request:	163.96ms
-	95%	time for request:	195.88ms
-	99%	time for request:	226.59ms
-	99.9%	time for request:	244.37ms
+	0.1%	time for request:	38.97ms
+	1%	time for request:	50.30ms
+	5%	time for request:	58.22ms
+	10%	time for request:	65.54ms
+	25%	time for request:	77.74ms
+	50%	time for request:	107.06ms
+	75%	time for request:	133.80ms
+	90%	time for request:	163.19ms
+	95%	time for request:	193.73ms
+	99%	time for request:	255.75ms
+	99.9%	time for request:	306.77ms
 
 Result:
 	Response ok:	100000 (100.00%)
@@ -326,150 +321,145 @@ Result:
 * **Memory** 24 GiB
 
 #### HTTP READINDEX SINGLETON BENCHMARK
-./http_read_index -p=7001 -parallel=1 -total=100000 -clients=512 -bar=false
 ```
 Summary:
 	Clients:	512
 	Parallel calls per client:	1
-	Total calls:	1000000
-	Total time:	12.32s
-	Requests per second:	81156.33
-	Fastest time for request:	2.14ms
-	Average time per request:	6.28ms
-	Slowest time for request:	1092.09ms
+	Total calls:	100000
+	Total time:	1.34s
+	Requests per second:	74456.78
+	Fastest time for request:	2.62ms
+	Average time per request:	6.63ms
+	Slowest time for request:	110.90ms
 
 Time:
-	0.1%	time for request:	3.15ms
-	1%	time for request:	3.82ms
-	5%	time for request:	4.24ms
-	10%	time for request:	4.49ms
-	25%	time for request:	5.04ms
-	50%	time for request:	5.95ms
-	75%	time for request:	6.77ms
-	90%	time for request:	7.60ms
-	95%	time for request:	8.40ms
-	99%	time for request:	12.19ms
-	99.9%	time for request:	31.16ms
+	0.1%	time for request:	3.53ms
+	1%	time for request:	4.05ms
+	5%	time for request:	4.44ms
+	10%	time for request:	4.69ms
+	25%	time for request:	5.27ms
+	50%	time for request:	6.23ms
+	75%	time for request:	7.13ms
+	90%	time for request:	8.12ms
+	95%	time for request:	9.27ms
+	99%	time for request:	12.12ms
+	99.9%	time for request:	81.47ms
 
 Result:
-	Response ok:	1000000 (100.00%)
+	Response ok:	100000 (100.00%)
 	Errors:	0 (0.00%)
 ```
 #### RPC READINDEX SINGLETON BENCHMARK
-./client -network=tcp -codec=pb -compress=gzip -h=127.0.0.1 -p=8001 -parallel=512 -total=1000000 -multiplexing=true -batch=true -batch_async=true -clients=8
 ```
 Summary:
 	Clients:	8
 	Parallel calls per client:	512
-	Total calls:	1000000
-	Total time:	3.16s
-	Requests per second:	316606.89
-	Fastest time for request:	3.70ms
-	Average time per request:	12.87ms
-	Slowest time for request:	83.28ms
+	Total calls:	100000
+	Total time:	0.34s
+	Requests per second:	293865.27
+	Fastest time for request:	4.09ms
+	Average time per request:	13.14ms
+	Slowest time for request:	35.09ms
 
 Time:
-	0.1%	time for request:	4.69ms
-	1%	time for request:	5.62ms
-	5%	time for request:	6.65ms
-	10%	time for request:	7.16ms
-	25%	time for request:	8.26ms
-	50%	time for request:	11.05ms
-	75%	time for request:	15.28ms
-	90%	time for request:	18.34ms
-	95%	time for request:	21.80ms
-	99%	time for request:	54.32ms
-	99.9%	time for request:	77.35ms
+	0.1%	time for request:	5.12ms
+	1%	time for request:	5.63ms
+	5%	time for request:	6.82ms
+	10%	time for request:	7.24ms
+	25%	time for request:	8.30ms
+	50%	time for request:	12.14ms
+	75%	time for request:	16.22ms
+	90%	time for request:	20.89ms
+	95%	time for request:	26.36ms
+	99%	time for request:	31.22ms
+	99.9%	time for request:	34.33ms
 
 Result:
 	Response ok:	1000000 (100.00%)
 	Errors:	0 (0.00%)
 ```
 #### HTTP WRITE SINGLETON BENCHMARK
-./http -p=7001 -parallel=1 -total=100000 -clients=512 -bar=false
 ```
 Summary:
 	Clients:	512
 	Parallel calls per client:	1
-	Total calls:	1000000
-	Total time:	14.59s
-	Requests per second:	68521.77
-	Fastest time for request:	2.21ms
-	Average time per request:	7.46ms
-	Slowest time for request:	94.04ms
+	Total calls:	100000
+	Total time:	1.74s
+	Requests per second:	57488.54
+	Fastest time for request:	2.19ms
+	Average time per request:	8.79ms
+	Slowest time for request:	119.71ms
 
 Time:
-	0.1%	time for request:	3.26ms
-	1%	time for request:	3.97ms
-	5%	time for request:	4.72ms
-	10%	time for request:	5.10ms
-	25%	time for request:	5.74ms
-	50%	time for request:	6.61ms
-	75%	time for request:	8.08ms
-	90%	time for request:	10.15ms
-	95%	time for request:	12.07ms
-	99%	time for request:	23.46ms
-	99.9%	time for request:	48.46ms
+	0.1%	time for request:	3.31ms
+	1%	time for request:	3.70ms
+	5%	time for request:	4.39ms
+	10%	time for request:	5.05ms
+	25%	time for request:	6.16ms
+	50%	time for request:	7.68ms
+	75%	time for request:	9.84ms
+	90%	time for request:	12.58ms
+	95%	time for request:	15.76ms
+	99%	time for request:	24.00ms
+	99.9%	time for request:	85.99ms
 
 Result:
 	Response ok:	1000000 (100.00%)
 	Errors:	0 (0.00%)
 ```
 #### RPC WRITE SINGLETON BENCHMARK
-./client -network=tcp -codec=pb -compress=gzip -h=127.0.0.1 -p=8001 -parallel=512 -total=1000000 -multiplexing=true -batch=true -batch_async=true -clients=8
 ```
 Summary:
 	Clients:	8
 	Parallel calls per client:	512
-	Total calls:	1000000
-	Total time:	7.32s
-	Requests per second:	136626.77
-	Fastest time for request:	2.44ms
-	Average time per request:	29.89ms
-	Slowest time for request:	214.66ms
+	Total calls:	100000
+	Total time:	0.76s
+	Requests per second:	132045.80
+	Fastest time for request:	6.39ms
+	Average time per request:	30.21ms
+	Slowest time for request:	86.11ms
 
 Time:
-	0.1%	time for request:	7.30ms
-	1%	time for request:	10.49ms
-	5%	time for request:	13.93ms
-	10%	time for request:	16.21ms
-	25%	time for request:	20.87ms
-	50%	time for request:	27.24ms
-	75%	time for request:	34.34ms
-	90%	time for request:	44.10ms
-	95%	time for request:	53.76ms
-	99%	time for request:	93.03ms
-	99.9%	time for request:	161.42ms
+	0.1%	time for request:	8.53ms
+	1%	time for request:	11.02ms
+	5%	time for request:	14.28ms
+	10%	time for request:	16.39ms
+	25%	time for request:	20.35ms
+	50%	time for request:	27.59ms
+	75%	time for request:	36.17ms
+	90%	time for request:	49.05ms
+	95%	time for request:	57.28ms
+	99%	time for request:	70.14ms
+	99.9%	time for request:	76.14ms
 
 Result:
 	Response ok:	1000000 (100.00%)
 	Errors:	0 (0.00%)
 ```
 #### HTTP READINDEX THREE NODES BENCHMARK
-./http_read_index -p=7001 -parallel=1 -total=100000 -clients=512 -bar=false
 ```
 Summary:
-	Clients:	512
+    Clients:	512
 	Parallel calls per client:	1
-	Total calls:	1000000
-	Total time:	21.79s
-	Requests per second:	45889.22
-	Fastest time for request:	2.51ms
-	Average time per request:	11.14ms
-	Slowest time for request:	1234.28ms
+	Total calls:	100000
+	Total time:	2.32s
+	Requests per second:	43053.90
+	Fastest time for request:	2.83ms
+	Average time per request:	11.72ms
+	Slowest time for request:	1125.58ms
 
 Time:
-	0.1%	time for request:	3.69ms
-	1%	time for request:	4.36ms
-	5%	time for request:	5.18ms
-	10%	time for request:	5.70ms
-	25%	time for request:	6.73ms
-	50%	time for request:	8.09ms
-	75%	time for request:	9.19ms
-	90%	time for request:	21.57ms
-	95%	time for request:	40.95ms
-	99%	time for request:	48.76ms
-	99.9%	time for request:	52.49ms
+	0.1%	time for request:	3.54ms
+	1%	time for request:	4.09ms
+	5%	time for request:	4.76ms
+	10%	time for request:	5.24ms
+	25%	time for request:	6.28ms
+	50%	time for request:	7.43ms
+	75%	time for request:	8.65ms
+	90%	time for request:	12.77ms
+	95%	time for request:	39.88ms
+	99%	time for request:	58.92ms
+	99.9%	time for request:	1068.66ms
 
 Result:
 	Response ok:	1000000 (100.00%)
@@ -477,30 +467,29 @@ Result:
 ```
 
 #### RPC READINDEX THREE NODES BENCHMARK
-./client -network=tcp -codec=pb -compress=gzip -h=127.0.0.1 -p=8001 -parallel=512 -total=1000000 -multiplexing=true -batch=true -batch_async=true -clients=8
 ```
 Summary:
 	Clients:	8
 	Parallel calls per client:	512
-	Total calls:	1000000
-	Total time:	4.37s
-	Requests per second:	228681.30
-	Fastest time for request:	4.26ms
-	Average time per request:	17.84ms
-	Slowest time for request:	99.61ms
+	Total calls:	100000
+	Total time:	0.37s
+	Requests per second:	267685.30
+	Fastest time for request:	4.36ms
+	Average time per request:	14.65ms
+	Slowest time for request:	44.72ms
 
 Time:
-	0.1%	time for request:	5.20ms
-	1%	time for request:	7.01ms
-	5%	time for request:	8.05ms
-	10%	time for request:	8.78ms
-	25%	time for request:	10.05ms
-	50%	time for request:	13.42ms
-	75%	time for request:	20.08ms
-	90%	time for request:	34.50ms
-	95%	time for request:	45.92ms
-	99%	time for request:	64.38ms
-	99.9%	time for request:	80.49ms
+	0.1%	time for request:	5.34ms
+	1%	time for request:	6.50ms
+	5%	time for request:	7.75ms
+	10%	time for request:	8.26ms
+	25%	time for request:	9.69ms
+	50%	time for request:	13.47ms
+	75%	time for request:	18.37ms
+	90%	time for request:	22.27ms
+	95%	time for request:	25.10ms
+	99%	time for request:	31.59ms
+	99.9%	time for request:	44.32ms
 
 Result:
 	Response ok:	1000000 (100.00%)
@@ -508,30 +497,29 @@ Result:
 ```
 
 #### HTTP WRITE THREE NODES BENCHMARK
-./http -p=7001 -parallel=1 -total=100000 -clients=512 -bar=false
 ```
 Summary:
 	Clients:	512
 	Parallel calls per client:	1
-	Total calls:	1000000
-	Total time:	27.96s
-	Requests per second:	35760.43
-	Fastest time for request:	4.19ms
-	Average time per request:	14.29ms
-	Slowest time for request:	89.11ms
+	Total calls:	100000
+	Total time:	2.84s
+	Requests per second:	35241.64
+	Fastest time for request:	4.21ms
+	Average time per request:	14.42ms
+	Slowest time for request:	114.84ms
 
 Time:
-	0.1%	time for request:	5.52ms
-	1%	time for request:	6.59ms
-	5%	time for request:	7.59ms
-	10%	time for request:	8.12ms
-	25%	time for request:	9.03ms
-	50%	time for request:	10.29ms
-	75%	time for request:	12.76ms
-	90%	time for request:	35.15ms
-	95%	time for request:	39.80ms
-	99%	time for request:	44.19ms
-	99.9%	time for request:	56.68ms
+	0.1%	time for request:	5.59ms
+	1%	time for request:	6.48ms
+	5%	time for request:	7.32ms
+	10%	time for request:	7.84ms
+	25%	time for request:	8.85ms
+	50%	time for request:	10.41ms
+	75%	time for request:	13.18ms
+	90%	time for request:	24.42ms
+	95%	time for request:	42.78ms
+	99%	time for request:	73.28ms
+	99.9%	time for request:	108.08ms
 
 Result:
 	Response ok:	1000000 (100.00%)
@@ -539,30 +527,29 @@ Result:
 ```
 
 #### RPC WRITE THREE NODES BENCHMARK
-./client -network=tcp -codec=pb -compress=gzip -h=127.0.0.1 -p=8001 -parallel=512 -total=1000000 -multiplexing=true -batch=true -batch_async=true -clients=8
 ```
 Summary:
 	Clients:	8
 	Parallel calls per client:	512
-	Total calls:	1000000
-	Total time:	9.95s
-	Requests per second:	100543.87
-	Fastest time for request:	7.64ms
-	Average time per request:	40.63ms
-	Slowest time for request:	221.84ms
+	Total calls:	100000
+	Total time:	0.97s
+	Requests per second:	103035.21
+	Fastest time for request:	8.91ms
+	Average time per request:	38.82ms
+	Slowest time for request:	88.05ms
 
 Time:
-	0.1%	time for request:	11.98ms
-	1%	time for request:	15.78ms
-	5%	time for request:	19.42ms
-	10%	time for request:	21.87ms
-	25%	time for request:	28.15ms
-	50%	time for request:	37.78ms
-	75%	time for request:	46.18ms
-	90%	time for request:	57.91ms
-	95%	time for request:	72.67ms
-	99%	time for request:	138.01ms
-	99.9%	time for request:	196.33ms
+	0.1%	time for request:	9.53ms
+	1%	time for request:	14.58ms
+	5%	time for request:	18.81ms
+	10%	time for request:	21.52ms
+	25%	time for request:	28.00ms
+	50%	time for request:	38.90ms
+	75%	time for request:	46.57ms
+	90%	time for request:	54.88ms
+	95%	time for request:	62.80ms
+	99%	time for request:	76.74ms
+	99.9%	time for request:	85.04ms
 
 Result:
 	Response ok:	1000000 (100.00%)
