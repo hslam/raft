@@ -89,10 +89,10 @@ Summary:
 	Slowest time for request:	114.84ms
 
 Time:
-    10%	time for request:	7.84ms
-    50%	time for request:	10.41ms
-    90%	time for request:	24.42ms
-    99%	time for request:	73.28ms
+	10%	time for request:	7.84ms
+	50%	time for request:	10.41ms
+	90%	time for request:	24.42ms
+	99%	time for request:	73.28ms
 
 Result:
 	Response ok:	1000000 (100.00%)
