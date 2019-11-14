@@ -1,6 +1,6 @@
 # RAFT
 
-## [Raftdb](https://hslam.com/git/x/raft/src/master/example/raftdb "raftdb") Benchmark
+## [Example raftdb](https://hslam.com/git/x/raft/src/master/example/raftdb "raftdb") Benchmark
 ### Mac Environment
 * **CPU** 4 Cores 2.9 GHz
 * **Memory** 8 GiB
