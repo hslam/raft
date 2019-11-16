@@ -149,6 +149,7 @@ Result:
 
 ### Define
 * **trans**     transport
+* **tps**     requests per second
 * **fast**     fastest(ms)
 * **med**     median(ms)
 * **avg**     average(ms)
