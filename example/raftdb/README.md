@@ -30,7 +30,7 @@ curl http://localhost:7001/db/foo
 ```
 
 Benchmark
-```sh
+```
 #!/bin/sh
 
 nohup ./raftdb -h=localhost -p=7001 -c=8001 -f=9001 -d=6061 -m=8 -peers="" -path=./tmp/default.raftdb.1  >> ./tmp/default.out.1.log 2>&1 &
@@ -49,6 +49,7 @@ sleep 10s
 sleep 10s
 
 killall raftdb
+
 sleep 3s
 
 nohup ./raftdb -h=localhost -p=7001 -c=8001 -f=9001 -d=6061 -m=8 -peers=localhost:9001,localhost:9002,localhost:9003 -path=./tmp/raftdb.1  >> ./tmp/out.1.log 2>&1 &

@@ -1,9 +1,35 @@
 # RAFT
 
 ## [Example raftdb](https://hslam.com/git/x/raft/src/master/example/raftdb "raftdb") Benchmark
+
+
 ### Mac Environment
 * **CPU** 4 Cores 2.9 GHz
 * **Memory** 8 GiB
+
+#### Linux Environment
+* **CPU** 12 Cores 3.1 GHz
+* **Memory** 24 GiB
+
+System  |Cluster    |Operation  |Transport  |TPS    |Fastest(ms) |Average(ms) |Slowest(ms)
+ ---- | ----- | ------  | ------  | ------ | ------ | ------ | ------
+Mac     |Singleton  |READINDEX  |HTTP   |10179  |8      |19     |77
+Mac     |Singleton  |READINDEX  |RPC    |90342  |15     |43     |117
+Mac     |Singleton  |WRITE      |HTTP   |10148  |8      |19     |80
+Mac     |Singleton  |WRITE      |RPC    |52120  |14     |76     |217
+Mac     |ThreeNodes |READINDEX  |HTTP   |4281   |13     |46     |90
+Mac     |ThreeNodes |READINDEX  |RPC    |51943  |15     |75     |175
+Mac     |ThreeNodes |WRITE      |HTTP   |4151   |10     |48     |104
+Mac     |ThreeNodes |WRITE      |RPC    |35560  |28     |111    |306
+Linux   |Singleton  |READINDEX  |HTTP   |74456  |2      |6      |110
+Linux   |Singleton  |READINDEX  |RPC    |293865 |4      |13     |35
+Linux   |Singleton  |WRITE      |HTTP   |57488  |2      |8      |119
+Linux   |Singleton  |WRITE      |RPC    |132045 |6      |30     |86
+Linux   |ThreeNodes |READINDEX  |HTTP   |43053  |2      |11     |1125
+Linux   |ThreeNodes |READINDEX  |RPC    |267685 |4      |14     |44
+Linux   |ThreeNodes |WRITE      |HTTP   |35241  |4      |14     |114
+Linux   |ThreeNodes |WRITE      |RPC    |103035 |8      |38     |88
+
 
 #### HTTP WRITE THREE NODES BENCHMARK
 ```
@@ -72,9 +98,6 @@ Result:
 	Response ok:	100000 (100.00%)
 	Errors:	0 (0.00%)
 ```
-#### Linux Environment
-* **CPU** 12 Cores 3.1 GHz
-* **Memory** 24 GiB
 
 #### HTTP WRITE THREE NODES BENCHMARK
 ```
@@ -144,3 +167,6 @@ Result:
 	Response ok:	100000 (100.00%)
 	Errors:	0 (0.00%)
 ```
+
+
+
