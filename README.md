@@ -53,8 +53,8 @@ Result:
 #### ETCD WRITE THREE NODES BENCHMARK
 ```
 Summary:
-	Clients:	8
-	Parallel calls per client:	512
+	Conns:	8
+	Clients:	512
 	Total calls:	100000
 	Total time:	8.69s
 	Requests per second:	11497.77
@@ -125,8 +125,8 @@ Result:
 #### ETCD WRITE THREE NODES BENCHMARK
 ```
 Summary:
-	Clients:	8
-	Parallel calls per client:	512
+	Conns:	8
+	Clients:	512
 	Total calls:	100000
 	Total time:	2.54s
 	Requests per second:	39357.45
