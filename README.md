@@ -7,30 +7,6 @@
 * **CPU** 4 Cores 2.9 GHz
 * **Memory** 8 GiB
 
-#### Linux Environment
-* **CPU** 12 Cores 3.1 GHz
-* **Memory** 24 GiB
-
-System  |Cluster    |Operation  |Transport  |TPS    |Fastest(ms) |Average(ms) |Slowest(ms)
- ---- | ----- | ------  | ------  | ------ | ------ | ------ | ------
-Mac     |Singleton  |READINDEX  |HTTP   |10179  |8      |19     |77
-Mac     |Singleton  |READINDEX  |RPC    |90342  |15     |43     |117
-Mac     |Singleton  |WRITE      |HTTP   |10148  |8      |19     |80
-Mac     |Singleton  |WRITE      |RPC    |52120  |14     |76     |217
-Mac     |ThreeNodes |READINDEX  |HTTP   |4281   |13     |46     |90
-Mac     |ThreeNodes |READINDEX  |RPC    |51943  |15     |75     |175
-Mac     |ThreeNodes |WRITE      |HTTP   |4151   |10     |48     |104
-Mac     |ThreeNodes |WRITE      |RPC    |35560  |28     |111    |306
-Linux   |Singleton  |READINDEX  |HTTP   |74456  |2      |6      |110
-Linux   |Singleton  |READINDEX  |RPC    |293865 |4      |13     |35
-Linux   |Singleton  |WRITE      |HTTP   |57488  |2      |8      |119
-Linux   |Singleton  |WRITE      |RPC    |132045 |6      |30     |86
-Linux   |ThreeNodes |READINDEX  |HTTP   |43053  |2      |11     |1125
-Linux   |ThreeNodes |READINDEX  |RPC    |267685 |4      |14     |44
-Linux   |ThreeNodes |WRITE      |HTTP   |35241  |4      |14     |114
-Linux   |ThreeNodes |WRITE      |RPC    |103035 |8      |38     |88
-
-
 #### HTTP WRITE THREE NODES BENCHMARK
 ```
 Summary:
@@ -98,6 +74,9 @@ Result:
 	Response ok:	100000 (100.00%)
 	Errors:	0 (0.00%)
 ```
+#### Linux Environment
+* **CPU** 12 Cores 3.1 GHz
+* **Memory** 24 GiB
 
 #### HTTP WRITE THREE NODES BENCHMARK
 ```
@@ -168,5 +147,31 @@ Result:
 	Errors:	0 (0.00%)
 ```
 
+### Define
+* **trans**     transport
+* **fast**     fastest(ms)
+* **med**     median(ms)
+* **avg**     average(ms)
+* **p99**     99th percentile time (ms)
+* **slow**     slowest(ms)
 
 
+```
+system  cluster     operation   trans   tps     avg     fast    med     p99     slow
+Mac     Singleton   READINDEX   HTTP    10179   19.62   8.33    19.19   39.07   77.90
+Mac     Singleton   READINDEX   RPC     90342   43.93   15.64   37.03   103.13  117.00
+Mac     Singleton   WRITE       HTTP    10148   19.69   8.04    19.22   40.15   80.52
+Mac     Singleton   WRITE       RPC     52120   76.24   14.32   68.16   178.10  217.68
+Mac     ThreeNodes  READINDEX   HTTP    4281    13.39   46.96   46.67   67.34   90.54
+Mac     ThreeNodes  READINDEX   RPC     51943   75.95   15.47   64.37   169.92  175.86
+Mac     ThreeNodes  WRITE       HTTP    4151    48.14   10.85   47.81   71.07   104.61
+Mac     ThreeNodes  WRITE       RPC     35560   111.83  28.83   107.06  255.75  306.85
+Linux   Singleton   READINDEX   HTTP    74456   6.63    2.62    6.23    12.12   110.90
+Linux   Singleton   READINDEX   RPC     293865  13.14   4.09    12.14   31.22   35.09
+Linux   Singleton   WRITE       HTTP    57488   8.79    2.19    7.68    24.00   119.71
+Linux   Singleton   WRITE       RPC     132045  30.21   6.39    27.59   70.14   86.11
+Linux   ThreeNodes  READINDEX   HTTP    43053   11.72   2.83    7.43    58.92   1125.58
+Linux   ThreeNodes  READINDEX   RPC     267685  14.65   4.36    13.47   31.59   44.72
+Linux   ThreeNodes  WRITE       HTTP    35241   14.42   4.21    10.41   73.28   114.84
+Linux   ThreeNodes  WRITE       RPC     103035  38.82   8.91    38.90   76.74   88.05
+```
