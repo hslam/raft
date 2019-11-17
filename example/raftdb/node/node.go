@@ -40,7 +40,7 @@ type Node struct {
 
 }
 
-func NewNode(data_dir string, host string, port ,rpc_port,raft_port int,peers []string) *Node {
+func NewNode(data_dir string, host string, port ,rpc_port,raft_port int,peers []string,join string) *Node {
 	n := &Node{
 		host:   	host,
 		port:   	port,
@@ -51,12 +51,15 @@ func NewNode(data_dir string, host string, port ,rpc_port,raft_port int,peers []
 		render:		render.NewRender(),
 	}
 	var err error
-	n.raft_node, err = raft.NewNode(host,raft_port,n.data_dir,n.db)
+	nodes :=make([]*raft.NodeInfo,len(peers))
+	for i,v:=range peers{
+		nodes[i]=&raft.NodeInfo{Address:v,Data:nil}
+	}
+	n.raft_node, err = raft.NewNode(host,raft_port,n.data_dir,n.db,nodes)
 	if err != nil {
 		log.Fatal(err)
 	}
 	raft.SetLogLevel(0)
-	n.raft_node.SetNode(peers)
 	n.raft_node.RegisterCommand(&SetCommand{})
 	n.raft_node.SetSnapshot(&Snapshot{})
 	n.raft_node.SetSyncType([][]int{

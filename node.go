@@ -33,7 +33,6 @@ type Node struct {
 	raft 							Raft
 	rpcs							*RPCs
 	server							*Server
-	configuration 					*Configuration
 	log								*Log
 	readIndex 						*ReadIndex
 	stateMachine					*StateMachine
@@ -91,7 +90,7 @@ type Node struct {
 
 }
 
-func NewNode(host string, port int,data_dir string,context interface{})(*Node,error){
+func NewNode(host string, port int,data_dir string,context interface{},nodes []*NodeInfo)(*Node,error){
 	if data_dir == "" {
 		data_dir=DefaultDataDir
 	}
@@ -122,7 +121,7 @@ func NewNode(host string, port int,data_dir string,context interface{})(*Node,er
 	n.votes=newVotes(n)
 	n.readIndex=newReadIndex(n)
 	n.stateMachine=newStateMachine(n)
-	n.configuration=newConfiguration(n)
+	n.setNodes(nodes)
 	n.log=newLog(n)
 	n.election=newElection(n,DefaultElectionTimeout)
 	n.raft=newRaft(n)
@@ -470,30 +469,51 @@ func (n *Node) Peers() []string {
 	}
 	return peers
 }
-func (n *Node) SetNode(addrs []string) error {
-	if !n.configuration.isPeersChanged(addrs){
-		return nil
-	}
-	n.peers=make(map[string]*Peer)
-	for _,address:=range addrs{
-		n.addNode(address)
-	}
-	n.configuration.SetPeers(addrs)
-	n.configuration.save()
-	return nil
+
+func (n *Node) setNodes(nodes []*NodeInfo) {
+	n.stateMachine.configuration.SetNodes(nodes)
+	n.stateMachine.configuration.save()
+	n.stateMachine.configuration.load()
 }
-func (n *Node) addNode(address string) error {
+func (n *Node) addNode(address string) {
 	n.nodesMut.Lock()
 	defer n.nodesMut.Unlock()
 	if n.peers[address] != nil {
-		return nil
+		return
 	}
 	if n.address != address {
 		client := newPeer(n,address)
 		n.peers[address] = client
 	}
 	n.votes.Reset(len(n.peers)+1)
-	return nil
+	return
+}
+func (n *Node) deleteNotPeers(peers []string) {
+	if len(peers)==0{
+		n.clearPeers()
+		return
+	}
+	m:=make(map[string]bool)
+	for _,v:=range peers{
+		m[v]=true
+	}
+	n.nodesMut.Lock()
+	defer n.nodesMut.Unlock()
+	for _,v:=range n.peers{
+		if _,ok:=m[v.address];!ok{
+			delete(n.peers,v.address)
+		}
+	}
+}
+func (n *Node) clearPeers() {
+	n.nodesMut.Lock()
+	defer n.nodesMut.Unlock()
+	n.peers=make(map[string]*Peer)
+}
+func (n *Node) LookupPeer(addr string)*NodeInfo {
+	n.nodesMut.Lock()
+	defer n.nodesMut.Unlock()
+	return n.stateMachine.configuration.LookupPeer(addr)
 }
 func (n *Node) NodesCount() int {
 	n.nodesMut.RLock()
@@ -668,7 +688,7 @@ func (n *Node) checkLog() error {
 		n.currentTerm.save()
 	}
 	if n.storage.IsEmpty(DefaultConfig){
-		n.configuration.save()
+		n.stateMachine.configuration.save()
 	}
 	if n.storage.IsEmpty(DefaultVoteFor){
 		n.votedFor.save()

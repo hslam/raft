@@ -1,23 +1,24 @@
 package raft
 
-
-type addPeerCommand struct {
-	address string
+type AddPeerCommand struct {
+	nodeInfo *NodeInfo
 }
 
-func NewAddPeerCommand(address string) Command {
-	return &addPeerCommand{
-		address: address,
+func NewAddPeerCommand(address string,data []byte) Command {
+	return &AddPeerCommand{
+		nodeInfo:&NodeInfo{Address:address,Data:data},
 	}
 }
-func (c *addPeerCommand) Type() int32 {
+func (c *AddPeerCommand) Type() int32 {
 	return CommandTypeAddPeer
 }
 
-func (c *addPeerCommand) UniqueID() string{
-	return c.address
+func (c *AddPeerCommand) UniqueID() string{
+	return c.nodeInfo.Address
 }
 
-func (c *addPeerCommand) Do(context interface{})(interface{},error){
+func (c *AddPeerCommand) Do(context interface{})(interface{},error){
+	node := context.(*Node)
+	node.stateMachine.configuration.AddPeer(c.nodeInfo)
 	return nil, nil
 }

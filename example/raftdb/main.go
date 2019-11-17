@@ -19,6 +19,7 @@ var(
 	debug bool
 	debug_port int
 	addrs string
+	join string
 	data_dir string
 	max int
 )
@@ -31,6 +32,7 @@ func init() {
 	flag.StringVar(&addrs, "peers", "", "host:port,host:port")
 	flag.BoolVar(&debug, "debug", true, "debug: -debug=false")
 	flag.IntVar(&debug_port, "d", 6061, "debug_port: -dp=6060")
+	flag.StringVar(&join, "join", "", "host:port")
 	flag.StringVar(&data_dir, "path", "raft.1", "path")
 	flag.IntVar(&max, "m", 8, "MaxConnsPerHost: -m=8")
 	runtime.GOMAXPROCS(runtime.NumCPU())
@@ -43,7 +45,7 @@ func main() {
 	if addrs != "" {
 		peers = strings.Split(addrs, ",")
 	}
-	s := node.NewNode(data_dir, host, port,rpc_port,raft_port,peers)
+	s := node.NewNode(data_dir, host, port,rpc_port,raft_port,peers,join)
 	node.InitRPCProxy(max)
 	log.Fatal(s.ListenAndServe())
 }

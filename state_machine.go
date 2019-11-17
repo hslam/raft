@@ -10,6 +10,7 @@ type StateMachine struct {
 	mu 								sync.RWMutex
 	node 							*Node
 	lastApplied						uint64
+	configuration 					*Configuration
 	snapshot						Snapshot
 	snapshotReadWriter				*SnapshotReadWriter
 	snapshotSyncType				SnapshotSyncType
@@ -21,6 +22,7 @@ type StateMachine struct {
 func newStateMachine(node *Node)*StateMachine {
 	s:=&StateMachine{
 		node:node,
+		configuration:newConfiguration(node),
 		snapshotReadWriter:newSnapshotReadWriter(node,DefaultSnapshot,false),
 		saves:[][]int{},
 	}
@@ -86,9 +88,9 @@ func (s *StateMachine)setSnapshotSyncType(snapshotSyncType SnapshotSyncType){
 	case DefalutSave:
 		s.Stop()
 		s.saves=[][]int{
-		{SecondsSaveSnapshot1,ChangesSaveSnapshot1},
-		{SecondsSaveSnapshot2,ChangesSaveSnapshot2},
-		{SecondsSaveSnapshot3,ChangesSaveSnapshot3},
+			{SecondsSaveSnapshot1,ChangesSaveSnapshot1},
+			{SecondsSaveSnapshot2,ChangesSaveSnapshot2},
+			{SecondsSaveSnapshot3,ChangesSaveSnapshot3},
 		}
 		for _,v:=range s.saves{
 			s.snapshotSyncs=append(s.snapshotSyncs, newSnapshotSync(s,v[0],v[1]))

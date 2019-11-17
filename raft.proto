@@ -63,6 +63,10 @@ message Meta {
 }
 
 message ConfigurationStorage {
+    repeated NodeInfo Nodes       = 1;
+}
+
+message NodeInfo {
     string          Address     = 1;
-    repeated string Peers       = 2;
+    bytes           Data        = 2;
 }

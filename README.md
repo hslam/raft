@@ -1,4 +1,13 @@
 # RAFT
+An Go implementation of the Raft distributed consensus protocol.
+
+## Features
+
+* Leader election
+* Log replication
+* Log compaction/Snapshot
+* RPC transport
+* ReadIndex/Lease
 
 ## [Example raftdb](https://hslam.com/git/x/raft/src/master/example/raftdb "raftdb") Benchmark
 

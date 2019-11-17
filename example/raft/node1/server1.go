@@ -8,10 +8,12 @@ import (
 
 func main() {
 	raft.SetLogLevel(raft.DebugLevel)
-	node,_:=raft.NewNode("localhost",9002,"raft2",nil)
+	node,_:=raft.NewNode("localhost",9001,"raft.1",nil,[]*raft.NodeInfo{
+		&raft.NodeInfo{Address:"localhost:9001",Data:nil},
+		&raft.NodeInfo{Address:"localhost:9002",Data:nil},
+		&raft.NodeInfo{Address:"localhost:9003",Data:nil},
+	})
 	fmt.Println("State:",node.State())
-	node.SetNode([]string{"localhost:9001","localhost:9002","localhost:9003"})
-
 	node.Start()
 	for{
 		time.Sleep(time.Second*3)

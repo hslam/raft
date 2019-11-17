@@ -8,49 +8,56 @@ import (
 
 type Configuration struct {
 	node			*Node
-	peers			[]string
-	old				[]string
-	isOldNew		bool
+	storage 		*ConfigurationStorage
+	nodes 			map[string]*NodeInfo
 }
 func newConfiguration(node *Node) *Configuration {
 	c:=&Configuration{
 		node:node,
+		storage:&ConfigurationStorage{},
+		nodes:make(map[string]*NodeInfo),
 	}
 	c.load()
 	return c
 }
 
-func (c *Configuration) SetPeers(peers []string){
-	if len(c.peers)==0&&len(c.old)==0{
-		c.peers=peers
-		c.isOldNew=false
-	}else if len(c.peers)==0&&len(c.old)>0{
-		c.old=c.peers
-		c.peers=peers
-		c.isOldNew=true
+func (c *Configuration) SetNodes(nodes []*NodeInfo){
+	c.storage.Nodes=append(c.storage.Nodes,nodes...)
+	for _,v:=range nodes{
+		c.nodes[v.Address]=v
 	}
 }
-func (c *Configuration) ChangeToNew(){
-	c.old=[]string{}
-	c.isOldNew=false
+func (c *Configuration) AddPeer(peer *NodeInfo){
+	c.storage.Nodes=append(c.storage.Nodes,peer)
+	c.nodes[peer.Address]=peer
 }
-func (c *Configuration) IsOldNew()bool {
-	return c.isOldNew
+func (c *Configuration) RemovePeer(addr string){
+	for i,v:=range c.storage.Nodes{
+		if v.Address==addr{
+			c.storage.Nodes = append(c.storage.Nodes[:i], c.storage.Nodes[i+1:]...)
+		}
+	}
+	if _,ok:=c.nodes[addr];ok{
+		delete(c.nodes,addr)
+	}
 }
-
+func (c *Configuration) LookupPeer(addr string)*NodeInfo{
+	if v,ok:=c.nodes[addr];ok{
+		return v
+	}
+	return nil
+}
+func (c *Configuration) Peers()[] string{
+	peers:=make([]string,0)
+	for _,v:=range c.storage.Nodes{
+		if v.Address!=c.node.address{
+			peers=append(peers,v.Address)
+		}
+	}
+	return peers
+}
 func (c *Configuration) save() {
-	peers := make([]string, len(c.node.peers))
-	i := 0
-	for _, client := range c.node.peers {
-		peers[i] = client.address
-		i++
-	}
-	c.peers=peers
-	configurationStorage := &ConfigurationStorage{
-		Address:c.node.address,
-		Peers:c.peers,
-	}
-	b, _ := json.Marshal(configurationStorage)
+	b, _ := json.Marshal(c.storage)
 	c.node.storage.OverWrite(DefaultConfig,b)
 }
 
@@ -62,28 +69,27 @@ func (c *Configuration) load() error {
 	if err != nil {
 		return nil
 	}
-	configurationStorage := &ConfigurationStorage{}
-	if err = json.Unmarshal(b, configurationStorage); err != nil {
+	if err = json.Unmarshal(b, c.storage); err != nil {
 		return err
 	}
-	c.node.address=configurationStorage.Address
-	peers:=configurationStorage.Peers
-	if !c.isPeersChanged(peers){
-		Tracef("Configuration.load !PeersChanged %d %d",len(peers),len(c.peers))
+	for _,v:=range c.storage.Nodes{
+		c.nodes[v.Address]=v
+	}
+	if !c.membershipChanges(){
+		Traceln("Configuration.load !membershipChanges")
 		return nil
 	}
-	c.node.peers=make(map[string]*Peer)
-	for _, client := range peers {
-		c.node.addNode(client)
+	c.node.deleteNotPeers(c.Peers())
+	for _, v := range c.storage.Nodes {
+		c.node.addNode(v.Address)
 	}
-	c.SetPeers(peers)
 	return nil
 }
 
-func  (c *Configuration) isPeersChanged(peers []string)  bool {
-	old_nodes:=append(c.peers[:],c.node.address)
-	new_nodes:=append(peers[:],c.node.address)
-	sort.Strings(old_nodes)
-	sort.Strings(new_nodes)
-	return !reflect.DeepEqual(old_nodes, new_nodes)
+func  (c *Configuration) membershipChanges()bool {
+	old_peers:=c.node.Peers()
+	new_peers:=c.Peers()
+	sort.Strings(old_peers)
+	sort.Strings(new_peers)
+	return !reflect.DeepEqual(old_peers, new_peers)
 }
