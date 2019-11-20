@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"sync"
 	"hslam.com/git/x/raft"
-	"hslam.com/git/x/rum"
+	"hslam.com/git/x/mux"
 	"hslam.com/git/x/handler/proxy"
 	"hslam.com/git/x/handler/render"
 	"hslam.com/git/x/rpc"
@@ -32,7 +32,7 @@ type Node struct {
 	port		int
 	rpc_port	int
 	data_dir	string
-	router		*rum.Router
+	mux		*mux.Mux
 	render 		*render.Render
 	raft_node 	*raft.Node
 	http_server	*http.Server
@@ -47,7 +47,7 @@ func NewNode(data_dir string, host string, port ,rpc_port,raft_port int,peers []
 		rpc_port:rpc_port,
 		data_dir:   data_dir,
 		db:     	newDB(),
-		router: 	rum.New(),
+		mux: 	mux.New(),
 		render:		render.NewRender(),
 	}
 	var err error
@@ -74,20 +74,19 @@ func NewNode(data_dir string, host string, port ,rpc_port,raft_port int,peers []
 	n.raft_node.GzipSnapshot()
 	n.http_server = &http.Server{
 		Addr:    fmt.Sprintf(":%d", n.port),
-		Handler: n.router,
+		Handler: n.mux,
 	}
-	n.router.Group("/cluster", func(router *rum.Router) {
-		router.HandleFunc("/status", n.statusHandler).All()
-		router.HandleFunc("/leader", n.leaderHandler).All()
-		router.HandleFunc("/ready", n.readyHandler).All()
-		router.HandleFunc("/address", n.addressHandler).All()
-		router.HandleFunc("/isleader", n.isLeaderHandler).All()
-		router.HandleFunc("/peers", n.peersHandler).All()
-		router.HandleFunc("/nodes", n.nodesHandler).All()
+	n.mux.Group("/cluster", func(m *mux.Mux) {
+		m.HandleFunc("/status", n.statusHandler).All()
+		m.HandleFunc("/leader", n.leaderHandler).All()
+		m.HandleFunc("/ready", n.readyHandler).All()
+		m.HandleFunc("/address", n.addressHandler).All()
+		m.HandleFunc("/isleader", n.isLeaderHandler).All()
+		m.HandleFunc("/peers", n.peersHandler).All()
+		m.HandleFunc("/nodes", n.nodesHandler).All()
 	})
-	n.router.HandleFunc("/db/:key", n.leaderHandle(n.getHandler)).GET()
-	n.router.HandleFunc("/db/:key",n.leaderHandle(n.setHandler)).POST()
-	n.router.Once()
+	n.mux.HandleFunc("/db/:key", n.leaderHandle(n.getHandler)).GET()
+	n.mux.HandleFunc("/db/:key",n.leaderHandle(n.setHandler)).POST()
 	return n
 }
 
@@ -147,7 +146,7 @@ func (n *Node) setHandler(w http.ResponseWriter, req *http.Request) {
 		if err := recover(); err != nil {
 		}
 	}()
-	params := n.router.Params(req)
+	params := n.mux.Params(req)
 	b, err := ioutil.ReadAll(req.Body)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -173,7 +172,7 @@ func (n *Node) getHandler(w http.ResponseWriter, req *http.Request) {
 		if err := recover(); err != nil {
 		}
 	}()
-	params := n.router.Params(req)
+	params := n.mux.Params(req)
 	if ok:=n.raft_node.ReadIndex();ok{
 		value := n.db.Get(params["key"])
 		w.Write([]byte(value))

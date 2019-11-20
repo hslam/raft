@@ -8,7 +8,7 @@ import (
 
 func main() {
 	raft.SetLogLevel(raft.DebugLevel)
-	node,_:=raft.NewNode("localhost",9001,"raft.1",nil,[]*raft.NodeInfo{
+	node,_:=raft.NewNode("localhost",9001,"node.1",nil,[]*raft.NodeInfo{
 		&raft.NodeInfo{Address:"localhost:9001",Data:nil},
 		&raft.NodeInfo{Address:"localhost:9002",Data:nil},
 		&raft.NodeInfo{Address:"localhost:9003",Data:nil},
