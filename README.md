@@ -15,7 +15,6 @@ A Golang implementation of the Raft distributed consensus protocol.
 * **CPU** 12 Cores 3.1 GHz
 * **Memory** 24 GiB
 
-
 ### Define
 * **trans**     transport
 * **tps**     requests per second
