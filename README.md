@@ -6,7 +6,7 @@ A Golang implementation of the Raft distributed consensus protocol.
 * Leader election
 * Log replication
 * Log compaction/Snapshot
-* RPC transport
+* [RPC](https://hslam.com/git/x/rpc "rpc") transport
 * ReadIndex/Lease
 
 ## [Example raftdb](https://hslam.com/git/x/raft/src/master/example/raftdb "raftdb") Benchmark
