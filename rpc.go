@@ -8,6 +8,7 @@ import (
 
 const (
 	MaxConnsPerHost	= 2
+	MaxIdleConnsPerHost=2
 	network = "tcp"
 	codec = "pb"
 	ServiceName = "R"
@@ -41,7 +42,7 @@ func newRPCs() *RPCs{
 	opts.SetCompressType("gzip")
 	opts.SetLowDelay(true)
 	r :=&RPCs{
-		conns:rpc.NewTransport(MaxConnsPerHost,network,codec,opts),
+		conns:rpc.NewTransport(MaxConnsPerHost,MaxIdleConnsPerHost,network,codec,opts),
 	}
 	return r
 }

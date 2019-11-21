@@ -19,6 +19,7 @@ const (
 	network = "tcp"
 	codec = "pb"
 	MaxConnsPerHost=8
+	MaxIdleConnsPerHost=0
 )
 var (
 	setCommandPool			*sync.Pool
@@ -111,20 +112,20 @@ func (n *Node) ListenAndServe() error {
 	server.EnableBatch()
 	rpc.SetLogLevel(99)
 	if n.rpc_transport==nil{
-		n.InitRPCProxy(MaxConnsPerHost)
+		n.InitRPCProxy(MaxConnsPerHost,MaxIdleConnsPerHost)
 	}
 
 	go server.ListenAndServe("tcp", fmt.Sprintf(":%d", n.rpc_port))
 	return n.http_server.ListenAndServe()
 }
-func (n *Node) InitRPCProxy(MaxConnsPerHost int){
+func (n *Node) InitRPCProxy(MaxConnsPerHost int,MaxIdleConnsPerHost int){
 	opts:=rpc.DefaultOptions()
 	opts.SetRetry(false)
 	opts.SetCompressType("gzip")
 	opts.SetMultiplexing(true)
 	opts.SetBatch(true)
 	opts.SetBatchAsync(true)
-	n.rpc_transport=rpc.NewTransport(MaxConnsPerHost,network,codec,opts)
+	n.rpc_transport=rpc.NewTransport(MaxConnsPerHost,MaxIdleConnsPerHost,network,codec,opts)
 }
 func (n *Node) uri() string {
 	return fmt.Sprintf("http://%s:%d",  n.host, n.port)

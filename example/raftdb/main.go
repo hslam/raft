@@ -46,6 +46,6 @@ func main() {
 		peers = strings.Split(addrs, ",")
 	}
 	s := node.NewNode(data_dir, host, port,rpc_port,raft_port,peers,join)
-	s.InitRPCProxy(max)
+	s.InitRPCProxy(max,0)
 	log.Fatal(s.ListenAndServe())
 }
