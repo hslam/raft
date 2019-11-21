@@ -13,7 +13,6 @@ func main() {
 		&raft.NodeInfo{Address:"localhost:9002",Data:nil},
 		&raft.NodeInfo{Address:"localhost:9003",Data:nil},
 	})
-	fmt.Println("State:",node.State())
 	node.Start()
 	for{
 		time.Sleep(time.Second*3)

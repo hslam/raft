@@ -35,6 +35,6 @@ func main() {
 	if addrs != "" {
 		peers = strings.Split(addrs, ",")
 	}
-	s := node.NewNode(data_dir, host, port,rpc_port,raft_port,peers)
+	s := node.NewNode(data_dir, host, port,rpc_port,raft_port,peers,"")
 	log.Fatal(s.ListenAndServe())
 }

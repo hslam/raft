@@ -57,6 +57,8 @@ const (
 	DefaultMaxEntriesPerFile = 1 << 27
 	DefaultChunkSize int64 = 1 << 24
 
+	MaxConnsPerHost	= 2
+
 )
 type SnapshotSyncType int
 

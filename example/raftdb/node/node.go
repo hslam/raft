@@ -14,6 +14,12 @@ import (
 	"net/url"
 	"strconv"
 )
+
+const (
+	network = "tcp"
+	codec = "pb"
+	MaxConnsPerHost=8
+)
 var (
 	setCommandPool			*sync.Pool
 )
@@ -32,10 +38,11 @@ type Node struct {
 	port		int
 	rpc_port	int
 	data_dir	string
-	mux		*mux.Mux
+	mux			*mux.Mux
 	render 		*render.Render
 	raft_node 	*raft.Node
 	http_server	*http.Server
+	rpc_transport	*rpc.Transport
 	db			*DB
 
 }
@@ -47,7 +54,7 @@ func NewNode(data_dir string, host string, port ,rpc_port,raft_port int,peers []
 		rpc_port:rpc_port,
 		data_dir:   data_dir,
 		db:     	newDB(),
-		mux: 	mux.New(),
+		mux: 		mux.New(),
 		render:		render.NewRender(),
 	}
 	var err error
@@ -103,13 +110,22 @@ func (n *Node) ListenAndServe() error {
 	server.EnableMultiplexingWithSize(1024*256)
 	server.EnableBatch()
 	rpc.SetLogLevel(99)
-	if len(rpcsPool)==0{
-		InitRPCProxy(MaxConnsPerHost)
+	if n.rpc_transport==nil{
+		n.InitRPCProxy(MaxConnsPerHost)
 	}
+
 	go server.ListenAndServe("tcp", fmt.Sprintf(":%d", n.rpc_port))
 	return n.http_server.ListenAndServe()
 }
-
+func (n *Node) InitRPCProxy(MaxConnsPerHost int){
+	opts:=rpc.DefaultOptions()
+	opts.SetRetry(false)
+	opts.SetCompressType("gzip")
+	opts.SetMultiplexing(true)
+	opts.SetBatch(true)
+	opts.SetBatchAsync(true)
+	n.rpc_transport=rpc.NewTransport(MaxConnsPerHost,network,codec,opts)
+}
 func (n *Node) uri() string {
 	return fmt.Sprintf("http://%s:%d",  n.host, n.port)
 }
