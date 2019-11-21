@@ -7,16 +7,13 @@ import (
 )
 
 const (
+	MaxConnsPerHost	= 2
 	network = "tcp"
 	codec = "pb"
 	ServiceName = "R"
 	RequestVoteName = "R"
 	AppendEntriesName = "A"
 	InstallSnapshotName = "I"
-	keepAlive=time.Minute
-
-	RetryTimes = 0
-
 )
 
 func listenAndServe(address string,node *Node){
@@ -37,14 +34,14 @@ type Client struct {
 	rpc.Client
 	keepAlive				time.Duration
 }
-func newRPCs(addrs []string) *RPCs{
+func newRPCs() *RPCs{
 	opts:=rpc.DefaultOptions()
 	opts.SetMultiplexing(true)
 	opts.SetRetry(false)
 	opts.SetCompressType("gzip")
 	opts.SetLowDelay(true)
 	r :=&RPCs{
-		conns:rpc.NewTransport(MaxConnsPerHost,"tcp","pb",opts),
+		conns:rpc.NewTransport(MaxConnsPerHost,network,codec,opts),
 	}
 	return r
 }

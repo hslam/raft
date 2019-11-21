@@ -99,7 +99,7 @@ func NewNode(host string, port int,data_dir string,context interface{},nodes []*
 		host:host,
 		port:port,
 		address:address,
-		rpcs:newRPCs([]string{}),
+		rpcs:newRPCs(),
 		peers:make(map[string]*Peer),
 		printTicker:time.NewTicker(DefaultNodeTracePrintTick),
 		detectTicker:time.NewTicker(DefaultDetectTick),
