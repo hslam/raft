@@ -16,15 +16,15 @@ A Golang implementation of the Raft distributed consensus protocol.
 * **Memory** 24 GiB
 
 ```
-cluster     operation   transport   requests/s  average(ms) fastest(ms) median(ms)  p99(ms) slowest(ms)
-Singleton   ReadIndex   HTTP        74456       6.63        2.62        6.23        12.12   110.90
-Singleton   ReadIndex   RPC         293865      13.14       4.09        12.14       31.22   35.09
-Singleton   Write       HTTP        57488       8.79        2.19        7.68        24.00   119.71
-Singleton   Write       RPC         132045      30.21       6.39        27.59       70.14   86.11
-ThreeNodes  ReadIndex   HTTP        43053       11.72       2.83        7.43        58.92   1125.58
-ThreeNodes  ReadIndex   RPC         267685      14.65       4.36        13.47       31.59   44.72
-ThreeNodes  Write       HTTP        35241       14.42       4.21        10.41       73.28   114.84
-ThreeNodes  Write       RPC         103035      38.82       8.91        38.90       76.74   88.05
+cluster     operation   transport   requests/s  average(ms) fastest(ms) median(ms)  p99(ms)     slowest(ms)
+Singleton   ReadIndex   HTTP        74456       6.63        2.62        6.23        12.12       110.90
+Singleton   ReadIndex   RPC         293865      13.14       4.09        12.14       31.22       35.09
+Singleton   Write       HTTP        57488       8.79        2.19        7.68        24.00       119.71
+Singleton   Write       RPC         132045      30.21       6.39        27.59       70.14       86.11
+ThreeNodes  ReadIndex   HTTP        43053       11.72       2.83        7.43        58.92       1125.58
+ThreeNodes  ReadIndex   RPC         267685      14.65       4.36        13.47       31.59       44.72
+ThreeNodes  Write       HTTP        35241       14.42       4.21        10.41       73.28       114.84
+ThreeNodes  Write       RPC         103035      38.82       8.91        38.90       76.74       88.05
 ```
 
 #### HTTP WRITE THREE NODES BENCHMARK
