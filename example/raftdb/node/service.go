@@ -34,7 +34,7 @@ func (s *Service)Set(req *Request, res *Response) error {
 				panic(err)
 			}
 			leader_host:=leader_url.Hostname() + ":" + strconv.Itoa(port-1000)
-			return s.node.rpc_transport.GetProxy().Call("S.Set",req,res,leader_host)
+			return s.node.rpc_transport.Call("S.Set",req,res,leader_host)
 		}
 		return raft.ErrNotLeader
 	}
@@ -62,7 +62,7 @@ func (s *Service)Get(req *Request, res *Response) error {
 				panic(err)
 			}
 			leader_host:=leader_url.Hostname() + ":" + strconv.Itoa(port-1000)
-			return s.node.rpc_transport.GetProxy().Call("S.Get",req,res,leader_host)
+			return s.node.rpc_transport.Call("S.Get",req,res,leader_host)
 		}
 		return raft.ErrNotLeader
 	}
@@ -89,7 +89,7 @@ func (s *Service)ReadIndexGet(req *Request, res *Response) error {
 				panic(err)
 			}
 			leader_host:=leader_url.Hostname() + ":" + strconv.Itoa(port-1000)
-			return s.node.rpc_transport.GetProxy().Call("S.ReadIndexGet",req,res,leader_host)
+			return s.node.rpc_transport.Call("S.ReadIndexGet",req,res,leader_host)
 		}
 		return raft.ErrNotLeader
 	}

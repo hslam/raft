@@ -22,21 +22,14 @@ func newConfiguration(node *Node) *Configuration {
 }
 
 func (c *Configuration) SetNodes(nodes []*NodeInfo){
-	c.storage.Nodes=append(c.storage.Nodes,nodes...)
 	for _,v:=range nodes{
 		c.nodes[v.Address]=v
 	}
 }
 func (c *Configuration) AddPeer(peer *NodeInfo){
-	c.storage.Nodes=append(c.storage.Nodes,peer)
 	c.nodes[peer.Address]=peer
 }
 func (c *Configuration) RemovePeer(addr string){
-	for i,v:=range c.storage.Nodes{
-		if v.Address==addr{
-			c.storage.Nodes = append(c.storage.Nodes[:i], c.storage.Nodes[i+1:]...)
-		}
-	}
 	if _,ok:=c.nodes[addr];ok{
 		delete(c.nodes,addr)
 	}
@@ -49,14 +42,25 @@ func (c *Configuration) LookupPeer(addr string)*NodeInfo{
 }
 func (c *Configuration) Peers()[] string{
 	peers:=make([]string,0)
-	for _,v:=range c.storage.Nodes{
+	for _,v:=range c.nodes{
 		if v.Address!=c.node.address{
 			peers=append(peers,v.Address)
 		}
 	}
 	return peers
 }
+func (c *Configuration) Nodes()[] string{
+	nodes:=make([]string,0)
+	for _,v:=range c.nodes{
+		nodes=append(nodes,v.Address)
+	}
+	return nodes
+}
 func (c *Configuration) save() {
+	c.storage.Nodes=[]*NodeInfo{}
+	for _,v:=range c.nodes{
+		c.storage.Nodes=append(c.storage.Nodes,v)
+	}
 	b, _ := json.Marshal(c.storage)
 	c.node.storage.OverWrite(DefaultConfig,b)
 }
