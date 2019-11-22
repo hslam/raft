@@ -3,7 +3,6 @@ package raft
 import (
 	"hslam.com/git/x/rpc"
 	"hslam.com/git/x/rpc/log"
-	"time"
 )
 
 const (
@@ -31,10 +30,7 @@ func listenAndServe(address string,node *Node){
 type RPCs struct {
 	conns 			*rpc.Transport
 }
-type Client struct {
-	rpc.Client
-	keepAlive				time.Duration
-}
+
 func newRPCs() *RPCs{
 	opts:=rpc.DefaultOptions()
 	opts.SetMultiplexing(true)
