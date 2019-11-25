@@ -79,18 +79,18 @@ func main() {
 	select {}
 }
 ```
-** one node **
+**one node**
 ```sh
 ./node -h=localhost -p=9001 -path="default.raft/node.1" -join=false -peers="localhost:9001"
 ```
-** three nodes **
+**three nodes**
 ```sh
 ./node -h=localhost -p=9001 -path="raft.helloworld/node.hw.1" -join=false -peers="localhost:9001;localhost:9002;localhost:9003"
 ./node -h=localhost -p=9002 -path="raft.helloworld/node.hw.2" -join=false -peers="localhost:9001;localhost:9002;localhost:9003"
 ./node -h=localhost -p=9003 -path="raft.helloworld/node.hw.3" -join=false -peers="localhost:9001;localhost:9002;localhost:9003"
 ```
 
-** non-voting **
+**non-voting**
 ```sh
 ./node -h=localhost -p=9001 -path="raft.helloworld/node.nv.1" -join=false -peers="localhost:9001;localhost:9002;localhost:9003;localhost:9004,true"
 ./node -h=localhost -p=9002 -path="raft.helloworld/node.nv.2" -join=false -peers="localhost:9001;localhost:9002;localhost:9003;localhost:9004,true"
@@ -98,7 +98,7 @@ func main() {
 ./node -h=localhost -p=9004 -path="raft.helloworld/node.nv.4" -join=false -peers="localhost:9001;localhost:9002;localhost:9003;localhost:9004,true"
 ```
 
-** membership changes **
+**membership changes**
 ```sh
 ./node -h=localhost -p=9001 -path="raft.helloworld/node.mc.1" -join=false
 ./node -h=localhost -p=9002 -path="raft.helloworld/node.mc.2" -join=true -peers="localhost:9001;localhost:9002"
@@ -115,31 +115,31 @@ func main() {
 * ReadIndex/Lease Read
 * Benchmark
 
-** one node set **
+**one node set**
 ```sh
 ./example -h=localhost -p=9001 -path="raft.example/node.1" -join=false -peers="localhost:9001" -log=true -b=true  -o=set -parallel=4096 -total=100000
 ```
-** one node readindex **
+**one node readindex**
 ```sh
 ./example -h=localhost -p=9001 -path="raft.example/node.1" -join=false -peers="localhost:9001" -log=true -b=true  -o=readindex -parallel=4096 -total=100000
 ```
-** one node lease **
+**one node lease**
 ```sh
 ./example -h=localhost -p=9001 -path="raft.example/node.1" -join=false -peers="localhost:9001" -log=true -b=true  -o=lease -parallel=4096 -total=100000
 ```
-** three nodes set **
+**three nodes set**
 ```sh
 ./example -h=localhost -p=9001 -path="raft.example/node.tn.1" -join=false -peers="localhost:9001;localhost:9002;localhost:9003" -log=true -b=true    -o=set -parallel=4096 -total=100000
 ./example -h=localhost -p=9002 -path="raft.example/node.tn.2" -join=false -peers="localhost:9001;localhost:9002;localhost:9003" -log=true -b=true    -o=set -parallel=4096 -total=100000
 ./example -h=localhost -p=9003 -path="raft.example/node.tn.3" -join=false -peers="localhost:9001;localhost:9002;localhost:9003" -log=true -b=true    -o=set -parallel=4096 -total=100000
 ```
-** three nodes readindex **
+**three nodes readindex**
 ```sh
 ./example -h=localhost -p=9001 -path="raft.example/node.tn.1" -join=false -peers="localhost:9001;localhost:9002;localhost:9003" -log=true -b=true    -o=readindex -parallel=4096 -total=100000
 ./example -h=localhost -p=9002 -path="raft.example/node.tn.2" -join=false -peers="localhost:9001;localhost:9002;localhost:9003" -log=true -b=true    -o=readindex -parallel=4096 -total=100000
 ./example -h=localhost -p=9003 -path="raft.example/node.tn.3" -join=false -peers="localhost:9001;localhost:9002;localhost:9003" -log=true -b=true    -o=readindex -parallel=4096 -total=100000
 ```
-** three nodes lease **
+**three nodes lease**
 ```sh
 ./example -h=localhost -p=9001 -path="raft.example/node.tn.1" -join=false -peers="localhost:9001;localhost:9002;localhost:9003" -log=true -b=true    -o=lease -parallel=4096 -total=100000
 ./example -h=localhost -p=9002 -path="raft.example/node.tn.2" -join=false -peers="localhost:9001;localhost:9002;localhost:9003" -log=true -b=true    -o=lease -parallel=4096 -total=100000
