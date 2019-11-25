@@ -6,7 +6,6 @@
 * Non-Voting Members
 * Membership Changes
 
-```
 ### helloworld.go
 ```
 package main
