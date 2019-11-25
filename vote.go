@@ -80,6 +80,9 @@ func (votes *Votes)Reset(count int) {
 	if votes.vote!=nil{
 		close(votes.vote)
 	}
+	if count==0{
+		count=1
+	}
 	votes.vote=make(chan *Vote,count)
 }
 

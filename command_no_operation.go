@@ -1,20 +1,18 @@
 package raft
 
-type noOperationCommand struct {
+
+func NewNoOperationCommand() Command {
+	return &NoOperationCommand{}
 }
 
-func newNoOperationCommand() Command {
-	return &noOperationCommand{}
-}
-
-func (c *noOperationCommand) Type()int32{
+func (c *NoOperationCommand) Type()int32{
 	return CommandTypeNoOperation
 }
 
-func (c *noOperationCommand) UniqueID()string {
+func (c *NoOperationCommand) UniqueID()string {
 	return ""
 }
 
-func (c *noOperationCommand) Do(context interface{})(interface{},error){
+func (c *NoOperationCommand) Do(context interface{})(interface{},error){
 	return true,nil
 }

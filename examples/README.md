@@ -1,30 +1,13 @@
-# RAFT
-A Golang implementation of the Raft distributed consensus protocol.
+# Examples
 
-## Features
-
-* Leader Election
-* Log Replication
-* Membership Changes
-* Log Compaction (Snapshotting)
-* [RPC](https://hslam.com/git/x/rpc "rpc") transport
-* ReadIndex/Lease Read
-* Non-Voting Members (The leader only replicates log entries to them)
-
-## Projects
-
-* [helloworld](https://hslam.com/git/x/raft/src/master/examples/helloworld "helloworld")
-* [example](https://hslam.com/git/x/raft/src/master/examples/example "example")
-* [raftdb](https://hslam.com/git/x/raftdb "raftdb")
-
-
-### [HelloWorld](https://hslam.com/git/x/raft/src/master/examples/helloworld "helloworld")
+## [HelloWorld](https://hslam.com/git/x/raft/src/master/examples/helloworld "helloworld")
 
 * Leader Election
 * Non-Voting Members
 * Membership Changes
 
-#### helloworld.go
+```
+### helloworld.go
 ```
 package main
 
@@ -105,7 +88,7 @@ func main() {
 ./node -h=localhost -p=9003 -path="raft.helloworld/node.mc.3" -join=true -peers="localhost:9001;localhost:9002;localhost:9003"
 ```
 
-### [Example](https://hslam.com/git/x/raft/src/master/examples/example "example")
+## [Example](https://hslam.com/git/x/raft/src/master/examples/example "example")
 
 * Leader Election
 * Non-Voting Members
@@ -145,9 +128,10 @@ func main() {
 ./example -h=localhost -p=9002 -path="raft.example/node.tn.2" -join=false -peers="localhost:9001;localhost:9002;localhost:9003" -log=true -b=true    -o=lease -parallel=4096 -total=100000
 ./example -h=localhost -p=9003 -path="raft.example/node.tn.3" -join=false -peers="localhost:9001;localhost:9002;localhost:9003" -log=true -b=true    -o=lease -parallel=4096 -total=100000
 ```
-### [RaftDB](https://hslam.com/git/x/raftdb "raftdb") Benchmark
 
-#### Linux Environment
+## [RaftDB](https://hslam.com/git/x/raftdb "raftdb") BenchMark
+
+### Linux Environment
 * **CPU** 12 Cores 3.1 GHz
 * **Memory** 24 GiB
 
@@ -231,9 +215,3 @@ Result:
 	Response ok:	100000 (100.00%)
 	Errors:	0 (0.00%)
 ```
-
-## Licence
-This package is licenced under a MIT licence (Copyright (c) 2019 Mort Huang)
-
-## Authors
-raft was written by Mort Huang.

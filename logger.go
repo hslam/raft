@@ -26,7 +26,7 @@ var logLevel Level
 var Logger *log.Logger
 
 func init() {
-	SetLogLevel(DebugLevel)
+	SetLogLevel(NoLevel)
 	InitLog()
 }
 func InitLog() {

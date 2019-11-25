@@ -68,5 +68,39 @@ message ConfigurationStorage {
 
 message NodeInfo {
     string          Address     = 1;
-    bytes           Data        = 2;
+    bool            NonVoting   = 2;
+    bytes           Data        = 3;
+}
+
+message AddPeerCommand {
+    NodeInfo    NodeInfo    = 1;
+}
+message RemovePeerCommand {
+    string      Address     = 1;
+}
+message NoOperationCommand {
+}
+message ReconfigurationCommand {
+}
+message QueryLeaderRequest {
+}
+message QueryLeaderResponse {
+    uint64  Term        = 1;
+    string  LeaderId    = 2;
+}
+
+message AddPeerRequest {
+    NodeInfo    Node        = 1;
+}
+
+message AddPeerResponse {
+    bool    Success     = 1;
+}
+
+message RemovePeerRequest {
+    string      Address     = 1;
+}
+
+message RemovePeerResponse {
+    bool        Success     = 1;
 }

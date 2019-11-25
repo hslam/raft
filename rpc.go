@@ -14,6 +14,9 @@ const (
 	RequestVoteName = "R"
 	AppendEntriesName = "A"
 	InstallSnapshotName = "I"
+	QueryLeaderName = "Q"
+	AddPeerName = "J"
+	RemovePeerName = "L"
 )
 
 func listenAndServe(address string,node *Node){
@@ -43,30 +46,34 @@ func newRPCs() *RPCs{
 	return r
 }
 
-func (r *RPCs) ServiceAppendEntriesName() string {
+func (r *RPCs) AppendEntriesServiceName() string {
 	return ServiceName+"."+AppendEntriesName
 }
 
-func (r *RPCs) ServiceRequestVoteName() string {
+func (r *RPCs) RequestVoteServiceName() string {
 	return ServiceName+"."+RequestVoteName
 }
 
-func (r *RPCs) ServiceInstallSnapshotName() string {
+func (r *RPCs) InstallSnapshotServiceName() string {
 	return ServiceName+"."+InstallSnapshotName
+}
+
+func (r *RPCs) QueryLeaderServiceName() string {
+	return ServiceName+"."+QueryLeaderName
+}
+
+func (r *RPCs) AddPeerServiceName() string {
+	return ServiceName+"."+AddPeerName
+}
+
+func (r *RPCs) RemovePeerServiceName() string {
+	return ServiceName+"."+RemovePeerName
 }
 
 func (r *RPCs) Ping(addr string)bool {
 	return r.conns.Ping(addr)
 }
 
-func (r *RPCs) CallRequestVote(addr string,req *RequestVoteRequest, res *RequestVoteResponse)error {
-	return r.conns.Call(r.ServiceRequestVoteName(),req,res,addr)
-}
-
-func (r *RPCs) CallAppendEntries(addr string,req *AppendEntriesRequest, res *AppendEntriesResponse)error {
-	return r.conns.Call(r.ServiceAppendEntriesName(),req,res,addr)
-}
-
-func (r *RPCs) CallInstallSnapshot(addr string,req *InstallSnapshotRequest,res *InstallSnapshotResponse)error {
-	return r.conns.Call(r.ServiceInstallSnapshotName(),req,res,addr)
+func (r *RPCs) Call(name string,req interface{}, res interface{},addr string)error {
+	return r.conns.Call(name,req,res,addr)
 }

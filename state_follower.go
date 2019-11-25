@@ -1,6 +1,8 @@
 package raft
 
-import "time"
+import (
+	"time"
+)
 
 type FollowerState struct{
 	node							*Node
@@ -22,7 +24,7 @@ func (state *FollowerState)Start(){
 	state.node.leader=""
 	state.node.election.Random(true)
 	state.node.election.Reset()
-	Debugf("%s FollowerState.Reset Term :%d",state.node.address,state.node.currentTerm.Id())
+	Infof("%s FollowerState.Reset Term :%d",state.node.address,state.node.currentTerm.Id())
 }
 
 func (state *FollowerState) Update()bool{
@@ -55,6 +57,11 @@ func (state *FollowerState) Update()bool{
 
 func (state *FollowerState)FixedUpdate(){
 	if state.node.election.Timeout(){
+		state.node.leader=""
+		state.node.votedFor.Set("")
+		if !state.node.voting(){
+			return
+		}
 		Tracef("%s FollowerState.Update ElectionTimeout",state.node.address)
 		state.node.nextState()
 		return
@@ -70,6 +77,9 @@ func (state *FollowerState)StepDown()State{
 	return state
 }
 func (state *FollowerState)NextState()State{
+	if !state.node.voting(){
+		return state
+	}
 	Tracef("%s FollowerState.NextState",state.node.address)
 	return newCandidateState(state.node)
 }

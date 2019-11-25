@@ -1,12 +1,10 @@
 package raft
 
-type RemovePeerCommand struct {
-	addr string
-}
+import "fmt"
 
 func NewRemovePeerCommand(address string) Command {
 	return &RemovePeerCommand{
-		addr:address,
+		Address:address,
 	}
 }
 func (c *RemovePeerCommand) Type() int32 {
@@ -14,11 +12,13 @@ func (c *RemovePeerCommand) Type() int32 {
 }
 
 func (c *RemovePeerCommand) UniqueID() string{
-	return c.addr
+	return c.Address
 }
 
 func (c *RemovePeerCommand) Do(context interface{})(interface{},error){
+	fmt.Println("ReconfigurationCommand")
+	return nil, nil
 	node := context.(*Node)
-	node.stateMachine.configuration.RemovePeer(c.addr)
+	node.stateMachine.configuration.RemovePeer(c.Address)
 	return nil, nil
 }

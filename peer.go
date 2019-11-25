@@ -15,6 +15,8 @@ type Peer struct {
 	send 					bool
 	tarWork 				bool
 	install 				bool
+	nonVoting				bool
+	majorities				bool
 	size   					uint64
 	offset 					uint64
 	chunk 					int
@@ -25,6 +27,7 @@ func newPeer(node *Node, address string) *Peer {
 	p:=&Peer{
 		node :					node,
 		address :				address,
+		nextIndex: 				1,
 		send:					true,
 		tarWork: 				true,
 		install:				true,
@@ -90,6 +93,11 @@ func (p *Peer) ping() {
 	p.alive=p.node.rpcs.Ping(p.address)
 	//Debugf("Peer.ping %s %t",p.address,p.alive)
 }
+
+func (p *Peer)voting() bool{
+	return !p.nonVoting&&p.majorities
+}
+
 func (p *Peer) check() {
 	if p.node.lastLogIndex>p.nextIndex-1&&p.nextIndex>0{
 		if ((p.nextIndex==1||p.nextIndex-1<p.node.firstLogIndex)&&p.node.commitIndex.Id()>1)||p.node.lastLogIndex-(p.nextIndex-1)>DefaultNumInstallSnapshot&&p.install{

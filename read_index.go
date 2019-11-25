@@ -64,7 +64,7 @@ func (r *ReadIndex) Update() bool{
 		if _,ok:=r.m[r.id];ok{
 			if len(r.m[r.id])>0{
 				go func(node *Node,id uint64) {
-					noOperationCommand:=newNoOperationCommand()
+					noOperationCommand:=NewNoOperationCommand()
 					if ok, _ := node.do(noOperationCommand,DefaultCommandTimeout);ok!=nil{
 						r.reply(id,true)
 						return

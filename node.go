@@ -57,7 +57,6 @@ type Node struct {
 
 	firstLogIndex					uint64
 	lastLogIndex					uint64
-	//lastLogIndex					*PersistentUint64
 	lastLogTerm						uint64
 	nextIndex						uint64
 
@@ -78,7 +77,6 @@ type Node struct {
 	ready 							bool
 
 	raftCodec						Codec
-	commandCodec					Codec
 	codec							Codec
 
 	context 						interface{}
@@ -87,10 +85,12 @@ type Node struct {
 	pipelineChan					chan bool
 
 	commitWork 						bool
-
+	join 							bool
+	nonVoting						bool
+	majorities						bool
 }
 
-func NewNode(host string, port int,data_dir string,context interface{},nodes []*NodeInfo)(*Node,error){
+func NewNode(host string, port int,data_dir string,context interface{},join bool,nodes []*NodeInfo)(*Node,error){
 	if data_dir == "" {
 		data_dir=DefaultDataDir
 	}
@@ -111,11 +111,11 @@ func NewNode(host string, port int,data_dir string,context interface{},nodes []*
 		changeStateChan: make(chan int,1),
 		heartbeatTick:DefaultHeartbeatTick,
 		raftCodec:new(ProtoCodec),
-		commandCodec:new(JsonCodec),
 		codec:new(JsonCodec),
 		context:context,
 		commandType:&CommandType{types:make(map[int32]Command)},
 		nextIndex:1,
+		join:join,
 	}
 	n.storage=newStorage(n,data_dir)
 	n.votes=newVotes(n)
@@ -132,7 +132,29 @@ func NewNode(host string, port int,data_dir string,context interface{},nodes []*
 	n.state=newFollowerState(n)
 	n.pipeline=NewPipeline(n,DefaultMaxConcurrency)
 	n.pipelineChan = make(chan bool,DefaultMaxConcurrency)
-	n.registerCommand(&noOperationCommand{})
+	n.registerCommand(&NoOperationCommand{})
+	n.registerCommand(&AddPeerCommand{})
+	n.registerCommand(&RemovePeerCommand{})
+	n.registerCommand(&ReconfigurationCommand{})
+	if join{
+		n.majorities=false
+		go func() {
+			nodeInfo:=n.stateMachine.configuration.LookupPeer(n.address)
+			if nodeInfo==nil{
+				return
+			}
+			for {
+				time.Sleep(time.Second)
+				if n.running{
+					if n.Join(nodeInfo){
+						break
+					}
+				}
+			}
+		}()
+	}else {
+		n.majorities=true
+	}
 	return n,nil
 }
 func (n *Node) Start() {
@@ -257,6 +279,9 @@ func (n *Node)Stoped() bool{
 	n.mu.RLock()
 	defer n.mu.RUnlock()
 	return n.stoped
+}
+func (n *Node)voting() bool{
+	return !n.nonVoting&&n.majorities
 }
 
 func (n *Node) setState(state State) {
@@ -421,7 +446,7 @@ func (n *Node)do(command Command,timeout time.Duration) (interface{},error){
 			if command.Type()>=0{
 				invoker=newInvoker(command,false,n.codec)
 			}else {
-				invoker=newInvoker(command,false,n.commandCodec)
+				invoker=newInvoker(command,false,n.raftCodec)
 			}
 			replyChan:=make(chan interface{},1)
 			errChan:=make(chan error,1)
@@ -469,24 +494,79 @@ func (n *Node) Peers() []string {
 	}
 	return peers
 }
-
+func(n *Node) Join(info *NodeInfo)(success bool){
+	leader:=n.Leader()
+	if leader!=""{
+		success,ok:=n.raft.AddPeer(leader,info)
+		if success&&ok{
+			return true
+		}
+	}
+	peers:=n.Peers()
+	for i:=0;i<len(peers) ;i++  {
+		_,leaderId,ok:=n.raft.QueryLeader(peers[i])
+		if leaderId!=""&&ok{
+			success,ok:=n.raft.AddPeer(leaderId,info)
+			if success&&ok{
+				return true
+			}
+		}
+	}
+	return false
+}
+func(n *Node) Leave(Address string)(success bool,ok bool){
+	leader:=n.Leader()
+	if leader!=""{
+		return n.raft.RemovePeer(leader,Address)
+	}
+	peers:=n.Peers()
+	for i:=0;i<len(peers) ;i++  {
+		_,leaderId,ok:=n.raft.QueryLeader(peers[i])
+		if leaderId!=""&&ok{
+			n.raft.RemovePeer(leaderId,Address)
+		}
+	}
+	return
+}
 func (n *Node) setNodes(nodes []*NodeInfo) {
 	n.stateMachine.configuration.SetNodes(nodes)
-	n.stateMachine.configuration.save()
 	n.stateMachine.configuration.load()
+	for _,v:=range n.peers{
+		v.majorities=true
+	}
+	n.resetVotes()
 }
-func (n *Node) addNode(address string) {
+func (n *Node) addNode(info *NodeInfo) {
 	n.nodesMut.Lock()
 	defer n.nodesMut.Unlock()
-	if n.peers[address] != nil {
+	if _,ok:=n.peers[info.Address];ok {
+		n.peers[info.Address].nonVoting=info.NonVoting
 		return
 	}
-	if n.address != address {
-		client := newPeer(n,address)
-		n.peers[address] = client
+	if n.address != info.Address {
+		peer := newPeer(n,info.Address)
+		peer.nonVoting=info.NonVoting
+		n.peers[info.Address] = peer
+	}else {
+		n.nonVoting=info.NonVoting
 	}
-	n.votes.Reset(len(n.peers)+1)
+	n.resetVotes()
 	return
+}
+func (n *Node) resetVotes() {
+	if n.votingsCount()==0{
+		n.votes.Reset(1)
+	}
+	n.votes.Reset(n.votingsCount())
+	return
+}
+func (n *Node) consideredForMajorities() {
+	n.nodesMut.Lock()
+	defer n.nodesMut.Unlock()
+	n.majorities=true
+	for _,v:=range n.peers{
+		v.majorities=true
+	}
 }
 func (n *Node) deleteNotPeers(peers []string) {
 	if len(peers)==0{
@@ -526,7 +606,19 @@ func (n *Node) Quorum() int {
 	return n.quorum()
 }
 func (n *Node) quorum() int {
-	return len(n.peers)/2+1
+	return n.votingsCount()/2+1
+}
+func (n *Node) votingsCount() int{
+	cnt:=0
+	for _,v:=range n.peers{
+		if v.voting(){
+			cnt+=1
+		}
+	}
+	if n.voting(){
+		cnt+=1
+	}
+	return cnt
 }
 func (n *Node) AliveCount() int {
 	n.nodesMut.RLock()
@@ -534,11 +626,9 @@ func (n *Node) AliveCount() int {
 	return n.aliveCount()
 }
 func (n *Node) aliveCount() int {
-	n.nodesMut.RLock()
-	defer n.nodesMut.RUnlock()
 	cnt:=1
 	for _,v:=range n.peers{
-		if v.alive==true{
+		if v.alive==true&&v.voting(){
 			cnt+=1
 		}
 	}
@@ -550,7 +640,7 @@ func (n *Node) requestVotes() error {
 	n.votes.Clear()
 	n.votes.vote<-newVote(n.address,n.currentTerm.Id(),1)
 	for _,v :=range n.peers{
-		if v.alive==true{
+		if v.alive==true&&v.voting(){
 			go v.requestVote()
 		}
 	}
@@ -695,6 +785,10 @@ func (n *Node) checkLog() error {
 	}
 	if n.storage.IsEmpty(DefaultSnapshot)&&n.stateMachine.snapshot!=nil&&!n.storage.IsEmpty(DefaultIndex)&&!n.storage.IsEmpty(DefaultLog)&&!n.storage.IsEmpty(DefaultCommitIndex){
 		n.stateMachine.SaveSnapshot()
+	}else {
+		if !n.storage.Exists(DefaultSnapshot) {
+			n.storage.Truncate(DefaultSnapshot,1)
+		}
 	}
 	if n.isLeader()&&n.storage.IsEmpty(n.stateMachine.snapshotReadWriter.FileName())&&!n.storage.IsEmpty(DefaultIndex)&&!n.storage.IsEmpty(DefaultLog)&&!n.storage.IsEmpty(DefaultCommitIndex)&&!n.storage.IsEmpty(DefaultSnapshot)&&!n.storage.IsEmpty(DefaultLastIncludedIndex)&&!n.storage.IsEmpty(DefaultLastIncludedTerm){
 		n.stateMachine.snapshotReadWriter.lastTarIndex.Set(0)
@@ -734,23 +828,23 @@ func (n *Node) printPeers(){
 
 func (n *Node) print(){
 	if n.firstLogIndex>n.lastPrintFirstLogIndex{
-		Tracef("Node.print %s firstLogIndex %d==>%d",n.address,n.lastPrintFirstLogIndex,n.firstLogIndex)
+		Infof("Node.print %s firstLogIndex %d==>%d",n.address,n.lastPrintFirstLogIndex,n.firstLogIndex)
 		n.lastPrintFirstLogIndex=n.firstLogIndex
 	}
 	if n.lastLogIndex>n.lastPrintLastLogIndex{
-		Tracef("Node.print %s lastLogIndex %d==>%d",n.address,n.lastPrintLastLogIndex,n.lastLogIndex)
+		Infof("Node.print %s lastLogIndex %d==>%d",n.address,n.lastPrintLastLogIndex,n.lastLogIndex)
 		n.lastPrintLastLogIndex=n.lastLogIndex
 	}
 	if n.commitIndex.Id()>n.lastPrintCommitIndex{
-		Tracef("Node.print %s commitIndex %d==>%d",n.address,n.lastPrintCommitIndex,n.commitIndex.Id())
+		Infof("Node.print %s commitIndex %d==>%d",n.address,n.lastPrintCommitIndex,n.commitIndex.Id())
 		n.lastPrintCommitIndex=n.commitIndex.Id()
 	}
 	if n.stateMachine.lastApplied>n.lastPrintLastApplied{
-		Tracef("Node.print %s lastApplied %d==>%d",n.address,n.lastPrintLastApplied,n.stateMachine.lastApplied)
+		Infof("Node.print %s lastApplied %d==>%d",n.address,n.lastPrintLastApplied,n.stateMachine.lastApplied)
 		n.lastPrintLastApplied=n.stateMachine.lastApplied
 	}
 	if n.nextIndex>n.lastPrintNextIndex{
-		Tracef("Node.print %s nextIndex %d==>%d",n.address,n.lastPrintNextIndex,n.nextIndex)
+		Infof("Node.print %s nextIndex %d==>%d",n.address,n.lastPrintNextIndex,n.nextIndex)
 		n.lastPrintNextIndex=n.nextIndex
 	}
 	n.printPeers()
@@ -758,7 +852,7 @@ func (n *Node) print(){
 func (n *Node) commit() bool {
 	n.nodesMut.RLock()
 	defer n.nodesMut.RUnlock()
-	if len(n.peers)==0{
+	if n.votingsCount()==1{
 		index:=n.lastLogIndex
 		if index>n.commitIndex.Id(){
 			n.storage.Sync(n.log.name)
@@ -781,6 +875,9 @@ func (n *Node) commit() bool {
 	var lastLogIndexs	=make([]uint64,1)
 	lastLogIndexs[0]=n.lastLogIndex
 	for _,v :=range n.peers{
+		if !v.voting(){
+			continue
+		}
 		lastLogIndexs=append(lastLogIndexs, v.nextIndex-1)
 	}
 	quickSort(lastLogIndexs,-999,-999)

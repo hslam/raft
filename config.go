@@ -19,6 +19,9 @@ const (
 	DefaultRequestVoteTimeout = 1000 * time.Millisecond
 	DefaultAppendEntriesTimeout = 10*1000 * time.Millisecond
 	DefaultInstallSnapshotTimeout = 60*1000 * time.Millisecond
+	DefaultQueryLeaderTimeout = 60*1000 * time.Millisecond
+	DefaultAddPeerTimeout = 60*1000 * time.Millisecond
+	DefaultRemovePeerTimeout = 60*1000 * time.Millisecond
 
 	DefaultCommandTimeout = 60*1000 * time.Millisecond
 	DefaultMaxConcurrencyRead = 1024*1024
@@ -52,6 +55,7 @@ const (
 	CommandTypeNoOperation =-1
 	CommandTypeAddPeer =-2
 	CommandTypeRemovePeer =-3
+	CommandTypeReconfiguration =-4
 
 	DefaultNumInstallSnapshot = 1<<24
 	DefaultMaxEntriesPerFile = 1 << 27

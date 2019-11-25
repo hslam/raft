@@ -34,7 +34,7 @@ type SnapshotReadWriter struct {
 	ticker				*time.Ticker
 	tarWork 			bool
 	done 				bool
-	gzip 					bool
+	gzip 				bool
 }
 func newSnapshotReadWriter(node *Node,name string,gzip bool)*SnapshotReadWriter  {
 	s:=&SnapshotReadWriter{

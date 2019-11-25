@@ -18,6 +18,9 @@ func newConfiguration(node *Node) *Configuration {
 		nodes:make(map[string]*NodeInfo),
 	}
 	c.load()
+	if _,ok:=c.nodes[c.node.address];!ok{
+		c.AddPeer(&NodeInfo{Address:c.node.address})
+	}
 	return c
 }
 
@@ -25,14 +28,17 @@ func (c *Configuration) SetNodes(nodes []*NodeInfo){
 	for _,v:=range nodes{
 		c.nodes[v.Address]=v
 	}
+	c.save()
 }
 func (c *Configuration) AddPeer(peer *NodeInfo){
 	c.nodes[peer.Address]=peer
+	c.save()
 }
 func (c *Configuration) RemovePeer(addr string){
 	if _,ok:=c.nodes[addr];ok{
 		delete(c.nodes,addr)
 	}
+	c.save()
 }
 func (c *Configuration) LookupPeer(addr string)*NodeInfo{
 	if v,ok:=c.nodes[addr];ok{
@@ -80,12 +86,26 @@ func (c *Configuration) load() error {
 		c.nodes[v.Address]=v
 	}
 	if !c.membershipChanges(){
-		Traceln("Configuration.load !membershipChanges")
+		Infof("Configuration.reconfiguration !membershipChanges")
 		return nil
 	}
+	lastNodesCount:=c.node.NodesCount()
 	c.node.deleteNotPeers(c.Peers())
 	for _, v := range c.storage.Nodes {
-		c.node.addNode(v.Address)
+		c.node.addNode(v)
+	}
+	nodesCount:=c.node.NodesCount()
+	if lastNodesCount!=nodesCount{
+		Infof("Configuration.load %s NodesCount %d==>%d",c.node.address,lastNodesCount,nodesCount)
+	}
+	return nil
+}
+func (c *Configuration)reconfiguration() error {
+	lastVotingsCount:=c.node.votingsCount()
+	c.node.consideredForMajorities()
+	votingsCount:=c.node.votingsCount()
+	if lastVotingsCount!=votingsCount{
+		Tracef("Configuration.load %s VotingsCount %d==>%d",c.node.address,lastVotingsCount,votingsCount)
 	}
 	return nil
 }
@@ -97,3 +117,4 @@ func  (c *Configuration) membershipChanges()bool {
 	sort.Strings(new_peers)
 	return !reflect.DeepEqual(old_peers, new_peers)
 }
+

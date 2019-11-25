@@ -258,14 +258,14 @@ func (log *Log) applyCommitedRange(startIndex uint64,endIndex uint64) {
 		command:=log.node.commandType.clone(entries[i].CommandType)
 		var err error
 		if entries[i].CommandType>=0{
-			err=log.node.raftCodec.Decode(entries[i].Command,command)
+			err=log.node.codec.Decode(entries[i].Command,command)
 		}else {
-			err=log.node.commandCodec.Decode(entries[i].Command,command)
+			err=log.node.raftCodec.Decode(entries[i].Command,command)
 		}
 		if err==nil{
 			log.node.stateMachine.apply(entries[i].Index,command)
 		}else {
-			Errorf("Log.applyCommitedRange %s error %s",log.node.address,err)
+			Errorf("Log.applyCommitedRange %s %d error %s",log.node.address,i,err)
 		}
 	}
 	log.putEmtyEntries(entries)
