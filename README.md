@@ -81,7 +81,7 @@ func main() {
 ```
 **one node**
 ```sh
-./node -h=localhost -p=9001 -path="default.raft/node.1" -join=false -peers="localhost:9001"
+./node -h=localhost -p=9001 -path="raft.helloworld/node.1" -join=false -peers="localhost:9001"
 ```
 **three nodes**
 ```sh
