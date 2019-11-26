@@ -14,8 +14,8 @@ type StateMachine struct {
 	snapshot						Snapshot
 	snapshotReadWriter				*SnapshotReadWriter
 	snapshotPolicy					SnapshotPolicy
-	snapshotSyncs					[]*SnapshotSync
-	saves 							[][]int
+	snapshotSyncs					[]*snapshotSync
+	saves 							[]*SyncType
 	saveLog 						bool
 	always 							bool
 }
@@ -24,7 +24,7 @@ func newStateMachine(node *Node)*StateMachine {
 		node:node,
 		configuration:newConfiguration(node),
 		snapshotReadWriter:newSnapshotReadWriter(node,DefaultSnapshot,false),
-		saves:[][]int{},
+		saves:[]*SyncType{},
 	}
 	s.SetSnapshotPolicy(DefalutSync)
 	return s
@@ -71,35 +71,35 @@ func (s *StateMachine)setSnapshotPolicy(snapshotPolicy SnapshotPolicy){
 		s.Stop()
 	case EverySecond:
 		s.Stop()
-		s.snapshotSyncs=append(s.snapshotSyncs, newSnapshotSync(s,1,1))
+		s.snapshotSyncs=append(s.snapshotSyncs, newSnapshotSync(s,&SyncType{1,1}))
 		go s.run()
 	case EveryMinute:
 		s.Stop()
-		s.snapshotSyncs=append(s.snapshotSyncs, newSnapshotSync(s,60,1))
+		s.snapshotSyncs=append(s.snapshotSyncs, newSnapshotSync(s,&SyncType{60,1}))
 		go s.run()
 	case EveryHour:
 		s.Stop()
-		s.snapshotSyncs=append(s.snapshotSyncs, newSnapshotSync(s,3600,1))
+		s.snapshotSyncs=append(s.snapshotSyncs, newSnapshotSync(s,&SyncType{3600,1}))
 		go s.run()
 	case EveryDay:
 		s.Stop()
-		s.snapshotSyncs=append(s.snapshotSyncs, newSnapshotSync(s,86400,1))
+		s.snapshotSyncs=append(s.snapshotSyncs, newSnapshotSync(s,&SyncType{86400,1}))
 		go s.run()
 	case DefalutSync:
 		s.Stop()
-		s.saves=[][]int{
+		s.saves=[]*SyncType{
 			{SecondsSaveSnapshot1,ChangesSaveSnapshot1},
 			{SecondsSaveSnapshot2,ChangesSaveSnapshot2},
 			{SecondsSaveSnapshot3,ChangesSaveSnapshot3},
 		}
 		for _,v:=range s.saves{
-			s.snapshotSyncs=append(s.snapshotSyncs, newSnapshotSync(s,v[0],v[1]))
+			s.snapshotSyncs=append(s.snapshotSyncs, newSnapshotSync(s,v))
 		}
 		go s.run()
 	case CustomSync:
 		s.Stop()
 		for _,v:=range s.saves{
-			s.snapshotSyncs=append(s.snapshotSyncs, newSnapshotSync(s,v[0],v[1]))
+			s.snapshotSyncs=append(s.snapshotSyncs, newSnapshotSync(s,v))
 		}
 		go s.run()
 	case Always:
@@ -111,14 +111,14 @@ func (s *StateMachine)setSnapshotPolicy(snapshotPolicy SnapshotPolicy){
 func (s *StateMachine)ClearSyncType(){
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.saves=[][]int{}
+	s.saves=[]*SyncType{}
 }
 func (s *StateMachine)AppendSyncType(seconds,changes int){
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.saves=append(s.saves, []int{seconds,changes})
+	s.saves=append(s.saves, &SyncType{seconds,changes})
 }
-func (s *StateMachine)SetSyncType(saves [][]int){
+func (s *StateMachine)SetSyncTypes(saves []*SyncType){
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.saves=saves
@@ -244,5 +244,5 @@ func (s *StateMachine)Stop()  {
 			snapshotSync=nil
 		}
 	}
-	s.snapshotSyncs=make([]*SnapshotSync,0)
+	s.snapshotSyncs=make([]*snapshotSync,0)
 }

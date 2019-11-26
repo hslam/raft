@@ -4,31 +4,35 @@ import (
 	"time"
 )
 
-type SnapshotSync struct {
+type SyncType struct {
+	Seconds int
+	Changes int
+}
+
+
+type snapshotSync struct {
 	stateMachine *StateMachine
 	ticker *time.Ticker
-	seconds int
-	changes int
+	syncType *SyncType
 }
-func newSnapshotSync(s *StateMachine ,seconds int,changes int)*SnapshotSync {
-	return &SnapshotSync{
+func newSnapshotSync(s *StateMachine ,syncType *SyncType)*snapshotSync {
+	return &snapshotSync{
 		stateMachine:s,
-		ticker:time.NewTicker(time.Second*time.Duration(seconds)),
-		seconds:seconds,
-		changes:changes,
+		ticker:time.NewTicker(time.Second*time.Duration(syncType.Seconds)),
+		syncType :syncType,
 	}
 }
 
-func (s *SnapshotSync)run()  {
+func (s *snapshotSync)run()  {
 	for range s.ticker.C{
 		changes:=s.stateMachine.lastApplied-s.stateMachine.snapshotReadWriter.lastIncludedIndex.Id()
-		if changes>=uint64(s.changes){
+		if changes>=uint64(s.syncType.Changes){
 			s.stateMachine.SaveSnapshot()
 		}
 	}
 }
 
-func (s *SnapshotSync)Stop()  {
+func (s *snapshotSync)Stop()  {
 	if s.ticker!=nil{
 		s.ticker.Stop()
 		s.ticker=nil

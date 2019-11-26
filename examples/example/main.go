@@ -63,10 +63,10 @@ func main() {
 	node.RegisterCommand(&Command{})
 	node.SetCodec(&raft.JsonCodec{})
 	node.SetSnapshot(&Snapshot{})
-	node.SetSyncType([][]int{
-		{900,1},
-		{300,10},
-		{60,10000},
+	node.SetSyncTypes([]*raft.SyncType{
+		{Seconds:900,Changes:1},
+		{Seconds:300,Changes:10},
+		{Seconds:60,Changes:10000},
 	})
 	node.Start()
 	if benchmark{

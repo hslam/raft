@@ -406,8 +406,8 @@ func (n *Node)AppendSyncType(seconds,changes int){
 	n.stateMachine.AppendSyncType(seconds,changes)
 }
 
-func (n *Node)SetSyncType(saves [][]int){
-	n.stateMachine.SetSyncType(saves)
+func (n *Node)SetSyncTypes(saves []*SyncType){
+	n.stateMachine.SetSyncTypes(saves)
 }
 
 func (n *Node)RegisterCommand(command Command) (error){
