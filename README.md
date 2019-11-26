@@ -47,7 +47,7 @@ func init() {
 	flag.IntVar(&port, "p", 9001, "port")
 	flag.StringVar(&path, "path", "node.1", "data dir")
 	flag.BoolVar(&join, "join", false, "")
-	flag.StringVar(&peers, "peers", "", "host:port,nonVoting;host:port,nonVoting;")
+	flag.StringVar(&peers, "peers", "localhost:9001,false;", "host:port,nonVoting;host:port,nonVoting;")
 }
 func main() {
 	flag.Parse()
