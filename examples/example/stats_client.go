@@ -14,20 +14,19 @@ type Client struct {
 func (c *Client)Call()(int64,int64,bool){
 	switch c.operation {
 	case "set":
-		key:= RandString(16)
-		c.node.Do(&Command{Key:key})
+		c.node.Do(&Command{RandString(16)})
 		return 0,0,true
 	case "lease":
 		if ok:=c.node.Lease();ok{
-			value := c.ctx.Get("foo")
-			if value=="bar"{
+			value := c.ctx.Get()
+			if value=="foobar"{
 				return 0,0,true
 			}
 		}
 	case "readindex":
 		if ok:=c.node.ReadIndex();ok{
-			value := c.ctx.Get("foo")
-			if value=="bar"{
+			value := c.ctx.Get()
+			if value=="foobar"{
 				return 0,0,true
 			}
 		}

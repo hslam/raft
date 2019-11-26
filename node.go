@@ -390,8 +390,8 @@ func (n *Node)GzipSnapshot(){
 	n.stateMachine.snapshotReadWriter.Gzip(true)
 }
 
-func (n *Node)SetSnapshotSyncType(snapshotSyncType SnapshotSyncType){
-	n.stateMachine.SetSnapshotSyncType(snapshotSyncType)
+func (n *Node)SetSnapshotPolicy(snapshotPolicy SnapshotPolicy){
+	n.stateMachine.SetSnapshotPolicy(snapshotPolicy)
 }
 
 func (n *Node)SetSnapshot(snapshot Snapshot){
@@ -787,7 +787,7 @@ func (n *Node) checkLog() error {
 	}
 	if n.storage.IsEmpty(DefaultSnapshot)&&n.stateMachine.snapshot!=nil&&!n.storage.IsEmpty(DefaultIndex)&&!n.storage.IsEmpty(DefaultLog)&&!n.storage.IsEmpty(DefaultCommitIndex){
 		n.stateMachine.SaveSnapshot()
-	}else {
+	}else if n.stateMachine.snapshot==nil{
 		if !n.storage.Exists(DefaultSnapshot) {
 			n.storage.Truncate(DefaultSnapshot,1)
 		}

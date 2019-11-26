@@ -60,16 +60,21 @@ func main() {
 	if err!=nil{
 		panic(err)
 	}
-
 	node.RegisterCommand(&Command{})
 	node.SetCodec(&raft.JsonCodec{})
+	node.SetSnapshot(&Snapshot{})
+	node.SetSyncType([][]int{
+		{900,1},
+		{300,10},
+		{60,10000},
+	})
 	node.Start()
 	if benchmark{
 		go func() {
 			for {
 				time.Sleep(time.Second*5)
 				if node.IsLeader(){
-					node.Do(&Command{Key:"foo",Value:"bar"})
+					node.Do(&Command{"foobar"})
 					var Clients =make([]stats.Client,1)
 					Clients[0]=&Client{node:node,ctx:ctx,operation:operation}
 					stats.StartPrint(parallel,total_calls,Clients)

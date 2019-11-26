@@ -5,20 +5,20 @@ import (
 )
 type Context struct {
 	mut sync.RWMutex
-	data  map[string]string
+	data  string
 }
 
 func NewContext() *Context {
-	return &Context{data:make(map[string]string)}
+	return &Context{data:""}
 }
-func (ctx *Context) Set(key string, value string) {
+func (ctx *Context) Set(value string) {
 	ctx.mut.Lock()
 	defer ctx.mut.Unlock()
-	ctx.data[key] = value
+	ctx.data = value
 }
-func (ctx *Context) Get(key string) string {
+func (ctx *Context) Get() string {
 	ctx.mut.RLock()
 	defer ctx.mut.RUnlock()
-	return ctx.data[key]
+	return ctx.data
 }
 

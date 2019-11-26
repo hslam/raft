@@ -95,6 +95,7 @@ func main() {
 * Log Replication
 * Log Compaction (Snapshotting)
 * ReadIndex/Lease Read
+* Snapshot Policies
 * Benchmark
 
 **one node set**

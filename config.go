@@ -61,19 +61,19 @@ const (
 	DefaultMaxEntriesPerFile = 1 << 27
 	DefaultChunkSize int64 = 1 << 24
 
-
 )
-type SnapshotSyncType int
+
+type SnapshotPolicy int
 
 const (
-	Never SnapshotSyncType = 0
-	EverySecond SnapshotSyncType= 1
-	EveryMinute SnapshotSyncType= 2
-	EveryHour SnapshotSyncType= 3
-	EveryDay SnapshotSyncType= 4
-	DefalutSave SnapshotSyncType= 5
-	Save SnapshotSyncType= 6
-	Always SnapshotSyncType= 9
+	Never SnapshotPolicy = 0
+	EverySecond SnapshotPolicy= 1
+	EveryMinute SnapshotPolicy= 2
+	EveryHour SnapshotPolicy= 3
+	EveryDay SnapshotPolicy= 4
+	DefalutSave SnapshotPolicy= 5
+	Save SnapshotPolicy= 6
+	Always SnapshotPolicy= 9
 
 	SecondsSaveSnapshot1 = 900
 	ChangesSaveSnapshot1 = 1

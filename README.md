@@ -10,12 +10,13 @@ A Golang implementation of the Raft distributed consensus protocol.
 * [RPC](https://hslam.com/git/x/rpc "rpc") transport
 * ReadIndex/Lease Read
 * Non-Voting Members (The leader only replicates log entries to them)
+* Snapshot Policies
 
 ## Projects
 
-* [helloworld](https://hslam.com/git/x/raft/src/master/examples/helloworld "helloworld")
-* [example](https://hslam.com/git/x/raft/src/master/examples/example "example")
-* [raftdb](https://hslam.com/git/x/raftdb "raftdb")
+* [HelloWorld](https://hslam.com/git/x/raft/src/master/examples/helloworld "helloworld")
+* [Example](https://hslam.com/git/x/raft/src/master/examples/example "example")
+* [RaftDB](https://hslam.com/git/x/raftdb "raftdb")
 
 
 ### [HelloWorld](https://hslam.com/git/x/raft/src/master/examples/helloworld "helloworld")
@@ -113,6 +114,7 @@ func main() {
 * Log Replication
 * Log Compaction (Snapshotting)
 * ReadIndex/Lease Read
+* Snapshot Policies
 * Benchmark
 
 **one node set**
