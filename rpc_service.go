@@ -16,13 +16,13 @@ func (s *RPCService) InstallSnapshot(req *InstallSnapshotRequest,res *InstallSna
 	return s.node.raft.HandleInstallSnapshot(req,res)
 }
 func (s *RPCService) QueryLeader(req *QueryLeaderRequest,res *QueryLeaderResponse)error {
-	return s.node.raft.HandleQueryLeader(req,res)
+	return s.node.proxy.HandleQueryLeader(req,res)
 }
 func (s *RPCService) AddPeer(req *AddPeerRequest,res *AddPeerResponse)error {
-	return s.node.raft.HandleAddPeer(req,res)
+	return s.node.proxy.HandleAddPeer(req,res)
 }
 func (s *RPCService) RemovePeer(req *RemovePeerRequest,res *RemovePeerResponse)error {
-	return s.node.raft.HandleRemovePeer(req,res)
+	return s.node.proxy.HandleRemovePeer(req,res)
 }
 //RPCShortMethodName
 func (s *RPCService) R(req *RequestVoteRequest, res *RequestVoteResponse)error {

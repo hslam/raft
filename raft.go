@@ -11,12 +11,6 @@ type Raft interface {
 	HandleRequestVote(req *RequestVoteRequest, res *RequestVoteResponse)error
 	HandleAppendEntries(req *AppendEntriesRequest, res *AppendEntriesResponse)error
 	HandleInstallSnapshot(req *InstallSnapshotRequest,res *InstallSnapshotResponse)error
-	QueryLeader(addr string)(term uint64,leaderId string,ok bool)
-	AddPeer(addr string,info *NodeInfo)(success bool,ok bool)
-	RemovePeer(addr string,Address string)(success bool,ok bool)
-	HandleQueryLeader(req *QueryLeaderRequest,res *QueryLeaderResponse)error
-	HandleAddPeer(req *AddPeerRequest,res *AddPeerResponse)error
-	HandleRemovePeer(req *RemovePeerRequest,res *RemovePeerResponse)error
 }
 
 type raft struct {
@@ -25,9 +19,6 @@ type raft struct {
 	requestVoteTimeout		time.Duration
 	appendEntriesTimeout	time.Duration
 	installSnapshotTimeout	time.Duration
-	queryLeaderTimeout		time.Duration
-	addPeerTimeout			time.Duration
-	removePeerTimeout		time.Duration
 }
 
 func newRaft(node	*Node) Raft{
@@ -37,9 +28,6 @@ func newRaft(node	*Node) Raft{
 		requestVoteTimeout:		DefaultRequestVoteTimeout,
 		appendEntriesTimeout:	DefaultAppendEntriesTimeout,
 		installSnapshotTimeout:	DefaultInstallSnapshotTimeout,
-		queryLeaderTimeout: 	DefaultQueryLeaderTimeout,
-		addPeerTimeout:			DefaultAddPeerTimeout,
-		removePeerTimeout:		DefaultRemovePeerTimeout,
 	}
 }
 
@@ -273,155 +261,3 @@ func (r *raft) HandleInstallSnapshot(req *InstallSnapshotRequest,res *InstallSna
 	res.NextIndex=r.node.nextIndex
 	return nil
 }
-
-func (r *raft) QueryLeader(addr string)(term uint64,leaderId string,ok bool){
-	var req =&QueryLeaderRequest{}
-	var ch =make(chan *QueryLeaderResponse,1)
-	var errCh =make(chan error,1)
-	go func (rpcs *RPCs,addr string,req *QueryLeaderRequest, ch chan *QueryLeaderResponse,errCh chan error) {
-		var res =&QueryLeaderResponse{}
-		if err := rpcs.Call(rpcs.QueryLeaderServiceName(),req, res,addr); err != nil {
-			errCh<-err
-		}else {
-			ch <- res
-		}
-	}(r.node.rpcs,addr,req,ch,errCh)
-	select {
-	case res:=<-ch:
-		Tracef("raft.QueryLeader %s -> %s LeaderId %s",r.node.address,addr,res.LeaderId)
-		return res.Term,res.LeaderId,true
-	case err:=<-errCh:
-		Tracef("raft.QueryLeader %s -> %s error %s",r.node.address,addr,err.Error())
-		return 0,"",false
-	case <-time.After(r.addPeerTimeout):
-		Tracef("raft.QueryLeader %s -> %s time out",r.node.address,addr)
-	}
-	return 0,"",false
-}
-func (r *raft) AddPeer(addr string,info *NodeInfo)(success bool,ok bool){
-	var req =&AddPeerRequest{}
-	req.Node=info
-	var ch =make(chan *AddPeerResponse,1)
-	var errCh =make(chan error,1)
-	go func (rpcs *RPCs,addr string,req *AddPeerRequest, ch chan *AddPeerResponse,errCh chan error) {
-		var res =&AddPeerResponse{}
-		if err := rpcs.Call(rpcs.AddPeerServiceName(),req, res,addr); err != nil {
-			errCh<-err
-		}else {
-			ch <- res
-		}
-	}(r.node.rpcs,addr,req,ch,errCh)
-	select {
-	case res:=<-ch:
-		Tracef("raft.AddPeer %s -> %s Success %t",r.node.address,addr,res.Success)
-		return res.Success,true
-	case err:=<-errCh:
-		Tracef("raft.AddPeer %s -> %s error %s",r.node.address,addr,err.Error())
-		return false,false
-	case <-time.After(r.addPeerTimeout):
-		Tracef("raft.AddPeer %s -> %s time out",r.node.address,addr)
-	}
-	return false,false
-}
-func (r *raft) RemovePeer(addr string,Address string)(success bool,ok bool){
-	var req =&RemovePeerRequest{}
-	req.Address=Address
-	var ch =make(chan *RemovePeerResponse,1)
-	var errCh =make(chan error,1)
-	go func (rpcs *RPCs,addr string,req *RemovePeerRequest, ch chan *RemovePeerResponse,errCh chan error) {
-		var res =&RemovePeerResponse{}
-		if err := rpcs.Call(rpcs.RemovePeerServiceName(),req, res,addr); err != nil {
-			errCh<-err
-		}else {
-			ch <- res
-		}
-	}(r.node.rpcs,addr,req,ch,errCh)
-	select {
-	case res:=<-ch:
-		Tracef("raft.RemovePeer %s -> %s Success %t",r.node.address,addr,res.Success)
-		return res.Success,true
-	case err:=<-errCh:
-		Tracef("raft.RemovePeer %s -> %s error %s",r.node.address,addr,err.Error())
-		return false,false
-	case <-time.After(r.removePeerTimeout):
-		Tracef("raft.RemovePeer %s -> %s time out",r.node.address,addr)
-	}
-	return false,false
-}
-func (r *raft) HandleQueryLeader(req *QueryLeaderRequest,res *QueryLeaderResponse)error {
-	if r.node.leader!=""{
-		res.LeaderId=r.node.leader
-		res.Term=r.node.term()
-		return nil
-	}
-	peers:=r.node.Peers()
-	for i:=0;i<len(peers) ;i++  {
-		term,leaderId,ok:=r.QueryLeader(peers[i])
-		if ok{
-			res.LeaderId=leaderId
-			res.Term=term
-			return nil
-		}
-	}
-	return ErrNotLeader
-}
-func (r *raft) HandleAddPeer(req *AddPeerRequest,res *AddPeerResponse)error {
-	if r.node.IsLeader(){
-		_, err := r.node.do(NewAddPeerCommand(req.Node),DefaultCommandTimeout)
-		if err==nil{
-			_, err = r.node.do(NewReconfigurationCommand(),DefaultCommandTimeout)
-			if err==nil{
-				res.Success=true
-				return nil
-			}
-			return err
-		}
-		return err
-	}else {
-		leader:=r.node.Leader()
-		if leader!=""{
-			return r.node.rpcs.Call(r.node.rpcs.AddPeerServiceName(),req,res,leader)
-		}
-		peers:=r.node.Peers()
-		for i:=0;i<len(peers) ;i++  {
-			_,leaderId,ok:=r.QueryLeader(peers[i])
-			if leaderId!=""&&ok{
-				return r.node.rpcs.Call(r.node.rpcs.AddPeerServiceName(),req,res,leaderId)
-			}
-		}
-		return ErrNotLeader
-	}
-	return nil
-}
-
-func (r *raft) HandleRemovePeer(req *RemovePeerRequest,res *RemovePeerResponse)error {
-	if r.node.IsLeader(){
-		_, err := r.node.do(NewRemovePeerCommand(req.Address),DefaultCommandTimeout)
-		if err==nil{
-			_, err = r.node.do(NewReconfigurationCommand(),DefaultCommandTimeout)
-			if err==nil{
-				res.Success=true
-				return nil
-			}
-			return err
-		}
-		return err
-	}else {
-		leader:=r.node.Leader()
-		if leader!=""{
-			return r.node.rpcs.Call(r.node.rpcs.RemovePeerServiceName(),req,res,leader)
-		}
-		peers:=r.node.Peers()
-		for i:=0;i<len(peers) ;i++  {
-			_,leaderId,ok:=r.QueryLeader(peers[i])
-			if leaderId!=""&&ok{
-				return r.node.rpcs.Call(r.node.rpcs.RemovePeerServiceName(),req,res,leaderId)
-			}
-		}
-		return ErrNotLeader
-	}
-	return nil
-}
-
-
-
