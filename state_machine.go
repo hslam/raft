@@ -26,7 +26,7 @@ func newStateMachine(node *Node)*StateMachine {
 		snapshotReadWriter:newSnapshotReadWriter(node,DefaultSnapshot,false),
 		saves:[][]int{},
 	}
-	s.SetSnapshotPolicy(DefalutSave)
+	s.SetSnapshotPolicy(DefalutSync)
 	return s
 }
 func (s *StateMachine)Apply(index uint64,command Command) (interface{},error){
@@ -85,7 +85,7 @@ func (s *StateMachine)setSnapshotPolicy(snapshotPolicy SnapshotPolicy){
 		s.Stop()
 		s.snapshotSyncs=append(s.snapshotSyncs, newSnapshotSync(s,86400,1))
 		go s.run()
-	case DefalutSave:
+	case DefalutSync:
 		s.Stop()
 		s.saves=[][]int{
 			{SecondsSaveSnapshot1,ChangesSaveSnapshot1},
@@ -96,7 +96,7 @@ func (s *StateMachine)setSnapshotPolicy(snapshotPolicy SnapshotPolicy){
 			s.snapshotSyncs=append(s.snapshotSyncs, newSnapshotSync(s,v[0],v[1]))
 		}
 		go s.run()
-	case Save:
+	case CustomSync:
 		s.Stop()
 		for _,v:=range s.saves{
 			s.snapshotSyncs=append(s.snapshotSyncs, newSnapshotSync(s,v[0],v[1]))
@@ -122,7 +122,7 @@ func (s *StateMachine)SetSyncType(saves [][]int){
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.saves=saves
-	s.setSnapshotPolicy(Save)
+	s.setSnapshotPolicy(CustomSync)
 }
 func (s *StateMachine)SetSnapshot(snapshot Snapshot){
 	s.mu.Lock()

@@ -71,8 +71,8 @@ const (
 	EveryMinute SnapshotPolicy= 2
 	EveryHour SnapshotPolicy= 3
 	EveryDay SnapshotPolicy= 4
-	DefalutSave SnapshotPolicy= 5
-	Save SnapshotPolicy= 6
+	DefalutSync SnapshotPolicy= 5
+	CustomSync SnapshotPolicy= 6
 	Always SnapshotPolicy= 9
 
 	SecondsSaveSnapshot1 = 900
