@@ -12,12 +12,22 @@ A Golang implementation of the Raft distributed consensus protocol.
 * Non-Voting Members (The leader only replicates log entries to them)
 * Snapshot Policies (Never/EverySecond/DefalutSync/CustomSync/Always)
 
+## Get started
+
+### Install
+```
+go get hslam.com/git/x/raft
+```
+### Import
+```
+import "hslam.com/git/x/raft"
+```
+
 ## Projects
 
 * [HelloWorld](https://hslam.com/git/x/raft/src/master/examples/helloworld "helloworld")
 * [Example](https://hslam.com/git/x/raft/src/master/examples/example "example")
 * [RaftDB](https://hslam.com/git/x/raftdb "raftdb")
-
 
 ### [HelloWorld](https://hslam.com/git/x/raft/src/master/examples/helloworld "helloworld")
 
