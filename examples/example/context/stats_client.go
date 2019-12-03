@@ -1,4 +1,4 @@
-package main
+package context
 
 import(
 	"time"
@@ -7,25 +7,25 @@ import(
 )
 
 type Client struct {
-	node *raft.Node
-	ctx *Context
-	operation string
+	Node *raft.Node
+	Ctx *Context
+	Operation string
 }
 func (c *Client)Call()(int64,int64,bool){
-	switch c.operation {
+	switch c.Operation {
 	case "set":
-		c.node.Do(&Command{RandString(16)})
+		c.Node.Do(&Command{RandString(16)})
 		return 0,0,true
 	case "lease":
-		if ok:=c.node.Lease();ok{
-			value := c.ctx.Get()
+		if ok:=c.Node.Lease();ok{
+			value := c.Ctx.Get()
 			if value=="foobar"{
 				return 0,0,true
 			}
 		}
 	case "readindex":
-		if ok:=c.node.ReadIndex();ok{
-			value := c.ctx.Get()
+		if ok:=c.Node.ReadIndex();ok{
+			value := c.Ctx.Get()
 			if value=="foobar"{
 				return 0,0,true
 			}

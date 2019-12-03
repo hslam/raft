@@ -2,7 +2,6 @@ package raft
 
 import (
 	"hslam.com/git/x/rpc"
-	"hslam.com/git/x/rpc/log"
 )
 
 const (
@@ -24,9 +23,9 @@ func listenAndServe(address string,node *Node){
 	service.node=node
 	server:= rpc.NewServer()
 	server.RegisterName(ServiceName,service)
-	server.EnableMultiplexing()
+	server.SetMultiplexing(true)
 	server.SetLowDelay(true)
-	rpc.SetLogLevel(log.NoLevel)
+	rpc.SetLogLevel(rpc.NoLevel)
 	Infoln(server.ListenAndServe(network,address))
 }
 

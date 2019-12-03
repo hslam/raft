@@ -1,4 +1,4 @@
-package main
+package context
 
 type Command struct {
 	Data	string

@@ -7,6 +7,7 @@ import (
 	"flag"
 	"strings"
 	"hslam.com/git/x/stats"
+	"hslam.com/git/x/raft/examples/example/context"
 )
 var(
 	host string
@@ -27,7 +28,7 @@ func init() {
 	flag.BoolVar(&join, "join", false, "")
 	flag.StringVar(&peers, "peers", "localhost:9001,false;", "host:port,nonVoting;host:port,nonVoting;")
 	flag.BoolVar(&log, "log", true, "log:")
-	flag.BoolVar(&benchmark, "b", false, "benchmark")
+	flag.BoolVar(&benchmark, "b", true, "benchmark")
 	flag.StringVar(&operation, "o", "set", "set|lease|readindex")
 	flag.IntVar(&parallel, "parallel", 4096, "parallel: -total=10000")
 	flag.IntVar(&total_calls, "total", 100000, "total_calls: -total=10000")
@@ -55,14 +56,14 @@ func main() {
 			infos=append(infos,&raft.NodeInfo{Address:info[0],NonVoting:NonVoting,Data:nil})
 		}
 	}
-	ctx := NewContext()
+	ctx := context.NewContext()
 	node,err:=raft.NewNode(host,port,path,ctx,join,infos)
 	if err!=nil{
 		panic(err)
 	}
-	node.RegisterCommand(&Command{})
+	node.RegisterCommand(&context.Command{})
 	node.SetCodec(&raft.JsonCodec{})
-	node.SetSnapshot(&Snapshot{})
+	node.SetSnapshot(&context.Snapshot{})
 	node.SetSyncTypes([]*raft.SyncType{
 		{Seconds:900,Changes:1},
 		{Seconds:300,Changes:10},
@@ -74,9 +75,9 @@ func main() {
 			for {
 				time.Sleep(time.Second*5)
 				if node.IsLeader(){
-					node.Do(&Command{"foobar"})
+					node.Do(&context.Command{"foobar"})
 					var Clients =make([]stats.Client,1)
-					Clients[0]=&Client{node:node,ctx:ctx,operation:operation}
+					Clients[0]=&context.Client{Node:node,Ctx:ctx,Operation:operation}
 					stats.StartPrint(parallel,total_calls,Clients)
 					break
 				}else if node.Leader()!=""{
