@@ -168,7 +168,7 @@ The [raftdb](https://hslam.com/git/x/raftdb  "raftdb") is an example usage of ra
 cluster    operation transport requests/s average fastest median  p99      slowest
 Singleton  ReadIndex HTTP      73348      6.77ms  2.59ms  6.29ms  14.23ms  116.32ms
 Singleton  Write     HTTP      60671      8.27ms  2.47ms  7.34ms  23.08ms  134.83ms
-ThreeNodes ReadIndex HTTP      47642      10.49ms 3.04ms  8.14ms  52.66ms  1048.29ms
+ThreeNodes ReadIndex HTTP      54642      9.31ms  2.97ms  7.85ms  69.98ms  106.80ms
 ThreeNodes Write     HTTP      37647      13.39ms 4.62ms  9.61ms  77.57ms  142.90ms
 Singleton  ReadIndex RPC       310222     12.51ms 4.36ms  12.07ms 29.79ms  34.28ms
 Singleton  Write     RPC       138411     28.92ms 6.09ms  24.64ms 103.57ms 121.66ms
