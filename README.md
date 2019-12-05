@@ -158,6 +158,7 @@ func main() {
 ./example -h=localhost -p=9003 -path="raft.example/node.tn.3" -join=false -peers="localhost:9001;localhost:9002;localhost:9003" -log=true -b=true    -o=lease -parallel=4096 -total=100000
 ```
 ### [RaftDB](https://hslam.com/git/x/raftdb "raftdb") Benchmark
+The [raftdb](https://hslam.com/git/x/raftdb  "raftdb") is an example usage of [raft](https://hslam.com/git/x/raft  "raft") library.
 
 #### Linux Environment
 * **CPU** 12 Cores 3.1 GHz
