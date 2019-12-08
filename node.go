@@ -898,7 +898,11 @@ func (n *Node) commit() bool {
 		if !v.voting(){
 			continue
 		}
-		lastLogIndexs=append(lastLogIndexs, v.nextIndex-1)
+		if v.nextIndex>0{
+			lastLogIndexs=append(lastLogIndexs, v.nextIndex-1)
+		}else {
+			lastLogIndexs=append(lastLogIndexs, 0)
+		}
 	}
 	quickSort(lastLogIndexs,-999,-999)
 	index:=lastLogIndexs[len(lastLogIndexs)/2]

@@ -30,7 +30,7 @@ func (state *LeaderState)Start(){
 	Debugf("%s LeaderState.Start %s nextIndex:%d",state.node.address,state.node.address,state.node.nextIndex)
 	if len(state.node.peers)>0{
 		for _,v:=range state.node.peers{
-			v.nextIndex=1
+			v.nextIndex=0
 			Debugf("%s LeaderState.Start %s nextIndex:%d",state.node.address,v.address,v.nextIndex)
 		}
 	}

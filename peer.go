@@ -27,7 +27,7 @@ func newPeer(node *Node, address string) *Peer {
 	p:=&Peer{
 		node :					node,
 		address :				address,
-		nextIndex: 				1,
+		nextIndex: 				0,
 		send:					true,
 		tarWork: 				true,
 		install:				true,
@@ -100,58 +100,78 @@ func (p *Peer)voting() bool{
 
 func (p *Peer) check() {
 	if p.node.lastLogIndex>p.nextIndex-1&&p.nextIndex>0{
-		if ((p.nextIndex==1||p.nextIndex-1<p.node.firstLogIndex)&&p.node.commitIndex.Id()>1)||p.node.lastLogIndex-(p.nextIndex-1)>DefaultNumInstallSnapshot&&p.install{
-			p.install=false
-			defer func() {
-				p.install=true
-			}()
-			if p.node.storage.IsEmpty(p.node.stateMachine.snapshotReadWriter.FileName())&&p.tarWork{
-				p.tarWork=false
-				go func() {
-					defer func() {
-						p.tarWork=true
-					}()
-					err:=p.node.stateMachine.snapshotReadWriter.Tar()
-					if err!=nil{
-						return
-					}
+		if ((p.nextIndex==1||(p.nextIndex>1&&p.nextIndex-1<p.node.firstLogIndex))&&p.node.commitIndex.Id()>1)||p.node.lastLogIndex-(p.nextIndex-1)>DefaultNumInstallSnapshot{
+			if p.install{
+				p.install=false
+				defer func() {
+					p.install=true
 				}()
-			}else {
-				if p.send{
-					p.send=false
+				if p.node.storage.IsEmpty(p.node.stateMachine.snapshotReadWriter.FileName())&&p.tarWork{
+					p.tarWork=false
 					go func() {
 						defer func() {
-							p.send=true
+							p.tarWork=true
 						}()
-						if p.chunk==0{
-							size,err:=p.node.storage.Size(p.node.stateMachine.snapshotReadWriter.FileName())
-							if err!=nil{
-								return
-							}
-							p.size=uint64(size)
-							p.chunkNum=int(math.Ceil(float64(size) / float64(DefaultChunkSize)))
+						err:=p.node.stateMachine.snapshotReadWriter.Tar()
+						if err!=nil{
+							return
 						}
-						if p.chunkNum>1{
-							if p.chunk<p.chunkNum-1{
-								b := make([]byte, DefaultChunkSize)
-								n,err:=p.node.storage.SeekRead(p.node.stateMachine.snapshotReadWriter.FileName(),p.offset,b)
+					}()
+				}else {
+					if p.send{
+						p.send=false
+						go func() {
+							defer func() {
+								p.send=true
+							}()
+							if p.chunk==0{
+								size,err:=p.node.storage.Size(p.node.stateMachine.snapshotReadWriter.FileName())
 								if err!=nil{
 									return
 								}
-								if int64(n)==DefaultChunkSize{
-									offset:=p.installSnapshot(p.offset,b[:n],false)
-									if offset==p.offset+uint64(n){
-										p.offset+=uint64(n)
-										p.chunk+=1
+								p.size=uint64(size)
+								p.chunkNum=int(math.Ceil(float64(size) / float64(DefaultChunkSize)))
+							}
+							if p.chunkNum>1{
+								if p.chunk<p.chunkNum-1{
+									b := make([]byte, DefaultChunkSize)
+									n,err:=p.node.storage.SeekRead(p.node.stateMachine.snapshotReadWriter.FileName(),p.offset,b)
+									if err!=nil{
+										return
+									}
+									if int64(n)==DefaultChunkSize{
+										offset:=p.installSnapshot(p.offset,b[:n],false)
+										if offset==p.offset+uint64(n){
+											p.offset+=uint64(n)
+											p.chunk+=1
+										}
+									}
+								}else {
+									b := make([]byte, p.size-p.offset)
+									n,err:=p.node.storage.SeekRead(p.node.stateMachine.snapshotReadWriter.FileName(),p.offset,b)
+									if err!=nil{
+										return
+									}
+									if uint64(n)==p.size-p.offset{
+										offset:=p.installSnapshot(p.offset,b[:n],true)
+										if offset==p.offset+uint64(n){
+											p.offset+=uint64(n)
+											p.chunk+=1
+										}
+									}
+									if p.offset==p.size&&p.chunk==p.chunkNum{
+										p.chunk=0
+										p.offset=0
 									}
 								}
 							}else {
-								b := make([]byte, p.size-p.offset)
+								b := make([]byte, p.size)
+								p.offset=0
 								n,err:=p.node.storage.SeekRead(p.node.stateMachine.snapshotReadWriter.FileName(),p.offset,b)
 								if err!=nil{
 									return
 								}
-								if uint64(n)==p.size-p.offset{
+								if uint64(n)==p.size{
 									offset:=p.installSnapshot(p.offset,b[:n],true)
 									if offset==p.offset+uint64(n){
 										p.offset+=uint64(n)
@@ -163,28 +183,11 @@ func (p *Peer) check() {
 									p.offset=0
 								}
 							}
-						}else {
-							b := make([]byte, p.size)
-							p.offset=0
-							n,err:=p.node.storage.SeekRead(p.node.stateMachine.snapshotReadWriter.FileName(),p.offset,b)
-							if err!=nil{
-								return
-							}
-							if uint64(n)==p.size{
-								offset:=p.installSnapshot(p.offset,b[:n],true)
-								if offset==p.offset+uint64(n){
-									p.offset+=uint64(n)
-									p.chunk+=1
-								}
-							}
-							if p.offset==p.size&&p.chunk==p.chunkNum{
-								p.chunk=0
-								p.offset=0
-							}
-						}
-					}()
+						}()
+					}
 				}
 			}
+
 		}else {
 			if p.send{
 				p.send=false
