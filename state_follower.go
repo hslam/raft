@@ -24,7 +24,7 @@ func (state *FollowerState)Start(){
 	state.node.leader=""
 	state.node.election.Random(true)
 	state.node.election.Reset()
-	Infof("%s FollowerState.Reset Term :%d",state.node.address,state.node.currentTerm.Id())
+	Infof("%s FollowerState.Start Term :%d",state.node.address,state.node.currentTerm.Id())
 }
 
 func (state *FollowerState) Update()bool{
@@ -62,7 +62,7 @@ func (state *FollowerState)FixedUpdate(){
 		if !state.node.voting(){
 			return
 		}
-		Tracef("%s FollowerState.Update ElectionTimeout",state.node.address)
+		Tracef("%s FollowerState.FixedUpdate ElectionTimeout",state.node.address)
 		state.node.nextState()
 		return
 	}
@@ -72,7 +72,7 @@ func (state *FollowerState) String()string{
 }
 
 func (state *FollowerState)StepDown()State{
-	Tracef("%s FollowerState.PreState",state.node.address)
+	Tracef("%s FollowerState.StepDown",state.node.address)
 	state.Start()
 	return state
 }

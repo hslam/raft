@@ -27,18 +27,18 @@ func newLeaderState(node *Node) State {
 }
 
 func (state *LeaderState)Start(){
-	Debugf("%s LeaderState.Reset %s nextIndex:%d",state.node.address,state.node.address,state.node.nextIndex)
+	Debugf("%s LeaderState.Start %s nextIndex:%d",state.node.address,state.node.address,state.node.nextIndex)
 	if len(state.node.peers)>0{
 		for _,v:=range state.node.peers{
 			v.nextIndex=1
-			Debugf("%s LeaderState.Reset %s nextIndex:%d",state.node.address,v.address,v.nextIndex)
+			Debugf("%s LeaderState.Start %s nextIndex:%d",state.node.address,v.address,v.nextIndex)
 		}
 	}
 	state.node.leader=state.node.address
 	state.node.lease=true
 	state.node.election.Random(false)
 	state.node.election.Reset()
-	Infof("%s LeaderState.Reset Term:%d",state.node.address,state.node.currentTerm.Id())
+	Infof("%s LeaderState.Start Term:%d",state.node.address,state.node.currentTerm.Id())
 	go func(node *Node,term uint64) {
 		noOperationCommand:=NewNoOperationCommand()
 		if ok, _ := node.do(noOperationCommand,time.Minute*10);ok!=nil{
@@ -62,6 +62,7 @@ func (state *LeaderState)FixedUpdate(){
 	if state.node.election.Timeout(){
 		state.node.lease=false
 		state.node.stepDown()
+		Tracef("%s LeaderState.FixedUpdate ElectionTimeout",state.node.address)
 		return
 	}
 	if state.node.AliveCount()>=state.node.Quorum(){

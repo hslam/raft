@@ -19,18 +19,18 @@ func (state *CandidateState)Start(){
 	state.node.votedFor.Set(state.node.address)
 	state.node.leader=""
 	state.node.requestVotes()
-	Infof("%s CandidateState.Reset Term :%d",state.node.address,state.node.currentTerm.Id())
+	Infof("%s CandidateState.Start Term :%d",state.node.address,state.node.currentTerm.Id())
 }
 func (state *CandidateState) Update()bool{
 	return false
 }
 func (state *CandidateState)FixedUpdate(){
 	if state.node.election.Timeout(){
-		Tracef("%s CandidateState.Update ElectionTimeout",state.node.address)
+		Tracef("%s CandidateState.FixedUpdate ElectionTimeout",state.node.address)
 		state.node.stay()
 		return
 	}else if state.node.votes.Count()>=state.node.Quorum(){
-		Tracef("%s CandidateState.Update request Enough Votes %d Quorum %d Term %d",state.node.address,state.node.votes.Count(),state.node.Quorum(),state.node.currentTerm.Id())
+		Tracef("%s CandidateState.FixedUpdate request Enough Votes %d Quorum %d Term %d",state.node.address,state.node.votes.Count(),state.node.Quorum(),state.node.currentTerm.Id())
 		state.node.nextState()
 		return
 	}
@@ -41,7 +41,7 @@ func (state *CandidateState) String()string{
 }
 
 func (state *CandidateState)StepDown()State{
-	Tracef("%s CandidateState.PreState",state.node.address)
+	Tracef("%s CandidateState.StepDown",state.node.address)
 	return newFollowerState(state.node)
 }
 
