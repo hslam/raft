@@ -59,7 +59,12 @@ func (state *LeaderState) Update()bool{
 	return state.node.commit()
 }
 func (state *LeaderState)FixedUpdate(){
-	if state.node.election.Timeout(){
+	if !state.node.voting(){
+		state.node.lease=false
+		state.node.stepDown()
+		Tracef("%s LeaderState.FixedUpdate non-voting",state.node.address)
+		return
+	}else if state.node.election.Timeout(){
 		state.node.lease=false
 		state.node.stepDown()
 		Tracef("%s LeaderState.FixedUpdate ElectionTimeout",state.node.address)

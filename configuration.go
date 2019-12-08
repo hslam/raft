@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"sort"
 	"reflect"
+	"fmt"
 )
 
 type Configuration struct {
@@ -47,13 +48,22 @@ func (c *Configuration) LookupPeer(addr string)*NodeInfo{
 	return nil
 }
 func (c *Configuration) Peers()[] string{
-	peers:=make([]string,0)
+	peers:=make([]string,0,len(c.nodes))
 	for _,v:=range c.nodes{
 		if v.Address!=c.node.address{
 			peers=append(peers,v.Address)
 		}
 	}
 	return peers
+}
+func (c *Configuration) membership()[] string{
+	ms:=make([]string,0,len(c.nodes))
+	for _,v:=range c.nodes{
+		if v.Address!=c.node.address{
+			ms=append(ms,fmt.Sprintf("%s;%t",v.Address,v.NonVoting))
+		}
+	}
+	return ms
 }
 func (c *Configuration) Nodes()[] string{
 	nodes:=make([]string,0)
@@ -111,10 +121,10 @@ func (c *Configuration)reconfiguration() error {
 }
 
 func  (c *Configuration) membershipChanges()bool {
-	old_peers:=c.node.Peers()
-	new_peers:=c.Peers()
-	sort.Strings(old_peers)
-	sort.Strings(new_peers)
-	return !reflect.DeepEqual(old_peers, new_peers)
+	old_ms:=c.node.membership()
+	new_ms:=c.membership()
+	sort.Strings(old_ms)
+	sort.Strings(new_ms)
+	return !reflect.DeepEqual(old_ms, new_ms)
 }
 

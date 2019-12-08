@@ -89,6 +89,7 @@ type Node struct {
 	join 							bool
 	nonVoting						bool
 	majorities						bool
+	leave							bool
 }
 
 func NewNode(host string, port int,data_dir string,context interface{},join bool,nodes []*NodeInfo)(*Node,error){
@@ -162,6 +163,7 @@ func NewNode(host string, port int,data_dir string,context interface{},join bool
 func (n *Node) Start() {
 	n.onceStart.Do(func() {
 		n.recover()
+		n.checkLog()
 		n.server.listenAndServe()
 		go n.run()
 	})
@@ -496,6 +498,18 @@ func (n *Node) Peers() []string {
 	}
 	return peers
 }
+func (n *Node) membership() []string {
+	n.nodesMut.Lock()
+	defer n.nodesMut.Unlock()
+	ms:=make([]string,0,len(n.peers)+1)
+	if !n.leave{
+		ms=append(ms,fmt.Sprintf("%s;%t",n.address,n.nonVoting))
+	}
+	for _,v:=range n.peers{
+		ms=append(ms,fmt.Sprintf("%s;%t",v.address,v.nonVoting))
+	}
+	return ms
+}
 func(n *Node) Join(info *NodeInfo)(success bool){
 	leader:=n.Leader()
 	if leader!=""{
@@ -565,7 +579,11 @@ func (n *Node) resetVotes() {
 func (n *Node) consideredForMajorities() {
 	n.nodesMut.Lock()
 	defer n.nodesMut.Unlock()
-	n.majorities=true
+	if n.stateMachine.configuration.LookupPeer(n.address)!=nil{
+		n.majorities=true
+	}else {
+		n.majorities=false
+	}
 	for _,v:=range n.peers{
 		v.majorities=true
 	}
