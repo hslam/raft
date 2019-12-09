@@ -177,7 +177,7 @@ ThreeNodes ReadIndex RPC       285650     13.40ms 4.27ms  12.49ms 29.01ms  32.91
 ThreeNodes Write     RPC       118325     33.74ms 9.76ms  33.40ms 71.38ms  81.32ms
 ```
 ## Licence
-This package is licenced under a MIT licence (Copyright (c) 2019 Mort Huang)
+This package is licenced under a MIT licence (Copyright (c) 2019 Meng Huang)
 
 ## Authors
-raft was written by Mort Huang.
+raft was written by Meng Huang.
