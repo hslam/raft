@@ -1,7 +1,7 @@
 package main
 
 import (
-	"hslam.com/git/x/raft"
+	"github.com/hslam/raft"
 	"fmt"
 	"time"
 	"flag"

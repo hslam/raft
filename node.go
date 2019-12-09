@@ -4,7 +4,7 @@ import (
 	"sync"
 	"fmt"
 	"time"
-	"hslam.com/git/x/timer"
+	"github.com/hslam/timer"
 )
 
 func init() {

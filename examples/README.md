@@ -1,6 +1,6 @@
 # Examples
 
-## [HelloWorld](https://hslam.com/git/x/raft/src/master/examples/helloworld "helloworld")
+## [HelloWorld](https://github.com/hslam/raft/tree/master/examples/helloworld "helloworld")
 
 * Leader Election
 * Non-Voting Members
@@ -11,7 +11,7 @@
 package main
 
 import (
-	"hslam.com/git/x/raft"
+	"github.com/hslam/raft"
 	"fmt"
 	"time"
 	"flag"
@@ -87,7 +87,7 @@ func main() {
 ./node -h=localhost -p=9003 -path="raft.helloworld/node.mc.3" -join=true -peers="localhost:9001;localhost:9002;localhost:9003"
 ```
 
-## [Example](https://hslam.com/git/x/raft/src/master/examples/example "example")
+## [Example](https://github.com/hslam/raft/tree/master/examples/example "example")
 
 * Leader Election
 * Non-Voting Members
@@ -129,7 +129,7 @@ func main() {
 ./example -h=localhost -p=9003 -path="raft.example/node.tn.3" -join=false -peers="localhost:9001;localhost:9002;localhost:9003" -log=true -b=true    -o=lease -parallel=4096 -total=100000
 ```
 
-## [RaftDB](https://hslam.com/git/x/raftdb "raftdb") BenchMark
+## [RaftDB](https://github.com/hslam/raftdb "raftdb") BenchMark
 
 ### Linux Environment
 * **CPU** 12 Cores 3.1 GHz

@@ -1,13 +1,13 @@
 package main
 
 import (
-	"hslam.com/git/x/raft"
+	"github.com/hslam/raft"
 	"fmt"
 	"time"
 	"flag"
 	"strings"
-	"hslam.com/git/x/stats"
-	"hslam.com/git/x/raft/examples/example/context"
+	"github.com/hslam/stats"
+	"github.com/hslam/raft/examples/example/context"
 )
 var(
 	host string

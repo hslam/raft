@@ -123,7 +123,7 @@ func BenchmarkStorageAppendWrite10MB(t *testing.B) {
 //--- PASS: TestStorageSafeOverWrite10B (0.01s)
 //goos: darwin
 //goarch: amd64
-//pkg: hslam.com/git/x/raft
+//pkg: github.com/hslam/raft
 //BenchmarkStorageSafeOverWrite10B-4   	     300	   5119095 ns/op	     714 B/op	      10 allocs/op
 //BenchmarkStorageOverWrite10B-4       	     300	   4492027 ns/op	     201 B/op	       4 allocs/op
 //BenchmarkStorageAppendWrite10B-4     	     300	   4045003 ns/op	     203 B/op	       4 allocs/op

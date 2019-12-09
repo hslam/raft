@@ -1,7 +1,7 @@
 package raft
 
 import (
-	"hslam.com/git/x/rpc"
+	"github.com/hslam/rpc"
 )
 
 const (

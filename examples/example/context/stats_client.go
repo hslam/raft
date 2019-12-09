@@ -2,7 +2,7 @@ package context
 
 import(
 	"time"
-	"hslam.com/git/x/raft"
+	"github.com/hslam/raft"
 	"math/rand"
 )
 
