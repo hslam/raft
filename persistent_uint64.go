@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"time"
+	"hslam.com/git/x/code"
 )
 
 type PersistentUint64 struct {
@@ -53,7 +54,9 @@ func (p *PersistentUint64) Id()uint64 {
 }
 
 func (p *PersistentUint64) save() {
-	p.node.storage.OverWrite(p.name,uint64ToBytes(p.value))
+	buf:=make([]byte,8)
+	code.EncodeUint64(buf,p.value)
+	p.node.storage.OverWrite(p.name,buf)
 }
 
 func (p *PersistentUint64) load() error {
@@ -68,7 +71,7 @@ func (p *PersistentUint64) load() error {
 	if len(b)!=8{
 		return fmt.Errorf("length %d",len(b))
 	}
-	p.value = bytesToUint64(b)
+	code.DecodeUint64(b,&p.value)
 	return nil
 }
 

@@ -3,8 +3,6 @@ package raft
 import (
 	"time"
 	"math/rand"
-	"encoding/binary"
-	"bytes"
 	"strconv"
 	"fmt"
 )
@@ -30,44 +28,6 @@ func  maxInt(a ,b int)int{
 func  maxUint64(a ,b uint64)uint64{
 	if a>b{ return a }
 	return b
-}
-func  uint64ToBytes(v uint64)[]byte{
-	b := make([]byte, 8)
-	binary.BigEndian.PutUint64(b, v)
-	return b
-}
-func  bytesToUint64(b []byte)uint64{
-	return binary.BigEndian.Uint64(b)
-}
-
-func  uint32ToBytes(v uint32)[]byte{
-	b := make([]byte, 4)
-	binary.BigEndian.PutUint32(b, v)
-	return b
-}
-
-func  bytesToUint32(b []byte)uint32{
-	return uint32(binary.BigEndian.Uint32(b))
-}
-
-func Int64ToBytes(v int64) []byte {
-	var buffer bytes.Buffer
-	binary.Write(&buffer, binary.BigEndian, v)
-	return buffer.Bytes()
-}
-
-
-func  int32ToBytes(v int32)[]byte{
-	b_buf := new(bytes.Buffer)
-	binary.Write(b_buf, binary.BigEndian,v)
-	return b_buf.Bytes()
-}
-
-func  bytesToInt32(b []byte)int32{
-	var v int32
-	b_buf := bytes.NewBuffer(b)
-	binary.Read(b_buf, binary.BigEndian, v)
-	return v
 }
 
 func FormatName(v uint64) (s string) {

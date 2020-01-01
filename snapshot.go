@@ -7,6 +7,7 @@ import (
 	"time"
 	"sync"
 	"compress/gzip"
+	"hslam.com/git/x/code"
 )
 
 const (
@@ -131,7 +132,9 @@ func (s *SnapshotReadWriter) AppendFile(name string) error {
 		n int
 	)
 	size,err=s.node.storage.Size(name)
-	s.node.storage.AppendWrite(DefaultTar,uint64ToBytes(uint64(size)))
+	size_buf:=make([]byte,8)
+	code.EncodeUint64(size_buf,uint64(size))
+	s.node.storage.AppendWrite(DefaultTar,size_buf)
 	if size>DefaultReadFileBufferSize{
 		buf = make([]byte, DefaultReadFileBufferSize)
 		source,err=s.node.storage.FileReader(name)
@@ -177,7 +180,7 @@ func (s *SnapshotReadWriter) RecoverFile(source *os.File,name string) error {
 	if err != nil {
 		return err
 	}
-	size=bytesToUint64(b)
+	code.DecodeUint64(b,&size)
 	s.node.storage.Truncate(name,0)
 	if size>DefaultReadFileBufferSize{
 		buf = make([]byte, DefaultReadFileBufferSize)
