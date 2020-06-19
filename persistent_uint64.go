@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"time"
-	"hslam.com/git/x/code"
+	"github.com/hslam/code"
 )
 
 type PersistentUint64 struct {

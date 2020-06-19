@@ -1,7 +1,7 @@
 package raft
 
 import (
-	"hslam.com/git/x/code"
+	"github.com/hslam/code"
 )
 
 

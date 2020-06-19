@@ -7,7 +7,7 @@ import (
 	"time"
 	"sync"
 	"compress/gzip"
-	"hslam.com/git/x/code"
+	"github.com/hslam/code"
 )
 
 const (
