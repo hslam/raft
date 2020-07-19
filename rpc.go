@@ -23,10 +23,8 @@ func listenAndServe(address string, node *Node) {
 	service.node = node
 	server := rpc.NewServer()
 	server.RegisterName(ServiceName, service)
-	server.SetMultiplexing(true)
-	server.SetNoDelay(true)
 	rpc.SetLogLevel(rpc.OffLevel)
-	Infoln(server.ListenAndServe(network, address))
+	Infoln(server.Listen(network, address, codec))
 }
 
 type RPCs struct {
@@ -34,13 +32,12 @@ type RPCs struct {
 }
 
 func newRPCs() *RPCs {
-	opts := rpc.DefaultOptions()
-	opts.SetMultiplexing(true)
-	opts.SetRetry(false)
-	opts.SetCompressType("gzip")
-	opts.SetNoDelay(true)
 	r := &RPCs{
-		conns: rpc.NewTransport(MaxConnsPerHost, MaxIdleConnsPerHost, network, codec, opts),
+		conns: &rpc.Transport{
+			MaxConnsPerHost:     MaxConnsPerHost,
+			MaxIdleConnsPerHost: MaxIdleConnsPerHost,
+			Options:             &rpc.Options{Network: network, Codec: codec},
+		},
 	}
 	return r
 }
@@ -70,7 +67,10 @@ func (r *RPCs) RemovePeerServiceName() string {
 }
 
 func (r *RPCs) Ping(addr string) bool {
-	return r.conns.Ping(addr)
+	if err := r.conns.Ping(addr); err != nil {
+		return false
+	}
+	return true
 }
 
 func (r *RPCs) Call(addr string, name string, req interface{}, res interface{}) error {
