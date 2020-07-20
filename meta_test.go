@@ -3,119 +3,73 @@ package raft
 import (
 	"testing"
 )
-func TestMetaEncode(t *testing.T) {
-	meta:=&Meta{}
-	meta.Index=1
-	meta.Term=1
-	meta.Position=10
-	meta.Offset=10
-	b:=meta.Encode()
-	meta1:=&Meta{}
-	meta1.Decode(b)
-	if meta1.Index!=meta.Index||meta1.Term!=meta.Term||meta1.Position!=meta.Position||meta1.Offset!=meta.Offset{
-		t.Error(nil)
-	}
-	if len(b)!=32{
-		t.Errorf("%d !=32 ",len(b))
-	}
-}
-func TestMetaCodecEncode(t *testing.T) {
-	meta:=&Meta{}
-	meta.Index=1
-	meta.Term=1
-	meta.Position=10
-	meta.Offset=10
-	codec:=&ProtoCodec{}
-	b,_:=codec.Encode(meta)
-	meta1:=&Meta{}
-	codec.Decode(b,meta1)
-	if meta1.Index!=meta.Index||meta1.Term!=meta.Term||meta1.Position!=meta.Position||meta1.Offset!=meta.Offset{
-		t.Error(nil)
-	}
-	//var Max int64 = -1 ^ (-1 << 63)
-	//meta.Index=uint64(Max)
-	//meta.Term=uint64(Max)
-	//meta.Position=uint64(Max)
-	//meta.Offset=uint64(Max)
-	//b,_=codec.Encode(meta)
-	//if len(b)>0{
-	//	t.Error(len(b))
-	//}
-}
 
-func BenchmarkMetaEncode(t *testing.B) {
-	meta:=&Meta{}
-	meta.Index=1
-	meta.Term=1
-	meta.Position=10
-	meta.Offset=10
-	t.ResetTimer()
-	for i := 0; i < t.N; i++ {
-		meta.Encode()
+func TestMeta(t *testing.T) {
+	meta := &Meta{}
+	meta.Index = 1
+	meta.Term = 1
+	meta.Position = 10
+	meta.Offset = 10
+	{
+		buf := make([]byte, 32)
+		b, err := meta.Marshal(buf)
+		if err != nil {
+			t.Error(err)
+		}
+		meta1 := &Meta{}
+		meta1.Unmarshal(b)
+		if meta1.Index != meta.Index || meta1.Term != meta.Term || meta1.Position != meta.Position || meta1.Offset != meta.Offset {
+			t.Error("error")
+		}
+		if len(b) != 32 {
+			t.Errorf("%d !=32 ", len(b))
+		}
 	}
-}
-func BenchmarkMetaDecode(t *testing.B) {
-	meta:=&Meta{}
-	meta.Index=1
-	meta.Term=1
-	meta.Position=10
-	meta.Offset=10
-	b:=meta.Encode()
-	t.ResetTimer()
-	for i := 0; i < t.N; i++ {
-		meta.Decode(b)
-	}
-}
-func BenchmarkMetaEncodeDecode(t *testing.B) {
-	meta:=&Meta{}
-	meta.Index=1
-	meta.Term=1
-	meta.Position=10
-	meta.Offset=10
-	t.ResetTimer()
-	for i := 0; i < t.N; i++ {
-		b:=meta.Encode()
-		meta.Decode(b)
+	{
+		b, err := meta.Marshal(nil)
+		if err != nil {
+			t.Error(err)
+		}
+		meta1 := &Meta{}
+		meta1.Unmarshal(b)
+		if meta1.Index != meta.Index || meta1.Term != meta.Term || meta1.Position != meta.Position || meta1.Offset != meta.Offset {
+			t.Error("error")
+		}
+		if len(b) != 32 {
+			t.Errorf("%d !=32 ", len(b))
+		}
 	}
 }
 
-
-func BenchmarkMetaCodecEncode(t *testing.B) {
-	meta:=&Meta{}
-	meta.Index=1
-	meta.Term=1
-	meta.Position=10
-	meta.Offset=10
-	codec:=&ProtoCodec{}
+//BenchmarkMeta 128656268	         9.37 ns/op
+func BenchmarkMeta(t *testing.B) {
+	meta := &Meta{}
+	meta.Index = 1
+	meta.Term = 1
+	meta.Position = 10
+	meta.Offset = 10
+	buf := make([]byte, 32)
+	var data []byte
+	meta1 := &Meta{}
 	t.ResetTimer()
 	for i := 0; i < t.N; i++ {
-		codec.Encode(meta)
-	}
-}
-func BenchmarkMetaCodecDecode(t *testing.B) {
-	meta:=&Meta{}
-	meta.Index=1
-	meta.Term=1
-	meta.Position=10
-	meta.Offset=10
-	codec:=&ProtoCodec{}
-	b,_:=codec.Encode(meta)
-	t.ResetTimer()
-	for i := 0; i < t.N; i++ {
-		codec.Decode(b,meta)
-	}
-}
-func BenchmarkMetaCodecEncodeDecode(t *testing.B) {
-	meta:=&Meta{}
-	meta.Index=1
-	meta.Term=1
-	meta.Position=10
-	meta.Offset=10
-	codec:=&ProtoCodec{}
-	t.ResetTimer()
-	for i := 0; i < t.N; i++ {
-		b,_:=codec.Encode(meta)
-		codec.Decode(b,meta)
+		data, _ = meta.Marshal(buf)
+		meta1.Unmarshal(data)
 	}
 }
 
+//BenchmarkMetaNoBuffer 35.4 ns/op
+func BenchmarkMetaNoBuffer(t *testing.B) {
+	meta := &Meta{}
+	meta.Index = 1
+	meta.Term = 1
+	meta.Position = 10
+	meta.Offset = 10
+	var data []byte
+	meta1 := &Meta{}
+	t.ResetTimer()
+	for i := 0; i < t.N; i++ {
+		data, _ = meta.Marshal(nil)
+		meta1.Unmarshal(data)
+	}
+}
