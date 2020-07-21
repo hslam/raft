@@ -1,6 +1,8 @@
 package raft
 
 import (
+	"github.com/hslam/rpc"
+	"sync"
 	"time"
 )
 
@@ -15,6 +17,7 @@ type Raft interface {
 
 type raft struct {
 	node                   *Node
+	donePool               *sync.Pool
 	hearbeatTimeout        time.Duration
 	requestVoteTimeout     time.Duration
 	appendEntriesTimeout   time.Duration
@@ -24,6 +27,7 @@ type raft struct {
 func newRaft(node *Node) Raft {
 	return &raft{
 		node:                   node,
+		donePool:               &sync.Pool{New: func() interface{} { return make(chan *rpc.Call, 10) }},
 		hearbeatTimeout:        DefaultHearbeatTimeout,
 		requestVoteTimeout:     DefaultRequestVoteTimeout,
 		appendEntriesTimeout:   DefaultAppendEntriesTimeout,
@@ -37,18 +41,20 @@ func (r *raft) RequestVote(addr string) (ok bool) {
 	req.CandidateId = r.node.address
 	req.LastLogIndex = r.node.lastLogIndex
 	req.LastLogTerm = r.node.lastLogTerm
-	var ch = make(chan *RequestVoteResponse, 1)
-	var errCh = make(chan error, 1)
-	go func(rpcs *RPCs, addr string, req *RequestVoteRequest, ch chan *RequestVoteResponse, errCh chan error) {
-		var res = &RequestVoteResponse{}
-		if err := rpcs.Call(addr, rpcs.RequestVoteServiceName(), req, res); err != nil {
-			errCh <- err
-		} else {
-			ch <- res
-		}
-	}(r.node.rpcs, addr, req, ch, errCh)
+
+	ch := r.node.rpcs.Go(addr, r.node.rpcs.RequestVoteServiceName(), req, &RequestVoteResponse{}, r.donePool.Get().(chan *rpc.Call))
+	done := ch.Done
 	select {
-	case res := <-ch:
+	case call := <-done:
+		for len(done) > 0 {
+			<-done
+		}
+		r.donePool.Put(done)
+		if call.Error != nil {
+			Tracef("raft.RequestVote %s recv %s vote error %s", r.node.address, addr, call.Error.Error())
+			return false
+		}
+		res := call.Reply.(*RequestVoteResponse)
 		if res.Term > r.node.currentTerm.Id() {
 			r.node.currentTerm.Set(res.Term)
 			r.node.stepDown()
@@ -60,9 +66,6 @@ func (r *raft) RequestVote(addr string) (ok bool) {
 			r.node.votes.vote <- newVote(addr, req.Term, 0)
 		}
 		return true
-	case err := <-errCh:
-		Tracef("raft.RequestVote %s recv %s vote error %s", r.node.address, addr, err.Error())
-		return false
 	case <-time.After(r.requestVoteTimeout):
 		Tracef("raft.RequestVote %s recv %s vote time out", r.node.address, addr)
 		r.node.votes.vote <- newVote(addr, req.Term, 0)
@@ -82,18 +85,19 @@ func (r *raft) AppendEntries(addr string, prevLogIndex, prevLogTerm uint64, entr
 	if len(entries) == 0 {
 		timeout = r.hearbeatTimeout
 	}
-	var ch = make(chan *AppendEntriesResponse, 1)
-	var errCh = make(chan error, 1)
-	go func(rpcs *RPCs, addr string, req *AppendEntriesRequest, ch chan *AppendEntriesResponse, errCh chan error) {
-		var res = &AppendEntriesResponse{}
-		if err := rpcs.Call(addr, rpcs.AppendEntriesServiceName(), req, res); err != nil {
-			errCh <- err
-		} else {
-			ch <- res
-		}
-	}(r.node.rpcs, addr, req, ch, errCh)
+	ch := r.node.rpcs.Go(addr, r.node.rpcs.AppendEntriesServiceName(), req, &AppendEntriesResponse{}, r.donePool.Get().(chan *rpc.Call))
+	done := ch.Done
 	select {
-	case res := <-ch:
+	case call := <-done:
+		for len(done) > 0 {
+			<-done
+		}
+		r.donePool.Put(done)
+		if call.Error != nil {
+			Tracef("raft.AppendEntries %s -> %s error %s", r.node.address, addr, call.Error.Error())
+			return 0, 0, false, false
+		}
+		res := call.Reply.(*AppendEntriesResponse)
 		if res.Term > r.node.currentTerm.Id() {
 			r.node.currentTerm.Set(res.Term)
 			r.node.stepDown()
@@ -103,9 +107,6 @@ func (r *raft) AppendEntries(addr string, prevLogIndex, prevLogTerm uint64, entr
 		}
 		//Tracef("raft.AppendEntries %s -> %s",r.node.address,addr)
 		return res.NextIndex, res.Term, res.Success, true
-	case err := <-errCh:
-		Tracef("raft.AppendEntries %s -> %s error %s", r.node.address, addr, err.Error())
-		return 0, 0, false, false
 	case <-time.After(timeout):
 		Tracef("raft.AppendEntries %s -> %s time out", r.node.address, addr)
 	}
@@ -121,27 +122,25 @@ func (r *raft) InstallSnapshot(addr string, LastIncludedIndex, LastIncludedTerm,
 	req.Offset = Offset
 	req.Data = Data
 	req.Done = Done
-	var ch = make(chan *InstallSnapshotResponse, 1)
-	var errCh = make(chan error, 1)
-	go func(rpcs *RPCs, addr string, req *InstallSnapshotRequest, ch chan *InstallSnapshotResponse, errCh chan error) {
-		var res = &InstallSnapshotResponse{}
-		if err := rpcs.Call(addr, rpcs.InstallSnapshotServiceName(), req, res); err != nil {
-			errCh <- err
-		} else {
-			ch <- res
-		}
-	}(r.node.rpcs, addr, req, ch, errCh)
+	ch := r.node.rpcs.Go(addr, r.node.rpcs.InstallSnapshotServiceName(), req, &InstallSnapshotResponse{}, r.donePool.Get().(chan *rpc.Call))
+	done := ch.Done
 	select {
-	case res := <-ch:
+	case call := <-done:
+		for len(done) > 0 {
+			<-done
+		}
+		r.donePool.Put(done)
+		if call.Error != nil {
+			Tracef("raft.InstallSnapshot %s -> %s error %s", r.node.address, addr, call.Error.Error())
+			return 0, 0, false
+		}
+		res := call.Reply.(*InstallSnapshotResponse)
 		if res.Term > r.node.currentTerm.Id() {
 			r.node.currentTerm.Set(res.Term)
 			r.node.stepDown()
 		}
 		//Tracef("raft.InstallSnapshot %s -> %s offset %d",r.node.address,addr,res.Offset)
 		return res.Offset, res.NextIndex, true
-	case err := <-errCh:
-		Tracef("raft.InstallSnapshot %s -> %s error %s", r.node.address, addr, err.Error())
-		return 0, 0, false
 	case <-time.After(r.installSnapshotTimeout):
 		Tracef("raft.InstallSnapshot %s -> %s time out", r.node.address, addr)
 	}

@@ -76,3 +76,7 @@ func (r *RPCs) Ping(addr string) bool {
 func (r *RPCs) Call(addr string, name string, req interface{}, res interface{}) error {
 	return r.conns.Call(addr, name, req, res)
 }
+
+func (r *RPCs) Go(addr string, name string, req interface{}, res interface{}, done chan *rpc.Call) *rpc.Call {
+	return r.conns.Go(addr, name, req, res, done)
+}

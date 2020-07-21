@@ -1,6 +1,8 @@
 package raft
 
 import (
+	"github.com/hslam/rpc"
+	"sync"
 	"time"
 )
 
@@ -15,6 +17,7 @@ type Proxy interface {
 
 type proxy struct {
 	node               *Node
+	donePool           *sync.Pool
 	queryLeaderTimeout time.Duration
 	addPeerTimeout     time.Duration
 	removePeerTimeout  time.Duration
@@ -23,6 +26,7 @@ type proxy struct {
 func newProxy(node *Node) Proxy {
 	return &proxy{
 		node:               node,
+		donePool:           &sync.Pool{New: func() interface{} { return make(chan *rpc.Call, 10) }},
 		queryLeaderTimeout: DefaultQueryLeaderTimeout,
 		addPeerTimeout:     DefaultAddPeerTimeout,
 		removePeerTimeout:  DefaultRemovePeerTimeout,
@@ -30,24 +34,21 @@ func newProxy(node *Node) Proxy {
 }
 
 func (p *proxy) QueryLeader(addr string) (term uint64, leaderId string, ok bool) {
-	var req = &QueryLeaderRequest{}
-	var ch = make(chan *QueryLeaderResponse, 1)
-	var errCh = make(chan error, 1)
-	go func(rpcs *RPCs, addr string, req *QueryLeaderRequest, ch chan *QueryLeaderResponse, errCh chan error) {
-		var res = &QueryLeaderResponse{}
-		if err := rpcs.Call(addr, rpcs.QueryLeaderServiceName(), req, res); err != nil {
-			errCh <- err
-		} else {
-			ch <- res
-		}
-	}(p.node.rpcs, addr, req, ch, errCh)
+	ch := p.node.rpcs.Go(addr, p.node.rpcs.QueryLeaderServiceName(), &QueryLeaderRequest{}, &QueryLeaderResponse{}, p.donePool.Get().(chan *rpc.Call))
+	done := ch.Done
 	select {
-	case res := <-ch:
+	case call := <-done:
+		for len(done) > 0 {
+			<-done
+		}
+		p.donePool.Put(done)
+		if call.Error != nil {
+			Tracef("raft.QueryLeader %s -> %s error %s", p.node.address, addr, call.Error.Error())
+			return 0, "", false
+		}
+		res := call.Reply.(*QueryLeaderResponse)
 		Tracef("raft.QueryLeader %s -> %s LeaderId %s", p.node.address, addr, res.LeaderId)
 		return res.Term, res.LeaderId, true
-	case err := <-errCh:
-		Tracef("raft.QueryLeader %s -> %s error %s", p.node.address, addr, err.Error())
-		return 0, "", false
 	case <-time.After(p.addPeerTimeout):
 		Tracef("raft.QueryLeader %s -> %s time out", p.node.address, addr)
 	}
@@ -56,23 +57,21 @@ func (p *proxy) QueryLeader(addr string) (term uint64, leaderId string, ok bool)
 func (p *proxy) AddPeer(addr string, info *NodeInfo) (success bool, ok bool) {
 	var req = &AddPeerRequest{}
 	req.Node = info
-	var ch = make(chan *AddPeerResponse, 1)
-	var errCh = make(chan error, 1)
-	go func(rpcs *RPCs, addr string, req *AddPeerRequest, ch chan *AddPeerResponse, errCh chan error) {
-		var res = &AddPeerResponse{}
-		if err := rpcs.Call(addr, rpcs.AddPeerServiceName(), req, res); err != nil {
-			errCh <- err
-		} else {
-			ch <- res
-		}
-	}(p.node.rpcs, addr, req, ch, errCh)
+	ch := p.node.rpcs.Go(addr, p.node.rpcs.AddPeerServiceName(), req, &AddPeerResponse{}, p.donePool.Get().(chan *rpc.Call))
+	done := ch.Done
 	select {
-	case res := <-ch:
+	case call := <-done:
+		for len(done) > 0 {
+			<-done
+		}
+		p.donePool.Put(done)
+		if call.Error != nil {
+			Tracef("raft.AddPeer %s -> %s error %s", p.node.address, addr, call.Error.Error())
+			return false, false
+		}
+		res := call.Reply.(*AddPeerResponse)
 		Tracef("raft.AddPeer %s -> %s Success %t", p.node.address, addr, res.Success)
 		return res.Success, true
-	case err := <-errCh:
-		Tracef("raft.AddPeer %s -> %s error %s", p.node.address, addr, err.Error())
-		return false, false
 	case <-time.After(p.addPeerTimeout):
 		Tracef("raft.AddPeer %s -> %s time out", p.node.address, addr)
 	}
@@ -81,23 +80,21 @@ func (p *proxy) AddPeer(addr string, info *NodeInfo) (success bool, ok bool) {
 func (p *proxy) RemovePeer(addr string, Address string) (success bool, ok bool) {
 	var req = &RemovePeerRequest{}
 	req.Address = Address
-	var ch = make(chan *RemovePeerResponse, 1)
-	var errCh = make(chan error, 1)
-	go func(rpcs *RPCs, addr string, req *RemovePeerRequest, ch chan *RemovePeerResponse, errCh chan error) {
-		var res = &RemovePeerResponse{}
-		if err := rpcs.Call(addr, rpcs.RemovePeerServiceName(), req, res); err != nil {
-			errCh <- err
-		} else {
-			ch <- res
-		}
-	}(p.node.rpcs, addr, req, ch, errCh)
+	ch := p.node.rpcs.Go(addr, p.node.rpcs.RemovePeerServiceName(), req, &RemovePeerResponse{}, p.donePool.Get().(chan *rpc.Call))
+	done := ch.Done
 	select {
-	case res := <-ch:
+	case call := <-done:
+		for len(done) > 0 {
+			<-done
+		}
+		p.donePool.Put(done)
+		if call.Error != nil {
+			Tracef("raft.RemovePeer %s -> %s error %s", p.node.address, addr, call.Error.Error())
+			return false, false
+		}
+		res := call.Reply.(*RemovePeerResponse)
 		Tracef("raft.RemovePeer %s -> %s Success %t", p.node.address, addr, res.Success)
 		return res.Success, true
-	case err := <-errCh:
-		Tracef("raft.RemovePeer %s -> %s error %s", p.node.address, addr, err.Error())
-		return false, false
 	case <-time.After(p.removePeerTimeout):
 		Tracef("raft.RemovePeer %s -> %s time out", p.node.address, addr)
 	}
