@@ -22,9 +22,11 @@ func (m *CommandType) register(cmd Command) error {
 	if _, ok := m.types[cmd.Type()]; ok {
 		return ErrCommandTypeExisted
 	}
-	m.types[cmd.Type()] = &sync.Pool{New: func() interface{} {
+	pool := &sync.Pool{New: func() interface{} {
 		return reflect.New(reflect.Indirect(reflect.ValueOf(cmd)).Type()).Interface()
 	}}
+	pool.Put(pool.Get())
+	m.types[cmd.Type()] = pool
 	return nil
 }
 
