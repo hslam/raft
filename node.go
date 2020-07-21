@@ -115,7 +115,7 @@ func NewNode(host string, port int, data_dir string, context interface{}, join b
 		raftCodec:       new(ProtoCodec),
 		codec:           new(JsonCodec),
 		context:         context,
-		commandType:     &CommandType{types: make(map[int32]Command)},
+		commandType:     &CommandType{types: make(map[int32]*sync.Pool)},
 		nextIndex:       1,
 		join:            join,
 	}

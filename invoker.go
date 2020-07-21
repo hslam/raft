@@ -17,9 +17,7 @@ func init() {
 }
 
 type RaftCommand interface {
-	Type() int32
-	UniqueID() string
-	Do(Context interface{}) (interface{}, error)
+	Command
 	Private() bool
 	SetIndex(index uint64)
 	Index() uint64

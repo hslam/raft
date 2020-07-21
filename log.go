@@ -266,6 +266,7 @@ func (log *Log) applyCommitedRange(startIndex uint64, endIndex uint64) {
 		} else {
 			Errorf("Log.applyCommitedRange %s %d error %s", log.node.address, i, err)
 		}
+		log.node.commandType.put(command)
 	}
 	log.putEmtyEntries(entries)
 	//Tracef("Log.applyCommitedRange %s startIndex %d endIndex %d End %d",log.node.address,startIndex,endIndex,len(entries))

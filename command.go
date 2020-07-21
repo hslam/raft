@@ -13,7 +13,7 @@ type Command interface {
 
 type CommandType struct {
 	mu    sync.RWMutex
-	types map[int32]Command
+	types map[int32]*sync.Pool
 }
 
 func (m *CommandType) register(cmd Command) error {
@@ -22,19 +22,28 @@ func (m *CommandType) register(cmd Command) error {
 	if _, ok := m.types[cmd.Type()]; ok {
 		return ErrCommandTypeExisted
 	}
-	m.types[cmd.Type()] = cmd
+	m.types[cmd.Type()] = &sync.Pool{New: func() interface{} {
+		return reflect.New(reflect.Indirect(reflect.ValueOf(cmd)).Type()).Interface()
+	}}
 	return nil
 }
 
 func (m *CommandType) clone(Type int32) Command {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	if command, ok := m.types[Type]; ok {
-		command_copy := reflect.New(reflect.Indirect(reflect.ValueOf(command)).Type()).Interface()
-		return command_copy.(Command)
+	if commandPool, ok := m.types[Type]; ok {
+		return commandPool.Get().(Command)
 	}
 	Debugf("CommandType.clone Unregistered %d", Type)
 	return nil
+}
+
+func (m *CommandType) put(cmd Command) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	if commandPool, ok := m.types[cmd.Type()]; ok {
+		commandPool.Put(cmd)
+	}
 }
 
 func (m *CommandType) exists(cmd Command) bool {
