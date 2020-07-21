@@ -11,9 +11,10 @@ var (
 func init() {
 	invokerPool = &sync.Pool{
 		New: func() interface{} {
-			return &Invoker{}
+			return &Invoker{buf: make([]byte, 1024*64)}
 		},
 	}
+	invokerPool.Put(invokerPool.Get())
 }
 
 type RaftCommand interface {
@@ -30,6 +31,7 @@ type Invoker struct {
 	cmd     Command
 	private bool
 	index   uint64
+	buf     []byte
 }
 
 func newInvoker(cmd Command, private bool, codec Codec) RaftCommand {
@@ -37,11 +39,7 @@ func newInvoker(cmd Command, private bool, codec Codec) RaftCommand {
 	i.codec = codec
 	i.cmd = cmd
 	i.private = private
-	return &Invoker{
-		codec:   codec,
-		cmd:     cmd,
-		private: private,
-	}
+	return i
 }
 func (i *Invoker) Private() bool {
 	return i.private
@@ -62,8 +60,8 @@ func (i Invoker) Do(Context interface{}) (interface{}, error) {
 	return i.cmd.Do(Context)
 }
 func (i Invoker) Encode() ([]byte, error) {
-	return i.codec.Encode(i.cmd)
+	return i.codec.Marshal(i.buf, i.cmd)
 }
 func (i Invoker) Decode(data []byte) error {
-	return i.codec.Decode(data, i.cmd)
+	return i.codec.Unmarshal(data, i.cmd)
 }

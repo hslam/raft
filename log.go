@@ -17,6 +17,7 @@ type Log struct {
 	readyEntries     []*Entry
 	maxBatch         int
 	compactionTicker *time.Ticker
+	buf              []byte
 	entryPool        *sync.Pool
 	stop             chan bool
 	finish           chan bool
@@ -35,6 +36,7 @@ func newLog(node *Node) *Log {
 		readyEntries:     make([]*Entry, 0),
 		maxBatch:         DefaultMaxBatch,
 		compactionTicker: time.NewTicker(DefaultCompactionTick),
+		buf:              make([]byte, 1024*64),
 		stop:             make(chan bool, 1),
 		finish:           make(chan bool, 1),
 		work:             true,
@@ -257,9 +259,9 @@ func (log *Log) applyCommitedRange(startIndex uint64, endIndex uint64) {
 		command := log.node.commandType.clone(entries[i].CommandType)
 		var err error
 		if entries[i].CommandType >= 0 {
-			err = log.node.codec.Decode(entries[i].Command, command)
+			err = log.node.codec.Unmarshal(entries[i].Command, command)
 		} else {
-			err = log.node.raftCodec.Decode(entries[i].Command, command)
+			err = log.node.raftCodec.Unmarshal(entries[i].Command, command)
 		}
 		if err == nil {
 			log.node.stateMachine.apply(entries[i].Index, command)
@@ -308,7 +310,7 @@ func (log *Log) read(meta *Meta) *Entry {
 		return nil
 	}
 	entry := log.getEmtyEntry()
-	err = log.node.raftCodec.Decode(b, entry)
+	err = log.node.raftCodec.Unmarshal(b, entry)
 	if err != nil {
 		Errorf("Log.Decode %s", string(b))
 		return nil
@@ -377,7 +379,7 @@ func (log *Log) Decode(data []byte, metas []*Meta, cursor uint64) ([]*Entry, uin
 			}()
 			b := data[ret : ret+offset]
 			entry := log.getEmtyEntry()
-			err := log.node.raftCodec.Decode(b, entry)
+			err := log.node.raftCodec.Unmarshal(b, entry)
 			if err != nil {
 				Errorf("Log.Decode %d %d %d %s", cursor, ret, offset, string(b))
 			}
@@ -393,7 +395,7 @@ func (log *Log) Encode(entries []*Entry, ret uint64) ([]byte, []*Meta, error) {
 	var data []byte
 	for i := 0; i < len(entries); i++ {
 		entry := entries[i]
-		b, _ := log.node.raftCodec.Encode(entry)
+		b, _ := log.node.raftCodec.Marshal(log.buf, entry)
 		data = append(data, b...)
 		meta := &Meta{}
 		meta.Index = entry.Index

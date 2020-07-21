@@ -5,119 +5,150 @@ import (
 	"encoding/gob"
 	"encoding/json"
 	"encoding/xml"
-	gogoproto "github.com/gogo/protobuf/proto"
-	"github.com/golang/protobuf/proto"
+	"errors"
 )
 
+// Codec defines the interface for encoding/decoding.
 type Codec interface {
-	Encode(v interface{}) ([]byte, error)
-	Decode(data []byte, v interface{}) error
+	Marshal(buf []byte, v interface{}) ([]byte, error)
+	Unmarshal(data []byte, v interface{}) error
 }
 
-type JsonCodec struct {
+// JSONCodec struct
+type JSONCodec struct {
 }
 
-func (c *JsonCodec) Encode(v interface{}) ([]byte, error) {
+// Marshal returns the JSON encoding of v.
+func (c *JSONCodec) Marshal(buf []byte, v interface{}) ([]byte, error) {
 	return json.Marshal(v)
 }
 
-func (c *JsonCodec) Decode(data []byte, v interface{}) error {
+// Unmarshal parses the JSON-encoded data and stores the result in the value pointed to by v.
+func (c *JSONCodec) Unmarshal(data []byte, v interface{}) error {
 	return json.Unmarshal(data, v)
 }
 
-//type ProtoCodec struct{
-//}
-//
-//func (c *ProtoCodec) Encode(v interface{}) ([]byte, error) {
-//	return proto.Marshal(v.(proto.Message))
-//}
-//
-//func (c *ProtoCodec) Decode(data []byte, v interface{}) error {
-//	return proto.Unmarshal(data, v.(proto.Message))
-//}
-
-type XmlCodec struct {
+// XMLCodec struct
+type XMLCodec struct {
 }
 
-func (c *XmlCodec) Encode(v interface{}) ([]byte, error) {
+// Marshal returns the XML encoding of v.
+func (c *XMLCodec) Marshal(buf []byte, v interface{}) ([]byte, error) {
 	return xml.Marshal(v)
 }
 
-func (c *XmlCodec) Decode(data []byte, v interface{}) error {
+// Unmarshal parses the XML-encoded data and stores the result in the value pointed to by v.
+func (c *XMLCodec) Unmarshal(data []byte, v interface{}) error {
 	return xml.Unmarshal(data, v)
 }
 
-type GobCodec struct {
+// GOBCodec struct
+type GOBCodec struct {
 }
 
-func (c *GobCodec) Encode(v interface{}) ([]byte, error) {
-	var buffer bytes.Buffer
-	err := gob.NewEncoder(&buffer).Encode(v)
-	if err != nil {
-		return nil, err
-	}
+// Marshal returns the GOB encoding of v.
+func (c *GOBCodec) Marshal(buf []byte, v interface{}) ([]byte, error) {
+	var buffer = bytes.NewBuffer(buf)
+	buffer.Reset()
+	gob.NewEncoder(buffer).Encode(v)
 	return buffer.Bytes(), nil
 }
 
-func (c *GobCodec) Decode(data []byte, v interface{}) error {
+// Unmarshal parses the GOB-encoded data and stores the result in the value pointed to by v.
+func (c *GOBCodec) Unmarshal(data []byte, v interface{}) error {
 	return gob.NewDecoder(bytes.NewReader(data)).Decode(v)
 }
 
-type BytesCodec struct {
+// BYTESCodec struct
+type BYTESCodec struct {
 }
 
-func (c *BytesCodec) Encode(v interface{}) ([]byte, error) {
+// Marshal returns the BYTES encoding of v.
+func (c *BYTESCodec) Marshal(buf []byte, v interface{}) ([]byte, error) {
 	return *v.(*[]byte), nil
 }
 
-func (c *BytesCodec) Decode(data []byte, v interface{}) error {
+// Unmarshal parses the BYTES-encoded data and stores the result in the value pointed to by v.
+func (c *BYTESCodec) Unmarshal(data []byte, v interface{}) error {
 	*v.(*[]byte) = data
 	return nil
 }
 
-type ProtoCodec struct {
+// gogoprotobuf defines the interface for gogo's protobuf.
+type gogoprotobuf interface {
+	Size() (n int)
+	Marshal() (data []byte, err error)
+	MarshalTo(buf []byte) (int, error)
+	Unmarshal(data []byte) error
 }
 
-func (c *ProtoCodec) Encode(v interface{}) ([]byte, error) {
-	return gogoproto.Marshal(v.(proto.Message))
+// GOGOPBCodec struct
+type GOGOPBCodec struct {
 }
 
-func (c *ProtoCodec) Decode(data []byte, v interface{}) error {
-	return gogoproto.Unmarshal(data, v.(proto.Message))
+//ErrorGOGOPB is the error that v is not gogoprotobuf
+var ErrorGOGOPB = errors.New("is not gogoprotobuf")
+
+// Marshal returns the GOGOPB encoding of v.
+func (c *GOGOPBCodec) Marshal(buf []byte, v interface{}) ([]byte, error) {
+	if p, ok := v.(gogoprotobuf); ok {
+		size := p.Size()
+		if cap(buf) >= size {
+			buf = buf[:size]
+			n, err := p.MarshalTo(buf)
+			return buf[:n], err
+		}
+		return p.Marshal()
+	}
+	return nil, ErrorGOGOPB
 }
 
-type gen interface {
+// Unmarshal parses the GOGOPB-encoded data and stores the result in the value pointed to by v.
+func (c *GOGOPBCodec) Unmarshal(data []byte, v interface{}) error {
+	if p, ok := v.(gogoprotobuf); ok {
+		return p.Unmarshal(data)
+	}
+	return ErrorGOGOPB
+}
+
+// Code defines the interface for code.
+type Code interface {
 	Marshal(buf []byte) ([]byte, error)
 	Unmarshal(buf []byte) (uint64, error)
 }
 
-type GencodeCodec struct {
-	Buffer []byte
+// CODECodec struct
+type CODECodec struct {
 }
 
-func (c *GencodeCodec) Encode(v interface{}) ([]byte, error) {
-	return v.(gen).Marshal(c.Buffer)
+// Marshal returns the CODE encoding of v.
+func (c *CODECodec) Marshal(buf []byte, v interface{}) ([]byte, error) {
+	return v.(Code).Marshal(buf)
 }
 
-func (c *GencodeCodec) Decode(data []byte, v interface{}) error {
-	_, err := v.(gen).Unmarshal(data)
+// Unmarshal parses the CODE-encoded data and stores the result in the value pointed to by v.
+func (c *CODECodec) Unmarshal(data []byte, v interface{}) error {
+	_, err := v.(Code).Unmarshal(data)
 	return err
 }
 
+// msgpack defines the interface for msgp.
 type msgpack interface {
 	MarshalMsg(buf []byte) ([]byte, error)
 	UnmarshalMsg(bts []byte) (o []byte, err error)
 }
 
-type MsgpCodec struct {
-	Buffer []byte
+// MSGPCodec struct
+type MSGPCodec struct {
 }
 
-func (c *MsgpCodec) Encode(v interface{}) ([]byte, error) {
-	return v.(msgpack).MarshalMsg(c.Buffer)
+// Marshal returns the MSGP encoding of v.
+func (c *MSGPCodec) Marshal(buf []byte, v interface{}) ([]byte, error) {
+	return v.(msgpack).MarshalMsg(buf[:0])
 }
 
-func (c *MsgpCodec) Decode(data []byte, v interface{}) error {
+// Unmarshal parses the MSGP-encoded data and stores the result in the value pointed to by v.
+func (c *MSGPCodec) Unmarshal(data []byte, v interface{}) error {
 	_, err := v.(msgpack).UnmarshalMsg(data)
 	return err
 }
