@@ -1,26 +1,28 @@
 package main
 
 import (
-	"github.com/hslam/raft"
-	"fmt"
-	"time"
 	"flag"
-	"strings"
-	"github.com/hslam/stats"
+	"fmt"
+	"github.com/hslam/raft"
 	"github.com/hslam/raft/examples/example/context"
+	"github.com/hslam/stats"
+	"strings"
+	"time"
 )
-var(
-	host string
-	port int
-	path string
-	join bool
-	peers string
-	log bool
-	benchmark bool
-	operation string
-	parallel int
+
+var (
+	host        string
+	port        int
+	path        string
+	join        bool
+	peers       string
+	log         bool
+	benchmark   bool
+	operation   string
+	parallel    int
 	total_calls int
 )
+
 func init() {
 	flag.StringVar(&host, "h", "localhost", "hostname")
 	flag.IntVar(&port, "p", 9001, "port")
@@ -35,62 +37,61 @@ func init() {
 }
 func main() {
 	flag.Parse()
-	if log{
+	if log {
 		raft.SetLogLevel(raft.InfoLevel)
 	}
 	var nodes []string
 	var infos []*raft.NodeInfo
 	if peers != "" {
 		nodes = strings.Split(peers, ";")
-		for _,v:=range nodes{
-			if v=="" {
+		for _, v := range nodes {
+			if v == "" {
 				continue
 			}
 			info := strings.Split(v, ",")
 			var NonVoting bool
-			if len(info)>1{
-				if info[1]=="true"{
-					NonVoting=true
+			if len(info) > 1 {
+				if info[1] == "true" {
+					NonVoting = true
 				}
 			}
-			infos=append(infos,&raft.NodeInfo{Address:info[0],NonVoting:NonVoting,Data:nil})
+			infos = append(infos, &raft.NodeInfo{Address: info[0], NonVoting: NonVoting, Data: nil})
 		}
 	}
 	ctx := context.NewContext()
-	node,err:=raft.NewNode(host,port,path,ctx,join,infos)
-	if err!=nil{
+	node, err := raft.NewNode(host, port, path, ctx, join, infos)
+	if err != nil {
 		panic(err)
 	}
 	node.RegisterCommand(&context.Command{})
 	node.SetCodec(&raft.JsonCodec{})
 	node.SetSnapshot(&context.Snapshot{})
 	node.SetSyncTypes([]*raft.SyncType{
-		{Seconds:900,Changes:1},
-		{Seconds:300,Changes:10},
-		{Seconds:60,Changes:10000},
+		{Seconds: 900, Changes: 1},
+		{Seconds: 300, Changes: 10},
+		{Seconds: 60, Changes: 10000},
 	})
 	node.Start()
-	if benchmark{
+	if benchmark {
 		go func() {
 			for {
-				time.Sleep(time.Second*5)
-				if node.IsLeader(){
+				time.Sleep(time.Second * 5)
+				if node.IsLeader() {
 					node.Do(&context.Command{"foobar"})
-					var Clients =make([]stats.Client,1)
-					Clients[0]=&context.Client{Node:node,Ctx:ctx,Operation:operation}
-					stats.StartPrint(parallel,total_calls,Clients)
+					var Clients = make([]stats.Client, 1)
+					Clients[0] = &context.Client{Node: node, Ctx: ctx, Operation: operation}
+					stats.StartPrint(parallel, total_calls, Clients)
 					break
-				}else if node.Leader()!=""{
+				} else if node.Leader() != "" {
 					break
 				}
 			}
 		}()
-	}else {
-		for{
-			fmt.Printf("%d State:%s - Term:%d - Leader:%s\n",time.Now().Unix(),node.State(),node.Term(),node.Leader())
-			time.Sleep(time.Second*3)
+	} else {
+		for {
+			fmt.Printf("%d State:%s - Term:%d - Leader:%s\n", time.Now().Unix(), node.State(), node.Term(), node.Leader())
+			time.Sleep(time.Second * 3)
 		}
 	}
 	select {}
 }
-

@@ -1,17 +1,16 @@
 package raft
 
 const (
-	Follower	= "Follower"
-	Candidate	= "Candidate"
-	Leader		= "Leader"
+	Follower  = "Follower"
+	Candidate = "Candidate"
+	Leader    = "Leader"
 )
 
-type State interface{
+type State interface {
 	Start()
-	Update()bool
+	Update() bool
 	FixedUpdate()
-	String()string
-	StepDown()State
-	NextState()State
+	String() string
+	StepDown() State
+	NextState() State
 }
-

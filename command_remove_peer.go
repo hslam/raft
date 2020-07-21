@@ -4,18 +4,18 @@ import "fmt"
 
 func NewRemovePeerCommand(address string) Command {
 	return &RemovePeerCommand{
-		Address:address,
+		Address: address,
 	}
 }
 func (c *RemovePeerCommand) Type() int32 {
 	return CommandTypeRemovePeer
 }
 
-func (c *RemovePeerCommand) UniqueID() string{
+func (c *RemovePeerCommand) UniqueID() string {
 	return c.Address
 }
 
-func (c *RemovePeerCommand) Do(context interface{})(interface{},error){
+func (c *RemovePeerCommand) Do(context interface{}) (interface{}, error) {
 	fmt.Println("ReconfigurationCommand")
 	return nil, nil
 	node := context.(*Node)

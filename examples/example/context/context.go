@@ -3,13 +3,14 @@ package context
 import (
 	"sync"
 )
+
 type Context struct {
-	mut sync.RWMutex
-	data  string
+	mut  sync.RWMutex
+	data string
 }
 
 func NewContext() *Context {
-	return &Context{data:""}
+	return &Context{data: ""}
 }
 func (ctx *Context) Set(value string) {
 	ctx.mut.Lock()
@@ -21,4 +22,3 @@ func (ctx *Context) Get() string {
 	defer ctx.mut.RUnlock()
 	return ctx.data
 }
-

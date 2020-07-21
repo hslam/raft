@@ -1,40 +1,41 @@
 package context
 
-import(
-	"time"
+import (
 	"github.com/hslam/raft"
 	"math/rand"
+	"time"
 )
 
 type Client struct {
-	Node *raft.Node
-	Ctx *Context
+	Node      *raft.Node
+	Ctx       *Context
 	Operation string
 }
-func (c *Client)Call()(int64,int64,bool){
+
+func (c *Client) Call() (int64, int64, bool) {
 	switch c.Operation {
 	case "set":
 		c.Node.Do(&Command{RandString(16)})
-		return 0,0,true
+		return 0, 0, true
 	case "lease":
-		if ok:=c.Node.Lease();ok{
+		if ok := c.Node.Lease(); ok {
 			value := c.Ctx.Get()
-			if value=="foobar"{
-				return 0,0,true
+			if value == "foobar" {
+				return 0, 0, true
 			}
 		}
 	case "readindex":
-		if ok:=c.Node.ReadIndex();ok{
+		if ok := c.Node.ReadIndex(); ok {
 			value := c.Ctx.Get()
-			if value=="foobar"{
-				return 0,0,true
+			if value == "foobar" {
+				return 0, 0, true
 			}
 		}
 	}
-	return 0,0,false
+	return 0, 0, false
 }
 func RandString(len int) string {
-	r:= rand.New(rand.NewSource(time.Now().Unix()))
+	r := rand.New(rand.NewSource(time.Now().Unix()))
 	bytes := make([]byte, len)
 	for i := 0; i < len; i++ {
 		b := r.Intn(26) + 65

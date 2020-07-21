@@ -6,46 +6,46 @@ import (
 )
 
 type LRU struct {
-	Keys  		map[string]*list.Element
-	List      	*list.List
-	Add 		func(key string) (interface{},error)
-	Size 		int
+	Keys map[string]*list.Element
+	List *list.List
+	Add  func(key string) (interface{}, error)
+	Size int
 }
 
-func NewLRU(size int ,Add func(key string,value interface{}) error) (*LRU, error) {
+func NewLRU(size int, Add func(key string, value interface{}) error) (*LRU, error) {
 	if size <= 0 {
 		return nil, errors.New("Must provide a positive size")
 	}
 	lru := &LRU{
-		Keys:make(map[string]*list.Element),
-		List:list.New(),
-		Size:size,
-		}
+		Keys: make(map[string]*list.Element),
+		List: list.New(),
+		Size: size,
+	}
 	return lru, nil
 }
 
-func (this *LRU) Get(key string)(interface{}, error) {
+func (this *LRU) Get(key string) (interface{}, error) {
 
-	if element, ok := this.Keys[key];ok {
+	if element, ok := this.Keys[key]; ok {
 		this.List.MoveToFront(element)
-		return element.Value,nil
+		return element.Value, nil
 	}
-	value,err:=this.Add(key)
-	if err!=nil{
-		return nil,nil
+	value, err := this.Add(key)
+	if err != nil {
+		return nil, nil
 	}
-	if this.List.Len() > this.Size-1{
+	if this.List.Len() > this.Size-1 {
 		this.removeOldest()
 	}
-	element:=this.List.PushFront(key)
-	element.Value=value
-	this.Keys[key]=element
+	element := this.List.PushFront(key)
+	element.Value = value
+	this.Keys[key] = element
 
-	return nil,nil
+	return nil, nil
 
 }
 func (this *LRU) Clear() {
-	for k, _ := range this.Keys {
+	for k := range this.Keys {
 		delete(this.Keys, k)
 	}
 	this.List.Init()
@@ -68,7 +68,7 @@ func (this *LRU) RemoveOldest() (key string, ok bool) {
 		this.removeElement(element)
 		return key, true
 	}
-	return "",  false
+	return "", false
 }
 func (this *LRU) GetKeys() []string {
 	keys := make([]string, len(this.Keys))
