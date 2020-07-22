@@ -220,10 +220,6 @@ func (s *SnapshotReadWriter) Tar() error {
 	return nil
 }
 func (s *SnapshotReadWriter) tar() error {
-	if !s.node.storage.Exists(DefaultCommitIndex) {
-		s.node.commitIndex.save()
-		return errors.New(DefaultCommitIndex + " file is not existed")
-	}
 	if !s.node.storage.Exists(DefaultLastIncludedIndex) {
 		s.lastIncludedIndex.save()
 		return errors.New(DefaultLastIncludedIndex + " file is not existed")
@@ -246,7 +242,6 @@ func (s *SnapshotReadWriter) tar() error {
 	s.lastTarIndex.Set(s.lastIncludedIndex.Id())
 	s.node.storage.Truncate(DefaultTar, 0)
 	s.AppendFile(DefaultLastTarIndex)
-	s.AppendFile(DefaultCommitIndex)
 	s.AppendFile(DefaultLastIncludedIndex)
 	s.AppendFile(DefaultLastIncludedTerm)
 	s.AppendFile(DefaultSnapshot)
@@ -278,7 +273,6 @@ func (s *SnapshotReadWriter) untar() error {
 	}
 	defer source.Close()
 	s.RecoverFile(source, DefaultLastTarIndex)
-	s.RecoverFile(source, DefaultCommitIndex)
 	s.RecoverFile(source, DefaultLastIncludedIndex)
 	s.RecoverFile(source, DefaultLastIncludedTerm)
 	s.RecoverFile(source, s.name)

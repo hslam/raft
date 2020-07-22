@@ -29,7 +29,7 @@ func (state *FollowerState) Start() {
 
 func (state *FollowerState) Update() bool {
 	if state.work {
-		if state.node.commitIndex.Id() > 0 && state.node.commitIndex.Id() > state.node.stateMachine.lastApplied {
+		if state.node.commitIndex > 0 && state.node.commitIndex > state.node.stateMachine.lastApplied {
 			state.work = false
 			func() {
 				defer func() { state.work = true }()

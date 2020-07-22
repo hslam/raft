@@ -77,7 +77,7 @@ func (r *raft) AppendEntries(addr string, prevLogIndex, prevLogTerm uint64, entr
 	var req = &AppendEntriesRequest{}
 	req.Term = r.node.currentTerm.Id()
 	req.LeaderId = r.node.leader
-	req.LeaderCommit = r.node.commitIndex.Id()
+	req.LeaderCommit = r.node.commitIndex
 	req.PrevLogIndex = prevLogIndex
 	req.PrevLogTerm = prevLogTerm
 	req.Entries = entries
@@ -209,9 +209,9 @@ func (r *raft) HandleAppendEntries(req *AppendEntriesRequest, res *AppendEntries
 		}
 	}
 
-	if req.LeaderCommit > r.node.commitIndex.Id() {
+	if req.LeaderCommit > r.node.commitIndex {
 		//var commitIndex=r.node.commitIndex
-		r.node.commitIndex.Set(minUint64(req.LeaderCommit, r.node.lastLogIndex))
+		r.node.commitIndex = minUint64(req.LeaderCommit, r.node.lastLogIndex)
 		//if r.node.commitIndex>commitIndex{
 		//	Tracef("raft.HandleAppendEntries %s commitIndex %d==>%d",r.node.address, commitIndex,r.node.commitIndex)
 		//}

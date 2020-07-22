@@ -58,7 +58,7 @@ func (pipeline *Pipeline) run() {
 	go func() {
 		for p := range pipeline.readyInvokerChan {
 			for {
-				if pipeline.node.commitIndex.Id() > 0 && p.invoker.Index() <= pipeline.node.commitIndex.Id() {
+				if pipeline.node.commitIndex > 0 && p.invoker.Index() <= pipeline.node.commitIndex {
 					//var lastApplied  = pipeline.node.stateMachine.lastApplied
 					reply, err := pipeline.node.stateMachine.Apply(p.invoker.Index(), p.invoker)
 					func() {

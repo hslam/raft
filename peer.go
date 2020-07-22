@@ -100,7 +100,7 @@ func (p *Peer) voting() bool {
 
 func (p *Peer) check() {
 	if p.node.lastLogIndex > p.nextIndex-1 && p.nextIndex > 0 {
-		if ((p.nextIndex == 1 || (p.nextIndex > 1 && p.nextIndex-1 < p.node.firstLogIndex)) && p.node.commitIndex.Id() > 1) || p.node.lastLogIndex-(p.nextIndex-1) > DefaultNumInstallSnapshot {
+		if ((p.nextIndex == 1 || (p.nextIndex > 1 && p.nextIndex-1 < p.node.firstLogIndex)) && p.node.commitIndex > 1) || p.node.lastLogIndex-(p.nextIndex-1) > DefaultNumInstallSnapshot {
 			if p.install {
 				p.install = false
 				defer func() {

@@ -228,7 +228,7 @@ func (log *Log) applyCommited() {
 		return
 	}
 	var startIndex = maxUint64(log.node.stateMachine.lastApplied+1, 1)
-	var endIndex = log.node.commitIndex.Id()
+	var endIndex = log.node.commitIndex
 	if startIndex > endIndex {
 		return
 	}

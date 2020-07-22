@@ -54,8 +54,7 @@ type Node struct {
 	votedFor    *PersistentString
 
 	//volatile state on all servers
-	commitIndex *PersistentUint64
-
+	commitIndex   uint64
 	firstLogIndex uint64
 	lastLogIndex  uint64
 	lastLogTerm   uint64
@@ -130,7 +129,7 @@ func NewNode(host string, port int, data_dir string, context interface{}, join b
 	n.proxy = newProxy(n)
 	n.server = newServer(n, fmt.Sprintf(":%d", port))
 	n.currentTerm = newPersistentUint64(n, DefaultTerm, 0)
-	n.commitIndex = newPersistentUint64(n, DefaultCommitIndex, time.Second)
+	n.commitIndex = 0
 	n.votedFor = newPersistentString(n, DefaultVoteFor)
 	n.state = newFollowerState(n)
 	n.pipeline = NewPipeline(n, DefaultMaxConcurrency)
@@ -762,7 +761,7 @@ func (n *Node) reset() {
 	n.nextIndex = 1
 	n.lastLogIndex = 0
 	n.lastLogTerm = 0
-	n.commitIndex.Set(0)
+	n.commitIndex = 0
 	n.stateMachine.lastApplied = 0
 	n.stateMachine.snapshotReadWriter.lastIncludedIndex.Set(0)
 	n.stateMachine.snapshotReadWriter.lastIncludedTerm.Set(0)
@@ -806,9 +805,6 @@ func (n *Node) recover() error {
 	return nil
 }
 func (n *Node) checkLog() error {
-	if n.storage.IsEmpty(DefaultCommitIndex) {
-		n.commitIndex.save()
-	}
 	if n.storage.IsEmpty(DefaultLastIncludedIndex) {
 		n.stateMachine.snapshotReadWriter.lastIncludedIndex.save()
 	}
@@ -827,14 +823,14 @@ func (n *Node) checkLog() error {
 	if n.storage.IsEmpty(DefaultVoteFor) {
 		n.votedFor.save()
 	}
-	if n.storage.IsEmpty(DefaultSnapshot) && n.stateMachine.snapshot != nil && !n.storage.IsEmpty(DefaultIndex) && !n.storage.IsEmpty(DefaultLog) && !n.storage.IsEmpty(DefaultCommitIndex) {
+	if n.storage.IsEmpty(DefaultSnapshot) && n.stateMachine.snapshot != nil && !n.storage.IsEmpty(DefaultIndex) && !n.storage.IsEmpty(DefaultLog) {
 		n.stateMachine.SaveSnapshot()
 	} else if n.stateMachine.snapshot == nil {
 		if !n.storage.Exists(DefaultSnapshot) {
 			n.storage.Truncate(DefaultSnapshot, 1)
 		}
 	}
-	if n.isLeader() && n.storage.IsEmpty(n.stateMachine.snapshotReadWriter.FileName()) && !n.storage.IsEmpty(DefaultIndex) && !n.storage.IsEmpty(DefaultLog) && !n.storage.IsEmpty(DefaultCommitIndex) && !n.storage.IsEmpty(DefaultSnapshot) && !n.storage.IsEmpty(DefaultLastIncludedIndex) && !n.storage.IsEmpty(DefaultLastIncludedTerm) {
+	if n.isLeader() && n.storage.IsEmpty(n.stateMachine.snapshotReadWriter.FileName()) && !n.storage.IsEmpty(DefaultIndex) && !n.storage.IsEmpty(DefaultLog) && !n.storage.IsEmpty(DefaultSnapshot) && !n.storage.IsEmpty(DefaultLastIncludedIndex) && !n.storage.IsEmpty(DefaultLastIncludedTerm) {
 		n.stateMachine.snapshotReadWriter.lastTarIndex.Set(0)
 		n.stateMachine.snapshotReadWriter.Tar()
 	}
@@ -879,9 +875,9 @@ func (n *Node) print() {
 		Infof("Node.print %s lastLogIndex %d==>%d", n.address, n.lastPrintLastLogIndex, n.lastLogIndex)
 		n.lastPrintLastLogIndex = n.lastLogIndex
 	}
-	if n.commitIndex.Id() > n.lastPrintCommitIndex {
-		Infof("Node.print %s commitIndex %d==>%d", n.address, n.lastPrintCommitIndex, n.commitIndex.Id())
-		n.lastPrintCommitIndex = n.commitIndex.Id()
+	if n.commitIndex > n.lastPrintCommitIndex {
+		Infof("Node.print %s commitIndex %d==>%d", n.address, n.lastPrintCommitIndex, n.commitIndex)
+		n.lastPrintCommitIndex = n.commitIndex
 	}
 	if n.stateMachine.lastApplied > n.lastPrintLastApplied {
 		Infof("Node.print %s lastApplied %d==>%d", n.address, n.lastPrintLastApplied, n.stateMachine.lastApplied)
@@ -898,13 +894,13 @@ func (n *Node) commit() bool {
 	defer n.nodesMut.RUnlock()
 	if n.votingsCount() == 1 {
 		index := n.lastLogIndex
-		if index > n.commitIndex.Id() {
+		if index > n.commitIndex {
 			n.storage.Sync(n.log.name)
 			n.storage.Sync(n.log.indexs.name)
-			n.commitIndex.Set(index)
+			n.commitIndex = index
 		}
 		if n.commitWork {
-			if n.commitIndex.Id() <= n.recoverLogIndex && n.commitIndex.Id() > n.stateMachine.lastApplied {
+			if n.commitIndex <= n.recoverLogIndex && n.commitIndex > n.stateMachine.lastApplied {
 				n.commitWork = false
 				go func() {
 					defer func() {
@@ -933,13 +929,13 @@ func (n *Node) commit() bool {
 	}
 	quickSort(lastLogIndexs, -999, -999)
 	index := lastLogIndexs[len(lastLogIndexs)/2]
-	if index > n.commitIndex.Id() {
+	if index > n.commitIndex {
 		n.storage.Sync(n.log.name)
 		n.storage.Sync(n.log.indexs.name)
-		n.commitIndex.Set(index)
+		n.commitIndex = index
 	}
 	if n.commitWork {
-		if n.commitIndex.Id() <= n.recoverLogIndex && n.commitIndex.Id() > n.stateMachine.lastApplied {
+		if n.commitIndex <= n.recoverLogIndex && n.commitIndex > n.stateMachine.lastApplied {
 			n.commitWork = false
 			go func() {
 				defer func() {
