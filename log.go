@@ -217,6 +217,7 @@ func (log *Log) copyRange(startIndex uint64, endIndex uint64) []*Entry {
 	//Tracef("Log.copyRange %s startIndex %d endIndex %d",log.node.address,metas[0].Index,metas[len(metas)-1].Index)
 	return log.batchRead(metas)
 }
+
 func (log *Log) applyCommited() {
 	log.node.stateMachine.Lock()
 	defer log.node.stateMachine.Unlock()
@@ -229,6 +230,36 @@ func (log *Log) applyCommited() {
 	}
 	var startIndex = maxUint64(log.node.stateMachine.lastApplied+1, 1)
 	var endIndex = log.node.commitIndex
+	if startIndex > endIndex {
+		return
+	}
+	if endIndex-startIndex > DefaultMaxBatch {
+		index := startIndex
+		for {
+			log.applyCommitedRange(index, index+DefaultMaxBatch)
+			index += DefaultMaxBatch
+			if endIndex-index <= DefaultMaxBatch {
+				log.applyCommitedRange(index, endIndex)
+				break
+			}
+		}
+	} else {
+		log.applyCommitedRange(startIndex, endIndex)
+	}
+}
+
+func (log *Log) applyCommitedEnd(endIndex uint64) {
+	log.node.stateMachine.Lock()
+	defer log.node.stateMachine.Unlock()
+	log.mu.Lock()
+	defer log.mu.Unlock()
+	log.checkPaused()
+	lastLogIndex := log.node.lastLogIndex
+	if lastLogIndex == 0 {
+		return
+	}
+	var startIndex = maxUint64(log.node.stateMachine.lastApplied+1, 1)
+	endIndex = minUint64(log.node.commitIndex, endIndex)
 	if startIndex > endIndex {
 		return
 	}

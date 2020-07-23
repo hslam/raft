@@ -60,7 +60,11 @@ func (pipeline *Pipeline) run() {
 			for {
 				if pipeline.node.commitIndex > 0 && p.invoker.Index() <= pipeline.node.commitIndex {
 					//var lastApplied  = pipeline.node.stateMachine.lastApplied
-					reply, err := pipeline.node.stateMachine.Apply(p.invoker.Index(), p.invoker)
+					reply, err, applyErr := pipeline.node.stateMachine.Apply(p.invoker.Index(), p.invoker)
+					if applyErr != nil {
+						time.Sleep(time.Microsecond * 100)
+						continue
+					}
 					func() {
 						defer func() {
 							if err := recover(); err != nil {

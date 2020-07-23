@@ -117,6 +117,7 @@ func NewNode(host string, port int, data_dir string, context interface{}, join b
 		commandType:     &CommandType{types: make(map[int32]*sync.Pool)},
 		nextIndex:       1,
 		join:            join,
+		commitWork:      true,
 	}
 	n.storage = newStorage(n, data_dir)
 	n.votes = newVotes(n)
@@ -900,7 +901,7 @@ func (n *Node) commit() bool {
 			n.commitIndex = index
 		}
 		if n.commitWork {
-			if n.commitIndex <= n.recoverLogIndex && n.commitIndex > n.stateMachine.lastApplied {
+			if n.recoverLogIndex > n.stateMachine.lastApplied && n.commitIndex > n.stateMachine.lastApplied {
 				n.commitWork = false
 				go func() {
 					defer func() {
@@ -908,7 +909,7 @@ func (n *Node) commit() bool {
 						}
 					}()
 					defer func() { n.commitWork = true }()
-					n.log.applyCommited()
+					n.log.applyCommitedEnd(n.recoverLogIndex)
 				}()
 				return true
 			}
@@ -935,7 +936,7 @@ func (n *Node) commit() bool {
 		n.commitIndex = index
 	}
 	if n.commitWork {
-		if n.commitIndex <= n.recoverLogIndex && n.commitIndex > n.stateMachine.lastApplied {
+		if n.recoverLogIndex > n.stateMachine.lastApplied && n.commitIndex > n.stateMachine.lastApplied {
 			n.commitWork = false
 			go func() {
 				defer func() {
@@ -943,7 +944,7 @@ func (n *Node) commit() bool {
 					}
 				}()
 				defer func() { n.commitWork = true }()
-				n.log.applyCommited()
+				n.log.applyCommitedEnd(n.recoverLogIndex)
 			}()
 			return true
 		}

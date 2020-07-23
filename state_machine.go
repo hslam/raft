@@ -6,6 +6,9 @@ import (
 	"time"
 )
 
+var errOrder = errors.New("Order Error")
+var errRepeated = errors.New("This command had repeated executed")
+
 type StateMachine struct {
 	mu                 sync.RWMutex
 	node               *Node
@@ -30,7 +33,7 @@ func newStateMachine(node *Node) *StateMachine {
 	s.SetSnapshotPolicy(DefalutSync)
 	return s
 }
-func (s *StateMachine) Apply(index uint64, command Command) (interface{}, error) {
+func (s *StateMachine) Apply(index uint64, command Command) (reply interface{}, err error, applyErr error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.apply(index, command)
@@ -41,9 +44,11 @@ func (s *StateMachine) Lock() {
 func (s *StateMachine) Unlock() {
 	s.mu.Unlock()
 }
-func (s *StateMachine) apply(index uint64, command Command) (interface{}, error) {
+func (s *StateMachine) apply(index uint64, command Command) (reply interface{}, err error, applyErr error) {
 	if index <= s.lastApplied {
-		return nil, nil
+		return nil, nil, errRepeated
+	} else if index != s.lastApplied+1 {
+		return nil, nil, errOrder
 	}
 	defer func() {
 		s.lastApplied = index
@@ -52,10 +57,11 @@ func (s *StateMachine) apply(index uint64, command Command) (interface{}, error)
 		}
 	}()
 	if command.Type() >= 0 {
-		return command.Do(s.node.context)
+		reply, err = command.Do(s.node.context)
 	} else {
-		return command.Do(s.node)
+		reply, err = command.Do(s.node)
 	}
+	return reply, err, nil
 }
 
 func (s *StateMachine) SetSnapshotPolicy(snapshotPolicy SnapshotPolicy) {
