@@ -17,6 +17,7 @@ type Raft interface {
 
 type raft struct {
 	node                   *Node
+	callPool               *sync.Pool
 	donePool               *sync.Pool
 	hearbeatTimeout        time.Duration
 	requestVoteTimeout     time.Duration
@@ -27,6 +28,7 @@ type raft struct {
 func newRaft(node *Node) Raft {
 	return &raft{
 		node:                   node,
+		callPool:               &sync.Pool{New: func() interface{} { return &rpc.Call{} }},
 		donePool:               &sync.Pool{New: func() interface{} { return make(chan *rpc.Call, 10) }},
 		hearbeatTimeout:        DefaultHearbeatTimeout,
 		requestVoteTimeout:     DefaultRequestVoteTimeout,
@@ -41,9 +43,13 @@ func (r *raft) RequestVote(addr string) (ok bool) {
 	req.CandidateId = r.node.address
 	req.LastLogIndex = r.node.lastLogIndex
 	req.LastLogTerm = r.node.lastLogTerm
-
-	ch := r.node.rpcs.Go(addr, r.node.rpcs.RequestVoteServiceName(), req, &RequestVoteResponse{}, r.donePool.Get().(chan *rpc.Call))
-	done := ch.Done
+	done := r.donePool.Get().(chan *rpc.Call)
+	call := r.callPool.Get().(*rpc.Call)
+	call.ServiceMethod = r.node.rpcs.RequestVoteServiceName()
+	call.Args = req
+	call.Reply = &RequestVoteResponse{}
+	call.Done = done
+	r.node.rpcs.RoundTrip(addr, call)
 	select {
 	case call := <-done:
 		for len(done) > 0 {
@@ -52,9 +58,13 @@ func (r *raft) RequestVote(addr string) (ok bool) {
 		r.donePool.Put(done)
 		if call.Error != nil {
 			Tracef("raft.RequestVote %s recv %s vote error %s", r.node.address, addr, call.Error.Error())
+			*call = rpc.Call{}
+			r.callPool.Put(call)
 			return false
 		}
 		res := call.Reply.(*RequestVoteResponse)
+		*call = rpc.Call{}
+		r.callPool.Put(call)
 		if res.Term > r.node.currentTerm.Id() {
 			r.node.currentTerm.Set(res.Term)
 			r.node.stepDown()
@@ -85,8 +95,13 @@ func (r *raft) AppendEntries(addr string, prevLogIndex, prevLogTerm uint64, entr
 	if len(entries) == 0 {
 		timeout = r.hearbeatTimeout
 	}
-	ch := r.node.rpcs.Go(addr, r.node.rpcs.AppendEntriesServiceName(), req, &AppendEntriesResponse{}, r.donePool.Get().(chan *rpc.Call))
-	done := ch.Done
+	done := r.donePool.Get().(chan *rpc.Call)
+	call := r.callPool.Get().(*rpc.Call)
+	call.ServiceMethod = r.node.rpcs.AppendEntriesServiceName()
+	call.Args = req
+	call.Reply = &AppendEntriesResponse{}
+	call.Done = done
+	r.node.rpcs.RoundTrip(addr, call)
 	select {
 	case call := <-done:
 		for len(done) > 0 {
@@ -95,9 +110,13 @@ func (r *raft) AppendEntries(addr string, prevLogIndex, prevLogTerm uint64, entr
 		r.donePool.Put(done)
 		if call.Error != nil {
 			Tracef("raft.AppendEntries %s -> %s error %s", r.node.address, addr, call.Error.Error())
+			*call = rpc.Call{}
+			r.callPool.Put(call)
 			return 0, 0, false, false
 		}
 		res := call.Reply.(*AppendEntriesResponse)
+		*call = rpc.Call{}
+		r.callPool.Put(call)
 		if res.Term > r.node.currentTerm.Id() {
 			r.node.currentTerm.Set(res.Term)
 			r.node.stepDown()
@@ -122,8 +141,13 @@ func (r *raft) InstallSnapshot(addr string, LastIncludedIndex, LastIncludedTerm,
 	req.Offset = Offset
 	req.Data = Data
 	req.Done = Done
-	ch := r.node.rpcs.Go(addr, r.node.rpcs.InstallSnapshotServiceName(), req, &InstallSnapshotResponse{}, r.donePool.Get().(chan *rpc.Call))
-	done := ch.Done
+	done := r.donePool.Get().(chan *rpc.Call)
+	call := r.callPool.Get().(*rpc.Call)
+	call.ServiceMethod = r.node.rpcs.InstallSnapshotServiceName()
+	call.Args = req
+	call.Reply = &InstallSnapshotResponse{}
+	call.Done = done
+	r.node.rpcs.RoundTrip(addr, call)
 	select {
 	case call := <-done:
 		for len(done) > 0 {
@@ -132,9 +156,13 @@ func (r *raft) InstallSnapshot(addr string, LastIncludedIndex, LastIncludedTerm,
 		r.donePool.Put(done)
 		if call.Error != nil {
 			Tracef("raft.InstallSnapshot %s -> %s error %s", r.node.address, addr, call.Error.Error())
+			*call = rpc.Call{}
+			r.callPool.Put(call)
 			return 0, 0, false
 		}
 		res := call.Reply.(*InstallSnapshotResponse)
+		*call = rpc.Call{}
+		r.callPool.Put(call)
 		if res.Term > r.node.currentTerm.Id() {
 			r.node.currentTerm.Set(res.Term)
 			r.node.stepDown()

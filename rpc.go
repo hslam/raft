@@ -28,12 +28,12 @@ func listenAndServe(address string, node *Node) {
 }
 
 type RPCs struct {
-	conns *rpc.Transport
+	*rpc.Transport
 }
 
 func newRPCs() *RPCs {
 	r := &RPCs{
-		conns: &rpc.Transport{
+		&rpc.Transport{
 			MaxConnsPerHost:     MaxConnsPerHost,
 			MaxIdleConnsPerHost: MaxIdleConnsPerHost,
 			Options:             &rpc.Options{Network: network, Codec: codec},
@@ -67,16 +67,8 @@ func (r *RPCs) RemovePeerServiceName() string {
 }
 
 func (r *RPCs) Ping(addr string) bool {
-	if err := r.conns.Ping(addr); err != nil {
+	if err := r.Transport.Ping(addr); err != nil {
 		return false
 	}
 	return true
-}
-
-func (r *RPCs) Call(addr string, name string, req interface{}, res interface{}) error {
-	return r.conns.Call(addr, name, req, res)
-}
-
-func (r *RPCs) Go(addr string, name string, req interface{}, res interface{}, done chan *rpc.Call) *rpc.Call {
-	return r.conns.Go(addr, name, req, res, done)
 }
