@@ -470,31 +470,32 @@ func (n *Node) do(command Command, timeout time.Duration) (interface{}, error) {
 	var err error
 	if n.IsLeader() {
 		if n.commandType.exists(command) {
-			var invoker RaftCommand
-			if command.Type() >= 0 {
-				invoker = newInvoker(command, false, n.codec)
-			} else {
-				invoker = newInvoker(command, false, n.raftCodec)
-			}
-			replyChan := make(chan interface{}, 1)
-			errChan := make(chan error, 1)
-			ch := NewPipelineCommand(invoker, replyChan, errChan)
-			n.pipeline.pipelineCommandChan <- ch
+			var invoker = invokerPool.Get().(*Invoker)
+			var done = donePool.Get().(chan *Invoker)
+			invoker.Command = command
+			invoker.Reply = reply
+			invoker.Error = err
+			invoker.Done = done
+			n.pipeline.pipelineCommandChan <- invoker
 			select {
-			case reply = <-replyChan:
-			case err = <-errChan:
+			case <-done:
+				for len(done) > 0 {
+					<-done
+				}
+				donePool.Put(done)
+				reply = invoker.Reply
+				err = invoker.Error
+				*invoker = Invoker{}
+				invokerPool.Put(invoker)
 			case <-time.After(timeout):
 				err = ErrCommandTimeout
 			}
-			close(replyChan)
-			close(errChan)
 		} else {
 			err = ErrCommandNotRegistered
 		}
 	} else {
 		err = ErrNotLeader
 	}
-
 	<-n.pipelineChan
 	return reply, err
 }

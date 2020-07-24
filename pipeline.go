@@ -1,43 +1,17 @@
 package raft
 
 import (
-	"sync"
 	"time"
 )
 
-var (
-	pipelineCommandPool *sync.Pool
-)
-
-func init() {
-	pipelineCommandPool = &sync.Pool{
-		New: func() interface{} {
-			return &PipelineCommand{}
-		},
-	}
-}
-
-type PipelineCommand struct {
-	invoker RaftCommand
-	reply   chan interface{}
-	err     chan error
-}
-
-func NewPipelineCommand(invoker RaftCommand, reply chan interface{}, err chan error) *PipelineCommand {
-	c := pipelineCommandPool.Get().(*PipelineCommand)
-	c.invoker = invoker
-	c.reply = reply
-	c.err = err
-	return c
-}
-
-type PipelineCommandChan chan *PipelineCommand
+type PipelineCommandChan chan *Invoker
 
 type Pipeline struct {
 	node                *Node
 	pipelineCommandChan PipelineCommandChan
 	readyInvokerChan    PipelineCommandChan
 	maxPipelineCommand  int
+	buffer              []byte
 }
 
 func NewPipeline(node *Node, maxPipelineCommand int) *Pipeline {
@@ -46,6 +20,7 @@ func NewPipeline(node *Node, maxPipelineCommand int) *Pipeline {
 		pipelineCommandChan: make(PipelineCommandChan, maxPipelineCommand*2),
 		readyInvokerChan:    make(PipelineCommandChan, maxPipelineCommand*2),
 		maxPipelineCommand:  maxPipelineCommand,
+		buffer:              make([]byte, 1024*64),
 	}
 	go pipeline.run()
 	return pipeline
@@ -56,48 +31,45 @@ func (pipeline *Pipeline) GetMaxPipelineCommand() int {
 }
 func (pipeline *Pipeline) run() {
 	go func() {
-		for p := range pipeline.readyInvokerChan {
+		for invoker := range pipeline.readyInvokerChan {
 			for {
-				if pipeline.node.commitIndex > 0 && p.invoker.Index() <= pipeline.node.commitIndex {
+				if pipeline.node.commitIndex > 0 && invoker.index <= pipeline.node.commitIndex {
 					//var lastApplied  = pipeline.node.stateMachine.lastApplied
-					reply, err, applyErr := pipeline.node.stateMachine.Apply(p.invoker.Index(), p.invoker)
-					if applyErr != nil {
+					var err error
+					invoker.Reply, invoker.Error, err = pipeline.node.stateMachine.Apply(invoker.index, invoker.Command)
+					if err != nil {
 						time.Sleep(time.Microsecond * 100)
 						continue
 					}
-					func() {
-						defer func() {
-							if err := recover(); err != nil {
-							}
-						}()
-						p.reply <- reply
-						p.err <- err
-					}()
+					invoker.done()
 					//Tracef("Pipeline.run %s lastApplied %d==>%d",pipeline.node.address,lastApplied,pipeline.node.stateMachine.lastApplied)
 					goto endfor
 				}
 				time.Sleep(time.Microsecond * 100)
 			}
 		endfor:
-			invoker := p.invoker
-			invokerPool.Put(invoker)
-			p.err = nil
-			p.reply = nil
-			p.invoker = nil
-			pipelineCommandPool.Put(p)
 		}
 	}()
-	for p := range pipeline.pipelineCommandChan {
-		data, _ := p.invoker.Encode()
-		p.invoker.SetIndex(pipeline.node.nextIndex)
+	for invoker := range pipeline.pipelineCommandChan {
+		invoker.index = pipeline.node.nextIndex
 		pipeline.node.nextIndex += 1
+		var data []byte
+		if invoker.Command.Type() >= 0 {
+			b, _ := pipeline.node.codec.Marshal(pipeline.buffer, invoker.Command)
+			data = make([]byte, len(b))
+			copy(data, b)
+		} else {
+			b, _ := pipeline.node.raftCodec.Marshal(pipeline.buffer, invoker.Command)
+			data = make([]byte, len(b))
+			copy(data, b)
+		}
 		entry := pipeline.node.log.getEmtyEntry()
-		entry.Index = p.invoker.Index()
+		entry.Index = invoker.index
 		entry.Term = pipeline.node.currentTerm.Id()
 		entry.Command = data
-		entry.CommandType = p.invoker.Type()
-		entry.CommandId = p.invoker.UniqueID()
-		pipeline.readyInvokerChan <- p
+		entry.CommandType = invoker.Command.Type()
+		entry.CommandId = invoker.Command.UniqueID()
+		pipeline.readyInvokerChan <- invoker
 		pipeline.node.log.entryChan <- entry
 
 	}
