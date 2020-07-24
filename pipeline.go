@@ -33,7 +33,7 @@ func (pipeline *Pipeline) run() {
 	go func() {
 		for invoker := range pipeline.readyInvokerChan {
 			for {
-				if pipeline.node.commitIndex > 0 && invoker.index <= pipeline.node.commitIndex {
+				if pipeline.node.commitIndex > 0 && invoker.index <= pipeline.node.commitIndex && invoker.index == pipeline.node.stateMachine.lastApplied+1 {
 					//var lastApplied  = pipeline.node.stateMachine.lastApplied
 					var err error
 					invoker.Reply, invoker.Error, err = pipeline.node.stateMachine.Apply(invoker.index, invoker.Command)
