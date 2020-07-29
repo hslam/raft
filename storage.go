@@ -18,7 +18,6 @@ type Fast interface {
 type Storage struct {
 	fast     Fast
 	data_dir string
-	file     *os.File
 }
 
 var errSeeker = errors.New("seeker can't seek")
