@@ -2,6 +2,7 @@ package raft
 
 import (
 	"errors"
+	"github.com/hslam/wal"
 	"sync"
 	"time"
 )
@@ -11,8 +12,7 @@ type Log struct {
 	batchMu          sync.Mutex
 	pauseMu          sync.Mutex
 	node             *Node
-	indexs           *Index
-	size             uint64
+	wal              *wal.Log
 	entryChan        chan *Entry
 	readyEntries     []*Entry
 	maxBatch         int
@@ -23,15 +23,11 @@ type Log struct {
 	finish           chan bool
 	work             bool
 	paused           bool
-	name             string
-	tmpName          string
-	flushName        string
 }
 
 func newLog(node *Node) *Log {
 	log := &Log{
 		node:             node,
-		indexs:           newIndex(node),
 		entryChan:        make(chan *Entry, DefaultMaxCacheEntries),
 		readyEntries:     make([]*Entry, 0),
 		maxBatch:         DefaultMaxBatch,
@@ -40,10 +36,8 @@ func newLog(node *Node) *Log {
 		stop:             make(chan bool, 1),
 		finish:           make(chan bool, 1),
 		work:             true,
-		name:             DefaultLog,
-		tmpName:          DefaultLog + DefaultTmp,
-		flushName:        DefaultLog + DefaultFlush,
 	}
+	log.wal, _ = wal.Open(node.storage.data_dir)
 	log.entryPool = &sync.Pool{
 		New: func() interface{} {
 			return &Entry{}
@@ -93,15 +87,18 @@ func (log *Log) checkPaused() {
 	}
 }
 func (log *Log) checkIndex(index uint64) bool {
-	return log.indexs.checkIndex(index)
+	if ok, err := log.wal.IsExist(index); err != nil {
+		return false
+	} else {
+		return ok
+	}
 }
 
 func (log *Log) lookup(index uint64) *Entry {
 	log.mu.Lock()
 	defer log.mu.Unlock()
 	log.checkPaused()
-	meta := log.indexs.lookup(index)
-	return log.read(meta)
+	return log.read(index)
 }
 
 func (log *Log) consistencyCheck(index uint64, term uint64) (ok bool) {
@@ -138,84 +135,55 @@ func (log *Log) check(entries []*Entry) bool {
 	}
 	return true
 }
-func (log *Log) lookupLast(index uint64) *Entry {
-	log.mu.Lock()
-	defer log.mu.Unlock()
-	log.checkPaused()
-	meta := log.indexs.lookupLast(index)
-	return log.read(meta)
-}
-func (log *Log) lookupNext(index uint64) *Entry {
-	log.mu.Lock()
-	defer log.mu.Unlock()
-	log.checkPaused()
-	meta := log.indexs.lookupNext(index)
-	return log.read(meta)
-}
+
 func (log *Log) deleteAfter(index uint64) {
 	log.mu.Lock()
 	defer log.mu.Unlock()
 	log.pause(true)
 	defer log.pause(false)
-	if index == 0 {
-		log.node.lastLogIndex = 0
+	if index == log.node.firstLogIndex {
+		log.wal.Reset()
+		log.wal.InitFirstIndex(index)
 		return
 	}
 	log.node.lastLogIndex = index - 1
-	log.indexs.deleteAfter(index)
+	log.wal.Truncate(index - 1)
 	lastLogIndex := log.node.lastLogIndex
 	if lastLogIndex > 0 {
-		meta := log.indexs.lookup(lastLogIndex)
-		log.node.lastLogTerm = meta.Term
-		log.size = meta.Position + meta.Offset
+		entry := log.read(lastLogIndex)
+		log.node.lastLogTerm = entry.Term
 	} else {
 		log.node.lastLogTerm = 0
-		log.size = 0
-	}
-	log.node.storage.Truncate(DefaultLog, log.size)
-}
-func (log *Log) clear(index uint64) {
-	if index > 1 {
-		log.deleteBefore(index - 1)
 	}
 }
+
 func (log *Log) deleteBefore(index uint64) {
 	log.mu.Lock()
 	defer log.mu.Unlock()
 	log.checkPaused()
 	log.pause(true)
 	defer log.pause(false)
-	cutoff := log.indexs.deleteBefore(index)
-	if cutoff > 0 {
-		log.node.storage.Copy(log.name, log.flushName, cutoff, log.size-cutoff)
-		log.node.storage.Rename(log.name, log.tmpName)
-		log.node.storage.Rename(log.flushName, log.name)
-		log.node.storage.Rm(log.indexs.tmpName)
-		log.node.storage.Rm(log.tmpName)
-		lastLogIndex := log.node.lastLogIndex
-		if lastLogIndex > 0 {
-			meta := log.indexs.lookup(lastLogIndex)
-			log.node.lastLogTerm = meta.Term
-			log.size = meta.Position + meta.Offset
-		} else {
-			log.node.lastLogTerm = 0
-			log.size = 0
-		}
-	}
-	Tracef("Log.deleteBefore %s deleteBefore %d cutoff %d logSize %d", log.node.address, index, cutoff, log.size)
-
+	log.wal.Clean(index)
+	log.node.firstLogIndex, _ = log.wal.FirstIndex()
+	Tracef("Log.deleteBefore %s deleteBefore %d", log.node.address, index)
+}
+func (log *Log) startIndex(index uint64) uint64 {
+	return maxUint64(log.node.firstLogIndex, index)
+}
+func (log *Log) endIndex(index uint64) uint64 {
+	return minUint64(index, log.node.lastLogIndex)
 }
 func (log *Log) copyAfter(index uint64, max int) (entries []*Entry) {
 	log.mu.Lock()
 	defer log.mu.Unlock()
 	log.checkPaused()
-	metas := log.indexs.copyAfter(index, max)
-	return log.batchRead(metas)
+	startIndex := log.startIndex(index)
+	endIndex := log.endIndex(startIndex + uint64(max))
+	return log.copyRange(startIndex, endIndex)
 }
 func (log *Log) copyRange(startIndex uint64, endIndex uint64) []*Entry {
-	metas := log.indexs.copyRange(startIndex, endIndex)
 	//Tracef("Log.copyRange %s startIndex %d endIndex %d",log.node.address,metas[0].Index,metas[len(metas)-1].Index)
-	return log.batchRead(metas)
+	return log.batchRead(startIndex, endIndex)
 }
 
 func (log *Log) applyCommited() {
@@ -314,29 +282,17 @@ func (log *Log) appendEntries(entries []*Entry) bool {
 			return false
 		}
 	}
-	data, metas, _ := log.Encode(entries, log.size)
-	log.putEmtyEntries(entries)
-	if !log.node.isLeader() {
-		if !log.indexs.check(metas) {
-			return false
-		}
-	}
-	if log.node.lastLogIndex != metas[0].Index-1 {
+	if log.node.lastLogIndex != entries[0].Index-1 {
 		return false
 	}
-	log.append(data)
-	log.indexs.appendMetas(metas)
-	log.node.lastLogIndex = metas[len(metas)-1].Index
-	log.node.lastLogTerm = metas[len(metas)-1].Term
-	log.indexs.putEmtyMetas(metas)
+	log.Write(entries)
+	log.node.lastLogIndex = entries[len(entries)-1].Index
+	log.node.lastLogTerm = entries[len(entries)-1].Term
+	log.putEmtyEntries(entries)
 	return true
 }
-func (log *Log) read(meta *Meta) *Entry {
-	if meta == nil {
-		return nil
-	}
-	b := make([]byte, meta.Offset)
-	_, err := log.node.storage.SeekRead(DefaultLog, meta.Position, b)
+func (log *Log) read(index uint64) *Entry {
+	b, err := log.wal.Read(index)
 	if err != nil {
 		return nil
 	}
@@ -349,43 +305,31 @@ func (log *Log) read(meta *Meta) *Entry {
 	return entry
 }
 
-func (log *Log) batchRead(metas []*Meta) []*Entry {
-	if len(metas) == 0 {
-		return nil
+func (log *Log) batchRead(startIndex uint64, endIndex uint64) []*Entry {
+	entries := make([]*Entry, 0, endIndex-startIndex+1)
+	for i := startIndex; i < endIndex+1; i++ {
+		entries = append(entries, log.read(i))
 	}
-	cursor := metas[0].Position
-	offset := metas[len(metas)-1].Position + metas[len(metas)-1].Offset
-	b := make([]byte, offset-cursor)
-	if _, err := log.node.storage.SeekRead(DefaultLog, cursor, b); err != nil {
-		return nil
-	}
-	if entries, _, err := log.Decode(b, metas, cursor); err == nil {
-		return entries
-	}
-	return nil
+	return entries
 }
 
-func (log *Log) append(b []byte) {
-	log.node.storage.SeekWrite(DefaultLog, log.size, b)
-	log.size += uint64(len(b))
-}
-
-func (log *Log) load() error {
+func (log *Log) load() (err error) {
 	log.mu.Lock()
 	defer log.mu.Unlock()
 	log.checkPaused()
 	lastLogIndex := log.node.lastLogIndex
-	err := log.indexs.load()
+
+	log.node.firstLogIndex, err = log.wal.FirstIndex()
 	if err != nil {
 		return err
 	}
-	if !log.node.storage.Exists(DefaultLog) {
-		return errors.New(DefaultLog + " file is not existed")
+	log.node.lastLogIndex, err = log.wal.LastIndex()
+	if err != nil {
+		return err
 	}
 	if log.node.lastLogIndex > 0 {
-		meta := log.indexs.lookup(log.node.lastLogIndex)
-		log.node.lastLogTerm = meta.Term
-		log.size = meta.Position + meta.Offset
+		entry := log.read(log.node.lastLogIndex)
+		log.node.lastLogTerm = entry.Term
 		log.node.recoverLogIndex = log.node.lastLogIndex
 		log.node.nextIndex = log.node.lastLogIndex + 1
 	}
@@ -395,49 +339,19 @@ func (log *Log) load() error {
 	return nil
 }
 
-func (log *Log) Decode(data []byte, metas []*Meta, cursor uint64) ([]*Entry, uint64, error) {
-	length := len(metas)
-	entries := make([]*Entry, 0, length)
-	var log_ret uint64
-	for j := 0; j < length; j++ {
-		ret := metas[j].Position - cursor
-		offset := metas[j].Offset
-		func() {
-			defer func() {
-				if err := recover(); err != nil {
-					Errorf("%s %d %d %d", err, len(data), ret, ret+offset)
-				}
-			}()
-			b := data[ret : ret+offset]
-			entry := log.getEmtyEntry()
-			err := log.node.raftCodec.Unmarshal(b, entry)
-			if err != nil {
-				Errorf("Log.Decode %d %d %d %s", cursor, ret, offset, string(b))
-			}
-			entries = append(entries, entry)
-			log_ret = uint64(ret + offset)
-		}()
-	}
-	return entries, cursor + log_ret, nil
-}
-
-func (log *Log) Encode(entries []*Entry, ret uint64) ([]byte, []*Meta, error) {
-	var metas []*Meta
-	var data []byte
+func (log *Log) Write(entries []*Entry) (err error) {
 	for i := 0; i < len(entries); i++ {
 		entry := entries[i]
-		b, _ := log.node.raftCodec.Marshal(log.buf, entry)
-		data = append(data, b...)
-		meta := &Meta{}
-		meta.Index = entry.Index
-		meta.Term = entry.Term
-		meta.Position = ret
-		length := uint64(len(b))
-		meta.Offset = length
-		ret += length
-		metas = append(metas, meta)
+		b, err := log.node.raftCodec.Marshal(log.buf, entry)
+		if err != nil {
+			return err
+		}
+		if err = log.wal.Write(entry.Index, b); err != nil {
+			return err
+		}
 	}
-	return data, metas, nil
+	Tracef("Log.Write %d", len(entries))
+	return log.wal.Flush()
 }
 
 func (log *Log) compaction() error {
@@ -481,10 +395,10 @@ func (log *Log) compaction() error {
 	return nil
 }
 func (log *Log) saveMd5() {
-	md5 := log.node.storage.MD5(DefaultLog)
-	if len(md5) > 0 {
-		log.node.storage.OverWrite(DefaultMd5, []byte(md5))
-	}
+	//md5 := log.node.storage.MD5(DefaultLog)
+	//if len(md5) > 0 {
+	//	log.node.storage.OverWrite(DefaultMd5, []byte(md5))
+	//}
 }
 
 func (log *Log) loadMd5() (string, error) {

@@ -231,12 +231,12 @@ func (s *SnapshotReadWriter) tar() error {
 	if !s.node.storage.Exists(DefaultSnapshot) {
 		return errors.New(DefaultSnapshot + " file is not existed")
 	}
-	if !s.node.storage.Exists(DefaultIndex) {
-		return errors.New(DefaultIndex + " file is not existed")
-	}
-	if !s.node.storage.Exists(DefaultLog) {
-		return errors.New(DefaultLog + " file is not existed")
-	}
+	//if !s.node.storage.Exists(DefaultIndex) {
+	//	return errors.New(DefaultIndex + " file is not existed")
+	//}
+	//if !s.node.storage.Exists(DefaultLog) {
+	//	return errors.New(DefaultLog + " file is not existed")
+	//}
 	s.done = false
 	lastTarIndex := s.lastTarIndex.Id()
 	s.lastTarIndex.Set(s.lastIncludedIndex.Id())
@@ -245,8 +245,8 @@ func (s *SnapshotReadWriter) tar() error {
 	s.AppendFile(DefaultLastIncludedIndex)
 	s.AppendFile(DefaultLastIncludedTerm)
 	s.AppendFile(DefaultSnapshot)
-	s.AppendFile(DefaultIndex)
-	s.AppendFile(DefaultLog)
+	//s.AppendFile(DefaultIndex)
+	//s.AppendFile(DefaultLog)
 	if s.gzip {
 		s.gz()
 	}
@@ -276,8 +276,8 @@ func (s *SnapshotReadWriter) untar() error {
 	s.RecoverFile(source, DefaultLastIncludedIndex)
 	s.RecoverFile(source, DefaultLastIncludedTerm)
 	s.RecoverFile(source, s.name)
-	s.RecoverFile(source, DefaultIndex)
-	s.RecoverFile(source, DefaultLog)
+	//s.RecoverFile(source, DefaultIndex)
+	//s.RecoverFile(source, DefaultLog)
 	if !s.node.isLeader() {
 		if s.node.storage.Exists(DefaultTar) {
 			s.node.storage.Rm(DefaultTar)

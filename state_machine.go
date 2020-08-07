@@ -160,20 +160,20 @@ func (s *StateMachine) saveSnapshot() error {
 				lastIncludedTerm = s.node.lastLogTerm
 			} else {
 				lastIncludedIndex = s.lastApplied
-				meta := s.node.log.indexs.lookup(lastIncludedIndex)
-				if meta == nil {
+				entry := s.node.log.read(lastIncludedIndex)
+				if entry == nil {
 					return errors.New("this meta is not existed")
 				}
-				lastIncludedTerm = meta.Term
+				lastIncludedTerm = entry.Term
 			}
 			s.snapshotReadWriter.Reset(lastIncludedIndex, lastIncludedTerm)
 			_, err := s.snapshot.Save(s.node.context, s.snapshotReadWriter)
 			s.snapshotReadWriter.Rename()
 			startTime := time.Now().UnixNano()
 			if s.node.isLeader() {
-				s.node.log.clear(minUint64(s.node.minNextIndex(), lastIncludedIndex))
+				s.node.log.deleteBefore(minUint64(s.node.minNextIndex(), lastIncludedIndex))
 			} else {
-				s.node.log.clear(lastIncludedIndex)
+				s.node.log.deleteBefore(lastIncludedIndex)
 			}
 			go func() {
 				if s.node.isLeader() {

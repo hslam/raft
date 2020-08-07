@@ -775,15 +775,15 @@ func (n *Node) load() {
 }
 func (n *Node) recover() error {
 	Tracef("Node.recover %s start", n.address)
-	if n.storage.IsEmpty(DefaultIndex) {
-		if !n.storage.IsEmpty(n.stateMachine.snapshotReadWriter.FileName()) {
-			n.stateMachine.snapshotReadWriter.untar()
-		}
-	} else if n.storage.IsEmpty(DefaultLog) {
-		if !n.storage.IsEmpty(n.stateMachine.snapshotReadWriter.FileName()) {
-			n.stateMachine.snapshotReadWriter.untar()
-		}
-	}
+	//if n.storage.IsEmpty(DefaultIndex) {
+	//	if !n.storage.IsEmpty(n.stateMachine.snapshotReadWriter.FileName()) {
+	//		n.stateMachine.snapshotReadWriter.untar()
+	//	}
+	//} else if n.storage.IsEmpty(DefaultLog) {
+	//	if !n.storage.IsEmpty(n.stateMachine.snapshotReadWriter.FileName()) {
+	//		n.stateMachine.snapshotReadWriter.untar()
+	//	}
+	//}
 	n.load()
 	recoverApplyTicker := time.NewTicker(time.Second)
 	recoverApplyStop := make(chan bool, 1)
@@ -825,31 +825,42 @@ func (n *Node) checkLog() error {
 	if n.storage.IsEmpty(DefaultVoteFor) {
 		n.votedFor.save()
 	}
-	if n.storage.IsEmpty(DefaultSnapshot) && n.stateMachine.snapshot != nil && !n.storage.IsEmpty(DefaultIndex) && !n.storage.IsEmpty(DefaultLog) {
+	//if n.storage.IsEmpty(DefaultSnapshot) && n.stateMachine.snapshot != nil && !n.storage.IsEmpty(DefaultIndex) && !n.storage.IsEmpty(DefaultLog) {
+	//	n.stateMachine.SaveSnapshot()
+	//} else if n.stateMachine.snapshot == nil {
+	//	if !n.storage.Exists(DefaultSnapshot) {
+	//		n.storage.Truncate(DefaultSnapshot, 1)
+	//	}
+	//}
+	//if n.isLeader() && n.storage.IsEmpty(n.stateMachine.snapshotReadWriter.FileName()) && !n.storage.IsEmpty(DefaultIndex) && !n.storage.IsEmpty(DefaultLog) && !n.storage.IsEmpty(DefaultSnapshot) && !n.storage.IsEmpty(DefaultLastIncludedIndex) && !n.storage.IsEmpty(DefaultLastIncludedTerm) {
+	//	n.stateMachine.snapshotReadWriter.lastTarIndex.Set(0)
+	//	n.stateMachine.snapshotReadWriter.Tar()
+	//}
+	//if n.storage.IsEmpty(DefaultIndex) {
+	//	if !n.storage.IsEmpty(n.stateMachine.snapshotReadWriter.FileName()) {
+	//		n.stateMachine.snapshotReadWriter.untar()
+	//		n.load()
+	//	} else {
+	//		n.nextIndex = 1
+	//	}
+	//} else if n.storage.IsEmpty(DefaultLog) {
+	//	if !n.storage.IsEmpty(n.stateMachine.snapshotReadWriter.FileName()) {
+	//		n.stateMachine.snapshotReadWriter.untar()
+	//		n.load()
+	//	} else {
+	//		n.nextIndex = 1
+	//	}
+	//}
+	if n.storage.IsEmpty(DefaultSnapshot) && n.stateMachine.snapshot != nil {
 		n.stateMachine.SaveSnapshot()
 	} else if n.stateMachine.snapshot == nil {
 		if !n.storage.Exists(DefaultSnapshot) {
 			n.storage.Truncate(DefaultSnapshot, 1)
 		}
 	}
-	if n.isLeader() && n.storage.IsEmpty(n.stateMachine.snapshotReadWriter.FileName()) && !n.storage.IsEmpty(DefaultIndex) && !n.storage.IsEmpty(DefaultLog) && !n.storage.IsEmpty(DefaultSnapshot) && !n.storage.IsEmpty(DefaultLastIncludedIndex) && !n.storage.IsEmpty(DefaultLastIncludedTerm) {
+	if n.isLeader() && n.storage.IsEmpty(n.stateMachine.snapshotReadWriter.FileName()) && !n.storage.IsEmpty(DefaultSnapshot) && !n.storage.IsEmpty(DefaultLastIncludedIndex) && !n.storage.IsEmpty(DefaultLastIncludedTerm) {
 		n.stateMachine.snapshotReadWriter.lastTarIndex.Set(0)
 		n.stateMachine.snapshotReadWriter.Tar()
-	}
-	if n.storage.IsEmpty(DefaultIndex) {
-		if !n.storage.IsEmpty(n.stateMachine.snapshotReadWriter.FileName()) {
-			n.stateMachine.snapshotReadWriter.untar()
-			n.load()
-		} else {
-			n.nextIndex = 1
-		}
-	} else if n.storage.IsEmpty(DefaultLog) {
-		if !n.storage.IsEmpty(n.stateMachine.snapshotReadWriter.FileName()) {
-			n.stateMachine.snapshotReadWriter.untar()
-			n.load()
-		} else {
-			n.nextIndex = 1
-		}
 	}
 	return nil
 }
@@ -897,8 +908,8 @@ func (n *Node) commit() bool {
 	if n.votingsCount() == 1 {
 		index := n.lastLogIndex
 		if index > n.commitIndex {
-			n.storage.Sync(n.log.name)
-			n.storage.Sync(n.log.indexs.name)
+			//n.storage.Sync(n.log.name)
+			//n.storage.Sync(n.log.indexs.name)
 			n.commitIndex = index
 		}
 		if n.commitWork {
@@ -932,8 +943,8 @@ func (n *Node) commit() bool {
 	quickSort(lastLogIndexs, -999, -999)
 	index := lastLogIndexs[len(lastLogIndexs)/2]
 	if index > n.commitIndex {
-		n.storage.Sync(n.log.name)
-		n.storage.Sync(n.log.indexs.name)
+		//n.storage.Sync(n.log.name)
+		//n.storage.Sync(n.log.indexs.name)
 		n.commitIndex = index
 	}
 	if n.commitWork {
