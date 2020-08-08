@@ -81,7 +81,7 @@ type Node struct {
 
 	context      interface{}
 	commandType  *CommandType
-	pipeline     *Pipeline
+	pipeline     *pipeline
 	pipelineChan chan bool
 
 	commitWork bool
@@ -133,7 +133,7 @@ func NewNode(host string, port int, data_dir string, context interface{}, join b
 	n.commitIndex = 0
 	n.votedFor = newPersistentString(n, DefaultVoteFor)
 	n.state = newFollowerState(n)
-	n.pipeline = NewPipeline(n, DefaultMaxConcurrency)
+	n.pipeline = newPipeline(n)
 	n.pipelineChan = make(chan bool, DefaultMaxConcurrency)
 	n.registerCommand(&NoOperationCommand{})
 	n.registerCommand(&AddPeerCommand{})
@@ -190,7 +190,7 @@ func (n *Node) run() {
 						n.workTicker.Stop()
 						n.workTicker = nil
 					}
-					if n.state.Update() || n.log.Update() || n.readIndex.Update() {
+					if n.state.Update() || n.readIndex.Update() {
 						if n.workTicker == nil {
 							n.deferTime = time.Now()
 							n.workTicker = timer.NewFuncTicker(DefaultMaxDelay, func() {
@@ -199,7 +199,6 @@ func (n *Node) run() {
 									}
 								}()
 								n.state.Update()
-								n.log.Update()
 								n.readIndex.Update()
 							})
 						}
@@ -458,16 +457,13 @@ func (n *Node) Do(command Command) (interface{}, error) {
 	}
 	return n.do(command, DefaultCommandTimeout)
 }
-func (n *Node) do(command Command, timeout time.Duration) (interface{}, error) {
+func (n *Node) do(command Command, timeout time.Duration) (reply interface{}, err error) {
 	if !n.running {
 		return nil, ErrNotRunning
 	}
 	if command == nil {
 		return nil, ErrCommandNil
 	}
-	n.pipelineChan <- true
-	var reply interface{}
-	var err error
 	if n.IsLeader() {
 		if n.commandType.exists(command) {
 			var invoker = invokerPool.Get().(*Invoker)
@@ -476,7 +472,7 @@ func (n *Node) do(command Command, timeout time.Duration) (interface{}, error) {
 			invoker.Reply = reply
 			invoker.Error = err
 			invoker.Done = done
-			n.pipeline.pipelineCommandChan <- invoker
+			n.pipeline.write(invoker)
 			select {
 			case <-done:
 				for len(done) > 0 {
@@ -496,7 +492,6 @@ func (n *Node) do(command Command, timeout time.Duration) (interface{}, error) {
 	} else {
 		err = ErrNotLeader
 	}
-	<-n.pipelineChan
 	return reply, err
 }
 func (n *Node) ReadIndex() bool {
@@ -911,22 +906,9 @@ func (n *Node) commit() bool {
 			//n.storage.Sync(n.log.name)
 			//n.storage.Sync(n.log.indexs.name)
 			n.commitIndex = index
+			//n.pipeline.commitIndex <- index
 		}
-		if n.commitWork {
-			if n.recoverLogIndex > n.stateMachine.lastApplied && n.commitIndex > n.stateMachine.lastApplied {
-				n.commitWork = false
-				go func() {
-					defer func() {
-						if err := recover(); err != nil {
-						}
-					}()
-					defer func() { n.commitWork = true }()
-					n.log.applyCommitedEnd(n.recoverLogIndex)
-				}()
-				return true
-			}
-		}
-		return false
+		return true
 	}
 	var lastLogIndexs = make([]uint64, 1)
 	lastLogIndexs[0] = n.lastLogIndex
@@ -946,20 +928,7 @@ func (n *Node) commit() bool {
 		//n.storage.Sync(n.log.name)
 		//n.storage.Sync(n.log.indexs.name)
 		n.commitIndex = index
+		//n.pipeline.commitIndex <- index
 	}
-	if n.commitWork {
-		if n.recoverLogIndex > n.stateMachine.lastApplied && n.commitIndex > n.stateMachine.lastApplied {
-			n.commitWork = false
-			go func() {
-				defer func() {
-					if err := recover(); err != nil {
-					}
-				}()
-				defer func() { n.commitWork = true }()
-				n.log.applyCommitedEnd(n.recoverLogIndex)
-			}()
-			return true
-		}
-	}
-	return false
+	return true
 }

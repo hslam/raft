@@ -13,9 +13,6 @@ type Log struct {
 	pauseMu          sync.Mutex
 	node             *Node
 	wal              *wal.Log
-	entryChan        chan *Entry
-	readyEntries     []*Entry
-	maxBatch         int
 	compactionTicker *time.Ticker
 	buf              []byte
 	entryPool        *sync.Pool
@@ -28,9 +25,6 @@ type Log struct {
 func newLog(node *Node) *Log {
 	log := &Log{
 		node:             node,
-		entryChan:        make(chan *Entry, DefaultMaxCacheEntries),
-		readyEntries:     make([]*Entry, 0),
-		maxBatch:         DefaultMaxBatch,
 		compactionTicker: time.NewTicker(DefaultCompactionTick),
 		buf:              make([]byte, 1024*64),
 		stop:             make(chan bool, 1),
@@ -350,7 +344,7 @@ func (log *Log) Write(entries []*Entry) (err error) {
 			return err
 		}
 	}
-	Tracef("Log.Write %d", len(entries))
+	//Tracef("Log.Write %d", len(entries))
 	return log.wal.Flush()
 }
 
@@ -411,50 +405,8 @@ func (log *Log) loadMd5() (string, error) {
 	}
 	return string(b), nil
 }
-func (log *Log) Update() bool {
-	if log.work {
-		log.work = false
-		defer func() {
-			if err := recover(); err != nil {
-			}
-		}()
-		defer func() { log.work = true }()
-		log.batchMu.Lock()
-		defer log.batchMu.Unlock()
-		if log.isPaused() {
-			return true
-		}
-		if len(log.readyEntries) > log.maxBatch {
-			entries := log.readyEntries[:log.maxBatch]
-			log.readyEntries = log.readyEntries[log.maxBatch:]
-			log.ticker(entries)
-			return true
-		} else if len(log.readyEntries) > 0 {
-			entries := log.readyEntries[:]
-			log.readyEntries = log.readyEntries[len(log.readyEntries):]
-			log.ticker(entries)
-			return true
-		}
-	}
-	return false
-}
 
 func (log *Log) run() {
-	go func() {
-		for entry := range log.entryChan {
-			func() {
-				log.batchMu.Lock()
-				defer log.batchMu.Unlock()
-				log.readyEntries = append(log.readyEntries, entry)
-				if len(log.readyEntries) >= log.maxBatch && !log.isPaused() {
-					entries := log.readyEntries[:]
-					log.readyEntries = nil
-					log.readyEntries = make([]*Entry, 0)
-					log.ticker(entries)
-				}
-			}()
-		}
-	}()
 	for {
 		select {
 		case <-log.compactionTicker.C:
@@ -472,8 +424,6 @@ func (log *Log) run() {
 		}
 	}
 endfor:
-	close(log.entryChan)
-	log.entryChan = nil
 	log.compactionTicker.Stop()
 	log.compactionTicker = nil
 	log.finish <- true

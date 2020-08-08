@@ -35,7 +35,7 @@ func (state *LeaderState) Start() {
 			Debugf("%s LeaderState.Start %s nextIndex:%d", state.node.address, v.address, v.nextIndex)
 		}
 	}
-	state.node.recoverLogIndex = state.node.lastLogIndex
+	state.node.pipeline.init(state.node.lastLogIndex)
 	state.node.leader = state.node.address
 	state.node.lease = true
 	state.node.election.Random(false)
