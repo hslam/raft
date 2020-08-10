@@ -190,7 +190,7 @@ func (n *Node) run() {
 						n.workTicker.Stop()
 						n.workTicker = nil
 					}
-					if n.state.Update() || n.readIndex.Update() {
+					if n.state.Update() || n.pipeline.Update() || n.readIndex.Update() {
 						if n.workTicker == nil {
 							n.deferTime = time.Now()
 							n.workTicker = timer.NewFuncTicker(DefaultMaxDelay, func() {
@@ -199,6 +199,7 @@ func (n *Node) run() {
 									}
 								}()
 								n.state.Update()
+								n.pipeline.Update()
 								n.readIndex.Update()
 							})
 						}
@@ -507,7 +508,7 @@ func (n *Node) ReadIndex() bool {
 	return n.readIndex.Read()
 }
 func (n *Node) fast() bool {
-	return n.isLeader() && len(n.peers) > 0
+	return n.isLeader() && n.votingsCount() > 1
 }
 func (n *Node) Peers() []string {
 	n.nodesMut.Lock()
@@ -907,8 +908,9 @@ func (n *Node) commit() bool {
 			//n.storage.Sync(n.log.indexs.name)
 			n.commitIndex = index
 			//n.pipeline.commitIndex <- index
+			return true
 		}
-		return true
+		return false
 	}
 	var lastLogIndexs = make([]uint64, 1)
 	lastLogIndexs[0] = n.lastLogIndex
@@ -929,6 +931,7 @@ func (n *Node) commit() bool {
 		//n.storage.Sync(n.log.indexs.name)
 		n.commitIndex = index
 		//n.pipeline.commitIndex <- index
+		return true
 	}
-	return true
+	return false
 }

@@ -86,8 +86,26 @@ func (p *pipeline) minLatency() int64 {
 	p.mutex.Lock()
 	min := p.min
 	p.mutex.Unlock()
+	//Tracef("pipeline.minLatency%d", min)
 	return min
 }
+
+func (p *pipeline) sleepTime() (d time.Duration) {
+	if p.concurrency() < 1 {
+		d = time.Second
+	} else {
+		d = time.Duration(p.minLatency())
+	}
+	return
+}
+
+func (p *pipeline) Update() bool {
+	if p.concurrency() > 0 {
+		return true
+	}
+	return false
+}
+
 func (p *pipeline) write(invoker *Invoker) {
 	p.wMutex.Lock()
 	defer p.wMutex.Unlock()
@@ -137,25 +155,17 @@ func (p *pipeline) run() {
 		}
 		p.bMutex.Unlock()
 		var d time.Duration
-		if p.lastTime.Add(time.Microsecond * 10).Before(time.Now()) {
+		if p.lastTime.Add(time.Millisecond * 10).Before(time.Now()) {
 			p.lastTime = time.Now()
 			p.mutex.Lock()
 			p.max = 0
 			p.mutex.Unlock()
 		}
-		if p.concurrency() < 1 {
-			d = time.Second
-		} else {
-			d = time.Duration(p.minLatency())
-		}
+		d = p.sleepTime()
 		select {
 		case <-time.After(d):
 		case <-p.trigger:
-			if p.concurrency() < 1 {
-				d = time.Second
-			} else {
-				d = time.Duration(p.minLatency())
-			}
+			d = p.sleepTime()
 			time.Sleep(time.Duration(d))
 			atomic.StoreInt64(&p.triggerCnt, 0)
 		case <-p.done:
@@ -167,31 +177,36 @@ func (p *pipeline) run() {
 func (p *pipeline) read() {
 	var err error
 	for err == nil {
-		if p.applyIndex-1 > p.node.stateMachine.lastApplied && p.node.commitIndex > p.node.stateMachine.lastApplied {
-			//Tracef("pipeline.read commitIndex-%d", p.node.commitIndex)
-			p.node.log.applyCommitedEnd(p.applyIndex - 1)
-		}
-		for p.applyIndex <= p.node.commitIndex {
-			p.mutex.Lock()
-			var invoker *Invoker
-			if i, ok := p.pending[p.applyIndex]; ok {
-				invoker = i
-			} else {
+		if p.node.isLeader() {
+			if p.applyIndex-1 > p.node.stateMachine.lastApplied && p.node.commitIndex > p.node.stateMachine.lastApplied {
+				//Tracef("pipeline.read commitIndex-%d", p.node.commitIndex)
+				p.node.log.applyCommitedEnd(p.applyIndex - 1)
+			}
+			for p.applyIndex <= p.node.commitIndex {
+				p.mutex.Lock()
+				var invoker *Invoker
+				if i, ok := p.pending[p.applyIndex]; ok {
+					invoker = i
+				} else {
+					p.mutex.Unlock()
+					//Traceln("pipeline.read sleep")
+					time.Sleep(time.Microsecond * 100)
+					continue
+				}
+				delete(p.pending, p.applyIndex)
 				p.mutex.Unlock()
-				time.Sleep(time.Microsecond * 100)
-				continue
+				invoker.Reply, invoker.Error, err = p.node.stateMachine.Apply(invoker.index, invoker.Command)
+				if err != nil {
+					continue
+				}
+				invoker.done()
+				p.mutex.Lock()
+				p.applyIndex++
+				p.mutex.Unlock()
 			}
-			delete(p.pending, p.applyIndex)
-			p.mutex.Unlock()
-			invoker.Reply, invoker.Error, err = p.node.stateMachine.Apply(invoker.index, invoker.Command)
-			if err != nil {
-				continue
-			}
-			invoker.done()
-			p.mutex.Lock()
-			p.applyIndex++
-			p.mutex.Unlock()
+			time.Sleep(p.sleepTime() / 50)
+		} else {
+			time.Sleep(p.sleepTime())
 		}
-		time.Sleep(time.Microsecond * 100)
 	}
 }
