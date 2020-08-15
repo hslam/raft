@@ -1,3 +1,7 @@
+// Copyright (c) 2019 Meng Huang (mhboy@outlook.com)
+// This package is licensed under a MIT license that can be found in the LICENSE file.
+
+// Package raft implements the Raft distributed consensus protocol.
 package raft
 
 import (

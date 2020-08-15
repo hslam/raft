@@ -1,3 +1,6 @@
+// Copyright (c) 2019 Meng Huang (mhboy@outlook.com)
+// This package is licensed under a MIT license that can be found in the LICENSE file.
+
 package raft
 
 import (
@@ -17,7 +20,7 @@ type Election struct {
 
 func newElection(node *Node, electionTimeout time.Duration) *Election {
 	election := &Election{
-		node:                   node,
+		node: node,
 		defaultElectionTimeout: electionTimeout,
 		random:                 true,
 	}
