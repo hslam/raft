@@ -51,7 +51,7 @@ type Node struct {
 	changeStateChan chan int
 	ticker          *time.Ticker
 	updateTicker    *time.Ticker
-	workTicker      *timer.FuncTicker
+	workTicker      *timer.Ticker
 	deferTime       time.Time
 	//persistent state on all servers
 	currentTerm *PersistentUint64
@@ -197,7 +197,7 @@ func (n *Node) run() {
 					if n.state.Update() || n.pipeline.Update() || n.readIndex.Update() {
 						if n.workTicker == nil {
 							n.deferTime = time.Now()
-							n.workTicker = timer.NewFuncTicker(DefaultMaxDelay, func() {
+							n.workTicker = timer.TickFunc(DefaultMaxDelay, func() {
 								defer func() {
 									if err := recover(); err != nil {
 									}
