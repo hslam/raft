@@ -34,7 +34,7 @@ func newLog(node *Node) *Log {
 		finish:           make(chan bool, 1),
 		work:             true,
 	}
-	log.wal, _ = wal.Open(node.storage.data_dir)
+	log.wal, _ = wal.Open(node.storage.data_dir, nil)
 	log.entryPool = &sync.Pool{
 		New: func() interface{} {
 			return &Entry{}
@@ -348,7 +348,7 @@ func (log *Log) Write(entries []*Entry) (err error) {
 		}
 	}
 	//Tracef("Log.Write %d", len(entries))
-	return log.wal.Flush()
+	return log.wal.FlushAndSync()
 }
 
 func (log *Log) compaction() error {
