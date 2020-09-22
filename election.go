@@ -20,7 +20,7 @@ type Election struct {
 
 func newElection(node *Node, electionTimeout time.Duration) *Election {
 	election := &Election{
-		node: node,
+		node:                   node,
 		defaultElectionTimeout: electionTimeout,
 		random:                 true,
 	}
