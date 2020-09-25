@@ -109,6 +109,7 @@ func (p *Peer) check() {
 				defer func() {
 					p.install = true
 				}()
+				//Debugf("Peer.check %s %d %d", p.address, p.nextIndex, p.node.firstLogIndex)
 				if p.node.storage.IsEmpty(p.node.stateMachine.snapshotReadWriter.FileName()) && p.tarWork {
 					p.tarWork = false
 					go func() {
@@ -200,6 +201,7 @@ func (p *Peer) check() {
 					}()
 					entries := p.node.log.copyAfter(p.nextIndex, DefaultMaxBatch)
 					if len(entries) > 0 {
+						//Debugf("Peer.check %s send %d %d %d", p.address, p.nextIndex, p.node.firstLogIndex, len(entries))
 						p.appendEntries(entries)
 					}
 				}()

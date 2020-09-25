@@ -267,6 +267,7 @@ func (s *snapshotReadWriter) untar() error {
 	if !s.done {
 		return nil
 	}
+	//Tracef("snapshotReadWriter.untar gzip %t", s.gzip)
 	if s.gzip {
 		s.ungz()
 	}

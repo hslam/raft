@@ -229,6 +229,19 @@ func (s *stateMachine) recover() error {
 		s.node.commitIndex = s.snapshotReadWriter.lastIncludedIndex.Id()
 		Tracef("stateMachine.recover %s commitIndex %d==%d", s.node.address, commitIndex, s.node.commitIndex)
 	}
+	if s.node.lastLogTerm < s.snapshotReadWriter.lastIncludedTerm.Id() {
+		var lastLogTerm = s.node.lastLogTerm
+		s.node.lastLogTerm = s.snapshotReadWriter.lastIncludedTerm.Id()
+		Tracef("stateMachine.recover %s lastLogTerm %d==%d", s.node.address, lastLogTerm, s.node.lastLogTerm)
+	}
+	if s.node.nextIndex < s.snapshotReadWriter.lastIncludedIndex.Id()+1 {
+		var nextIndex = s.node.nextIndex
+		s.node.nextIndex = s.snapshotReadWriter.lastIncludedIndex.Id() + 1
+		Tracef("stateMachine.recover %s nextIndex %d==%d", s.node.address, nextIndex, s.node.nextIndex)
+		s.node.log.wal.Reset()
+		s.node.log.wal.InitFirstIndex(s.node.nextIndex)
+		s.node.log.load()
+	}
 	return nil
 }
 

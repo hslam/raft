@@ -769,10 +769,12 @@ func (n *Node) reset() {
 	n.stateMachine.snapshotReadWriter.lastIncludedTerm.Set(0)
 	n.stateMachine.snapshotReadWriter.lastTarIndex.Set(0)
 }
+
 func (n *Node) load() {
 	n.stateMachine.load()
 	n.log.load()
 }
+
 func (n *Node) recover() error {
 	Tracef("Node.recover %s start", n.address)
 	//if n.storage.IsEmpty(DefaultIndex) {

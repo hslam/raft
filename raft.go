@@ -247,6 +247,7 @@ func (r *raft) HandleAppendEntries(req *AppendEntriesRequest, res *AppendEntries
 		//	Tracef("raft.HandleAppendEntries %s commitIndex %d==>%d",r.node.address, commitIndex,r.node.commitIndex)
 		//}
 	}
+	//Tracef("raft.HandleAppendEntries %s len%d PrevLogIndex%d lastLogIndex%d", r.node.address, len(req.Entries), req.PrevLogIndex, r.node.lastLogIndex)
 	if len(req.Entries) > 0 && req.PrevLogIndex == r.node.lastLogIndex {
 		if req.PrevLogIndex+1 == req.Entries[0].Index {
 			res.Success = r.node.log.appendEntries(req.Entries)

@@ -286,6 +286,7 @@ func (log *Log) appendEntries(entries []*Entry) bool {
 	log.node.lastLogIndex = entries[len(entries)-1].Index
 	log.node.lastLogTerm = entries[len(entries)-1].Term
 	log.putEmtyEntries(entries)
+	//Tracef("Log.appendEntries %s entries %d", log.node.address, len(entries))
 	return true
 }
 func (log *Log) read(index uint64) *Entry {
@@ -315,7 +316,6 @@ func (log *Log) load() (err error) {
 	defer log.mu.Unlock()
 	log.checkPaused()
 	lastLogIndex := log.node.lastLogIndex
-
 	log.node.firstLogIndex, err = log.wal.FirstIndex()
 	if err != nil {
 		return err
@@ -326,9 +326,11 @@ func (log *Log) load() (err error) {
 	}
 	if log.node.lastLogIndex > 0 {
 		entry := log.read(log.node.lastLogIndex)
-		log.node.lastLogTerm = entry.Term
-		log.node.recoverLogIndex = log.node.lastLogIndex
-		log.node.nextIndex = log.node.lastLogIndex + 1
+		if entry != nil {
+			log.node.lastLogTerm = entry.Term
+			log.node.recoverLogIndex = log.node.lastLogIndex
+			log.node.nextIndex = log.node.lastLogIndex + 1
+		}
 	}
 	if log.node.lastLogIndex > lastLogIndex {
 		Tracef("Log.recover %s lastLogIndex %d", log.node.address, lastLogIndex)
