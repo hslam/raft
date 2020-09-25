@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-type PersistentUint64 struct {
+type persistentUint64 struct {
 	mu            sync.RWMutex
 	node          *Node
 	value         uint64
@@ -21,8 +21,8 @@ type PersistentUint64 struct {
 	deferSave     bool
 }
 
-func newPersistentUint64(node *Node, name string, tick time.Duration) *PersistentUint64 {
-	p := &PersistentUint64{
+func newPersistentUint64(node *Node, name string, tick time.Duration) *persistentUint64 {
+	p := &persistentUint64{
 		node: node,
 		name: name,
 	}
@@ -34,7 +34,7 @@ func newPersistentUint64(node *Node, name string, tick time.Duration) *Persisten
 	p.load()
 	return p
 }
-func (p *PersistentUint64) Incre() uint64 {
+func (p *persistentUint64) Incre() uint64 {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.value += 1
@@ -43,7 +43,7 @@ func (p *PersistentUint64) Incre() uint64 {
 	}
 	return p.value
 }
-func (p *PersistentUint64) Set(t uint64) {
+func (p *persistentUint64) Set(t uint64) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.value = t
@@ -51,19 +51,19 @@ func (p *PersistentUint64) Set(t uint64) {
 		p.save()
 	}
 }
-func (p *PersistentUint64) Id() uint64 {
+func (p *persistentUint64) Id() uint64 {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 	return p.value
 }
 
-func (p *PersistentUint64) save() {
+func (p *persistentUint64) save() {
 	buf := make([]byte, 8)
 	code.EncodeUint64(buf, p.value)
 	p.node.storage.OverWrite(p.name, buf)
 }
 
-func (p *PersistentUint64) load() error {
+func (p *persistentUint64) load() error {
 	if !p.node.storage.Exists(p.name) {
 		p.value = 0
 		return errors.New(p.name + " file is not existed")
@@ -79,7 +79,7 @@ func (p *PersistentUint64) load() error {
 	return nil
 }
 
-func (p *PersistentUint64) run() {
+func (p *persistentUint64) run() {
 	for range p.ticker.C {
 		if p.lastSaveValue != p.value {
 			func() {
@@ -91,7 +91,7 @@ func (p *PersistentUint64) run() {
 		}
 	}
 }
-func (p *PersistentUint64) Stop() {
+func (p *persistentUint64) Stop() {
 	p.ticker.Stop()
 	p.ticker = nil
 }

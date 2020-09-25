@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-type Election struct {
+type election struct {
 	node                   *Node
 	once                   sync.Once
 	onceDisabled           bool
@@ -18,36 +18,36 @@ type Election struct {
 	electionTimeout        time.Duration
 }
 
-func newElection(node *Node, electionTimeout time.Duration) *Election {
-	election := &Election{
+func newElection(node *Node, electionTimeout time.Duration) *election {
+	e := &election{
 		node:                   node,
 		defaultElectionTimeout: electionTimeout,
 		random:                 true,
 	}
-	return election
+	return e
 }
 
-func (election *Election) Reset() {
-	election.startTime = time.Now()
-	if election.onceDisabled {
-		if election.random {
-			election.electionTimeout = election.defaultElectionTimeout + randomDurationTime(election.defaultElectionTimeout)
+func (e *election) Reset() {
+	e.startTime = time.Now()
+	if e.onceDisabled {
+		if e.random {
+			e.electionTimeout = e.defaultElectionTimeout + randomDurationTime(e.defaultElectionTimeout)
 		} else {
-			election.electionTimeout = election.defaultElectionTimeout
+			e.electionTimeout = e.defaultElectionTimeout
 		}
 	}
-	election.once.Do(func() {
-		election.electionTimeout = DefaultStartWait
+	e.once.Do(func() {
+		e.electionTimeout = DefaultStartWait
 	})
 }
 
-func (election *Election) Random(random bool) {
-	election.random = random
+func (e *election) Random(random bool) {
+	e.random = random
 }
 
-func (election *Election) Timeout() bool {
-	if election.startTime.Add(election.electionTimeout).Before(time.Now()) {
-		election.onceDisabled = true
+func (e *election) Timeout() bool {
+	if e.startTime.Add(e.electionTimeout).Before(time.Now()) {
+		e.onceDisabled = true
 		return true
 	}
 	return false

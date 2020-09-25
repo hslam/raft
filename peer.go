@@ -146,7 +146,7 @@ func (p *Peer) check() {
 										offset := p.installSnapshot(p.offset, b[:n], false)
 										if offset == p.offset+uint64(n) {
 											p.offset += uint64(n)
-											p.chunk += 1
+											p.chunk++
 										}
 									}
 								} else {
@@ -159,7 +159,7 @@ func (p *Peer) check() {
 										offset := p.installSnapshot(p.offset, b[:n], true)
 										if offset == p.offset+uint64(n) {
 											p.offset += uint64(n)
-											p.chunk += 1
+											p.chunk++
 										}
 									}
 									if p.offset == p.size && p.chunk == p.chunkNum {
@@ -178,7 +178,7 @@ func (p *Peer) check() {
 									offset := p.installSnapshot(p.offset, b[:n], true)
 									if offset == p.offset+uint64(n) {
 										p.offset += uint64(n)
-										p.chunk += 1
+										p.chunk++
 									}
 								}
 								if p.offset == p.size && p.chunk == p.chunkNum {

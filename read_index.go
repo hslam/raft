@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-type ReadIndex struct {
+type readIndex struct {
 	mu       sync.Mutex
 	node     *Node
 	readChan chan chan bool
@@ -17,8 +17,8 @@ type ReadIndex struct {
 	work     bool
 }
 
-func newReadIndex(node *Node) *ReadIndex {
-	r := &ReadIndex{
+func newReadIndex(node *Node) *readIndex {
+	r := &readIndex{
 		node:     node,
 		readChan: make(chan chan bool, DefaultMaxConcurrencyRead),
 		m:        make(map[uint64][]chan bool),
@@ -28,7 +28,7 @@ func newReadIndex(node *Node) *ReadIndex {
 	return r
 }
 
-func (r *ReadIndex) Read() (ok bool) {
+func (r *readIndex) Read() (ok bool) {
 	var ch = make(chan bool, 1)
 	r.readChan <- ch
 	select {
@@ -39,7 +39,7 @@ func (r *ReadIndex) Read() (ok bool) {
 	return
 }
 
-func (r *ReadIndex) reply(id uint64, success bool) {
+func (r *readIndex) reply(id uint64, success bool) {
 	defer func() {
 		if err := recover(); err != nil {
 		}
@@ -55,7 +55,7 @@ func (r *ReadIndex) reply(id uint64, success bool) {
 	}
 	delete(r.m, id)
 }
-func (r *ReadIndex) Update() bool {
+func (r *readIndex) Update() bool {
 	if r.work {
 		r.work = false
 		defer func() {
@@ -65,7 +65,7 @@ func (r *ReadIndex) Update() bool {
 		defer func() { r.work = true }()
 		defer func() {
 			if r.node.isLeader() {
-				r.id += 1
+				r.id++
 			}
 		}()
 		r.mu.Lock()
@@ -87,7 +87,7 @@ func (r *ReadIndex) Update() bool {
 	return false
 }
 
-func (r *ReadIndex) run() {
+func (r *readIndex) run() {
 	for ch := range r.readChan {
 		func() {
 			r.mu.Lock()
@@ -100,7 +100,7 @@ func (r *ReadIndex) run() {
 	}
 }
 
-func (r *ReadIndex) Stop() {
+func (r *readIndex) Stop() {
 	if r.readChan != nil {
 		close(r.readChan)
 		r.readChan = nil

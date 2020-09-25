@@ -9,28 +9,27 @@ import (
 	"time"
 )
 
-type Vote struct {
+type vote struct {
 	id   string
 	term uint64
 	vote int
 }
 
-func newVote(id string, term uint64, vote int) *Vote {
-	v := &Vote{
+func newVote(id string, term uint64, v int) *vote {
+	return &vote{
 		id:   id,
 		term: term,
-		vote: vote,
+		vote: v,
 	}
-	return v
 }
-func (v *Vote) Key() string {
+func (v *vote) Key() string {
 	return v.id + strconv.FormatUint(v.term, 10)
 }
 
-type Votes struct {
+type votes struct {
 	mu        sync.RWMutex
 	node      *Node
-	vote      chan *Vote
+	vote      chan *vote
 	voteDic   map[string]int
 	voteTotal int
 	voteCount int
@@ -40,78 +39,78 @@ type Votes struct {
 	timeout   time.Duration
 }
 
-func newVotes(node *Node) *Votes {
-	votes := &Votes{
+func newVotes(node *Node) *votes {
+	vs := &votes{
 		node:   node,
 		notice: make(chan bool, 1),
 	}
-	votes.Reset(1)
-	votes.Clear()
-	return votes
+	vs.Reset(1)
+	vs.Clear()
+	return vs
 }
 
-func (votes *Votes) AddVote(v *Vote) {
-	votes.mu.Lock()
-	defer votes.mu.Unlock()
-	if _, ok := votes.voteDic[v.Key()]; ok {
+func (vs *votes) AddVote(v *vote) {
+	vs.mu.Lock()
+	defer vs.mu.Unlock()
+	if _, ok := vs.voteDic[v.Key()]; ok {
 		return
 	}
-	votes.voteDic[v.Key()] = v.vote
-	if v.term == votes.node.currentTerm.Id() {
-		votes.voteTotal += 1
-		votes.voteCount += v.vote
+	vs.voteDic[v.Key()] = v.vote
+	if v.term == vs.node.currentTerm.Id() {
+		vs.voteTotal++
+		vs.voteCount += v.vote
 	}
-	if votes.quorum > 0 && votes.voteCount >= votes.quorum {
-		votes.notice <- true
-	} else if votes.total > 0 && votes.voteTotal >= votes.total {
-		votes.notice <- false
+	if vs.quorum > 0 && vs.voteCount >= vs.quorum {
+		vs.notice <- true
+	} else if vs.total > 0 && vs.voteTotal >= vs.total {
+		vs.notice <- false
 	}
 }
 
-func (votes *Votes) Clear() {
+func (vs *votes) Clear() {
 	for {
-		if len(votes.vote) > 0 {
-			<-votes.vote
+		if len(vs.vote) > 0 {
+			<-vs.vote
 		} else {
 			break
 		}
 	}
-	votes.voteDic = make(map[string]int)
-	votes.voteCount = 0
-	votes.voteTotal = 0
+	vs.voteDic = make(map[string]int)
+	vs.voteCount = 0
+	vs.voteTotal = 0
 }
-func (votes *Votes) Reset(count int) {
-	if votes.vote != nil {
-		close(votes.vote)
+func (vs *votes) Reset(count int) {
+	if vs.vote != nil {
+		close(vs.vote)
 	}
 	if count == 0 {
 		count = 1
 	}
-	votes.vote = make(chan *Vote, count)
+	vs.vote = make(chan *vote, count)
 }
 
-func (votes *Votes) Count() int {
-	return votes.voteCount
+func (vs *votes) Count() int {
+	return vs.voteCount
 }
-func (votes *Votes) Total() int {
-	return votes.voteTotal
+func (vs *votes) Total() int {
+	return vs.voteTotal
 }
-func (votes *Votes) SetQuorum(quorum int) {
-	votes.quorum = quorum
+func (vs *votes) SetQuorum(quorum int) {
+	vs.quorum = quorum
 }
-func (votes *Votes) SetTotal(total int) {
-	votes.total = total
+func (vs *votes) SetTotal(total int) {
+	vs.total = total
 }
-func (votes *Votes) GetNotice() chan bool {
-	return votes.notice
+func (vs *votes) GetNotice() chan bool {
+	return vs.notice
 }
-func (votes *Votes) SetTimeout(timeout time.Duration) {
-	votes.timeout = timeout
-	go votes.run()
+func (vs *votes) SetTimeout(timeout time.Duration) {
+	vs.timeout = timeout
+	go vs.run()
 }
-func (votes *Votes) run() {
+func (vs *votes) run() {
 	select {
-	case <-time.After(votes.timeout):
-		votes.notice <- false
+	case <-time.After(vs.timeout):
+		vs.notice <- false
 	}
 }

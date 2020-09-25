@@ -12,13 +12,13 @@ import (
 var errOrder = errors.New("Order Error")
 var errRepeated = errors.New("This command had repeated executed")
 
-type StateMachine struct {
+type stateMachine struct {
 	mu                 sync.RWMutex
 	node               *Node
 	lastApplied        uint64
-	configuration      *Configuration
+	configuration      *configuration
 	snapshot           Snapshot
-	snapshotReadWriter *SnapshotReadWriter
+	snapshotReadWriter *snapshotReadWriter
 	snapshotPolicy     SnapshotPolicy
 	snapshotSyncs      []*snapshotSync
 	saves              []*SyncType
@@ -26,8 +26,8 @@ type StateMachine struct {
 	always             bool
 }
 
-func newStateMachine(node *Node) *StateMachine {
-	s := &StateMachine{
+func newStateMachine(node *Node) *stateMachine {
+	s := &stateMachine{
 		node:               node,
 		configuration:      newConfiguration(node),
 		snapshotReadWriter: newSnapshotReadWriter(node, DefaultSnapshot, false),
@@ -36,18 +36,18 @@ func newStateMachine(node *Node) *StateMachine {
 	s.SetSnapshotPolicy(DefalutSync)
 	return s
 }
-func (s *StateMachine) Apply(index uint64, command Command) (reply interface{}, err error, applyErr error) {
+func (s *stateMachine) Apply(index uint64, command Command) (reply interface{}, err error, applyErr error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.apply(index, command)
 }
-func (s *StateMachine) Lock() {
+func (s *stateMachine) Lock() {
 	s.mu.Lock()
 }
-func (s *StateMachine) Unlock() {
+func (s *stateMachine) Unlock() {
 	s.mu.Unlock()
 }
-func (s *StateMachine) apply(index uint64, command Command) (reply interface{}, err error, applyErr error) {
+func (s *stateMachine) apply(index uint64, command Command) (reply interface{}, err error, applyErr error) {
 	if index <= s.lastApplied {
 		return nil, nil, errRepeated
 	} else if index != s.lastApplied+1 {
@@ -67,13 +67,13 @@ func (s *StateMachine) apply(index uint64, command Command) (reply interface{}, 
 	return reply, err, nil
 }
 
-func (s *StateMachine) SetSnapshotPolicy(snapshotPolicy SnapshotPolicy) {
+func (s *stateMachine) SetSnapshotPolicy(snapshotPolicy SnapshotPolicy) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.setSnapshotPolicy(snapshotPolicy)
 }
 
-func (s *StateMachine) setSnapshotPolicy(snapshotPolicy SnapshotPolicy) {
+func (s *stateMachine) setSnapshotPolicy(snapshotPolicy SnapshotPolicy) {
 	s.snapshotPolicy = snapshotPolicy
 	s.always = false
 	switch s.snapshotPolicy {
@@ -118,40 +118,40 @@ func (s *StateMachine) setSnapshotPolicy(snapshotPolicy SnapshotPolicy) {
 	}
 }
 
-func (s *StateMachine) ClearSyncType() {
+func (s *stateMachine) ClearSyncType() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.saves = []*SyncType{}
 }
-func (s *StateMachine) AppendSyncType(seconds, changes int) {
+func (s *stateMachine) AppendSyncType(seconds, changes int) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.saves = append(s.saves, &SyncType{seconds, changes})
 }
-func (s *StateMachine) SetSyncTypes(saves []*SyncType) {
+func (s *stateMachine) SetSyncTypes(saves []*SyncType) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.saves = saves
 	s.setSnapshotPolicy(CustomSync)
 }
-func (s *StateMachine) SetSnapshot(snapshot Snapshot) {
+func (s *stateMachine) SetSnapshot(snapshot Snapshot) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.snapshot = snapshot
 }
 
-func (s *StateMachine) SaveSnapshot() error {
+func (s *stateMachine) SaveSnapshot() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.saveSnapshot()
 }
-func (s *StateMachine) saveSnapshot() error {
+func (s *stateMachine) saveSnapshot() error {
 	if s.snapshot != nil {
 		if !s.node.storage.Exists(DefaultSnapshot) && s.snapshotReadWriter.work {
 			s.snapshotReadWriter.lastIncludedIndex.Set(0)
 		}
 		if s.lastApplied > s.snapshotReadWriter.lastIncludedIndex.Id() && s.snapshotReadWriter.work {
-			Tracef("StateMachine.SaveSnapshot %s Start", s.node.address)
+			Tracef("stateMachine.SaveSnapshot %s Start", s.node.address)
 			s.snapshotReadWriter.work = false
 			defer func() {
 				s.snapshotReadWriter.work = true
@@ -184,14 +184,14 @@ func (s *StateMachine) saveSnapshot() error {
 				}
 			}()
 			duration := (time.Now().UnixNano() - startTime) / 1000000
-			Tracef("StateMachine.SaveSnapshot %s lastIncludedIndex %d==>%d duration:%dms", s.node.address, lastPrintLastIncludedIndex, s.snapshotReadWriter.lastIncludedIndex.Id(), duration)
+			Tracef("stateMachine.SaveSnapshot %s lastIncludedIndex %d==>%d duration:%dms", s.node.address, lastPrintLastIncludedIndex, s.snapshotReadWriter.lastIncludedIndex.Id(), duration)
 			return err
 		}
 		return nil
 	}
 	return ErrSnapshotCodecNil
 }
-func (s *StateMachine) RecoverSnapshot() error {
+func (s *stateMachine) RecoverSnapshot() error {
 	if s.snapshot != nil {
 		s.snapshotReadWriter.load()
 		_, err := s.snapshot.Recover(s.node.context, s.snapshotReadWriter)
@@ -200,7 +200,7 @@ func (s *StateMachine) RecoverSnapshot() error {
 	return ErrSnapshotCodecNil
 }
 
-func (s *StateMachine) recover() error {
+func (s *stateMachine) recover() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.node.storage.IsEmpty(DefaultSnapshot) {
@@ -222,32 +222,32 @@ func (s *StateMachine) recover() error {
 	if s.lastApplied < s.snapshotReadWriter.lastIncludedIndex.Id() {
 		var lastApplied = s.lastApplied
 		s.lastApplied = s.snapshotReadWriter.lastIncludedIndex.Id()
-		Tracef("StateMachine.recover %s lastApplied %d==%d", s.node.address, lastApplied, s.lastApplied)
+		Tracef("stateMachine.recover %s lastApplied %d==%d", s.node.address, lastApplied, s.lastApplied)
 	}
 	if s.node.commitIndex < s.snapshotReadWriter.lastIncludedIndex.Id() {
 		var commitIndex = s.node.commitIndex
 		s.node.commitIndex = s.snapshotReadWriter.lastIncludedIndex.Id()
-		Tracef("StateMachine.recover %s commitIndex %d==%d", s.node.address, commitIndex, s.node.commitIndex)
+		Tracef("stateMachine.recover %s commitIndex %d==%d", s.node.address, commitIndex, s.node.commitIndex)
 	}
 	return nil
 }
 
-func (s *StateMachine) load() {
+func (s *stateMachine) load() {
 	s.snapshotReadWriter.load()
 }
 
-func (s *StateMachine) append(offset uint64, p []byte) {
+func (s *stateMachine) append(offset uint64, p []byte) {
 	s.snapshotReadWriter.Append(offset, p)
 }
 
-func (s *StateMachine) run() {
-	Tracef("StateMachine.run %d", len(s.snapshotSyncs))
+func (s *stateMachine) run() {
+	Tracef("stateMachine.run %d", len(s.snapshotSyncs))
 	for _, snapshotSync := range s.snapshotSyncs {
 		go snapshotSync.run()
 	}
 }
-func (s *StateMachine) Stop() {
-	Tracef("StateMachine.Stop %d", len(s.snapshotSyncs))
+func (s *stateMachine) Stop() {
+	Tracef("stateMachine.Stop %d", len(s.snapshotSyncs))
 	for _, snapshotSync := range s.snapshotSyncs {
 		if snapshotSync != nil {
 			snapshotSync.Stop()

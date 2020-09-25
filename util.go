@@ -4,9 +4,7 @@
 package raft
 
 import (
-	"fmt"
 	"math/rand"
-	"strconv"
 	"time"
 )
 
@@ -39,20 +37,6 @@ func maxUint64(a, b uint64) uint64 {
 	return b
 }
 
-func FormatName(v uint64) (s string) {
-	getString := func(n int, char string) (s string) {
-		if n < 1 {
-			return
-		}
-		for i := 1; i <= n; i++ {
-			s += char
-		}
-		return
-	}
-	str := strconv.FormatUint(v, 10)
-	return fmt.Sprintf("%s%s", getString(20-len(str), "0"), str)
-}
-
 func quickSort(a []uint64, left, right int) {
 	length := len(a)
 	if length <= 1 {
@@ -83,6 +67,7 @@ func partition(a []uint64, left, right int) int {
 	swap(a, pivot, index-1)
 	return index - 1
 }
+
 func swap(a []uint64, i, j int) {
 	a[i], a[j] = a[j], a[i]
 }

@@ -34,7 +34,7 @@ func newLog(node *Node) *Log {
 		finish:           make(chan bool, 1),
 		work:             true,
 	}
-	log.wal, _ = wal.Open(node.storage.data_dir, nil)
+	log.wal, _ = wal.Open(node.storage.dataDir, nil)
 	log.entryPool = &sync.Pool{
 		New: func() interface{} {
 			return &Entry{}

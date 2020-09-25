@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-type LeaderState struct {
+type leaderState struct {
 	once            *sync.Once
 	node            *Node
 	stop            chan bool
@@ -18,7 +18,7 @@ type LeaderState struct {
 
 func newLeaderState(node *Node) State {
 	//Tracef("%s newLeaderState",node.address)
-	state := &LeaderState{
+	state := &leaderState{
 		once:            &sync.Once{},
 		node:            node,
 		stop:            make(chan bool, 1),
@@ -30,12 +30,12 @@ func newLeaderState(node *Node) State {
 	return state
 }
 
-func (state *LeaderState) Start() {
-	Debugf("%s LeaderState.Start %s nextIndex:%d", state.node.address, state.node.address, state.node.nextIndex)
+func (state *leaderState) Start() {
+	Debugf("%s leaderState.Start %s nextIndex:%d", state.node.address, state.node.address, state.node.nextIndex)
 	if len(state.node.peers) > 0 {
 		for _, v := range state.node.peers {
 			v.nextIndex = 0
-			Debugf("%s LeaderState.Start %s nextIndex:%d", state.node.address, v.address, v.nextIndex)
+			Debugf("%s leaderState.Start %s nextIndex:%d", state.node.address, v.address, v.nextIndex)
 		}
 	}
 	state.node.pipeline.init(state.node.lastLogIndex)
@@ -43,7 +43,7 @@ func (state *LeaderState) Start() {
 	state.node.lease = true
 	state.node.election.Random(false)
 	state.node.election.Reset()
-	Infof("%s LeaderState.Start Term:%d", state.node.address, state.node.currentTerm.Id())
+	Infof("%s leaderState.Start Term:%d", state.node.address, state.node.currentTerm.Id())
 	go func(node *Node, term uint64) {
 		noOperationCommand := NewNoOperationCommand()
 		if ok, _ := node.do(noOperationCommand, time.Minute*10); ok != nil {
@@ -59,20 +59,20 @@ func (state *LeaderState) Start() {
 	}(state.node, state.node.currentTerm.Id())
 }
 
-func (state *LeaderState) Update() bool {
+func (state *leaderState) Update() bool {
 	state.node.check()
 	return state.node.commit()
 }
-func (state *LeaderState) FixedUpdate() {
+func (state *leaderState) FixedUpdate() {
 	if !state.node.voting() {
 		state.node.lease = false
 		state.node.stepDown()
-		Tracef("%s LeaderState.FixedUpdate non-voting", state.node.address)
+		Tracef("%s leaderState.FixedUpdate non-voting", state.node.address)
 		return
 	} else if state.node.election.Timeout() {
 		state.node.lease = false
 		state.node.stepDown()
-		Tracef("%s LeaderState.FixedUpdate ElectionTimeout", state.node.address)
+		Tracef("%s leaderState.FixedUpdate ElectionTimeout", state.node.address)
 		return
 	}
 	if state.node.AliveCount() >= state.node.Quorum() {
@@ -81,16 +81,16 @@ func (state *LeaderState) FixedUpdate() {
 	}
 }
 
-func (state *LeaderState) String() string {
+func (state *leaderState) String() string {
 	return Leader
 }
 
-func (state *LeaderState) StepDown() State {
+func (state *leaderState) StepDown() State {
 	defer func() {
 		if err := recover(); err != nil {
 		}
 	}()
-	Tracef("%s LeaderState.StepDown", state.node.address)
+	Tracef("%s leaderState.StepDown", state.node.address)
 	state.once.Do(func() {
 		state.stop <- true
 		if state.notice != nil {
@@ -102,12 +102,12 @@ func (state *LeaderState) StepDown() State {
 	})
 	return newFollowerState(state.node)
 }
-func (state *LeaderState) NextState() State {
+func (state *leaderState) NextState() State {
 	defer func() {
 		if err := recover(); err != nil {
 		}
 	}()
-	Tracef("%s LeaderState.NextState", state.node.address)
+	Tracef("%s leaderState.NextState", state.node.address)
 	state.once.Do(func() {
 		state.stop <- true
 		if state.notice != nil {
@@ -120,7 +120,7 @@ func (state *LeaderState) NextState() State {
 	return newFollowerState(state.node)
 }
 
-func (state *LeaderState) run() {
+func (state *leaderState) run() {
 	for {
 		select {
 		case <-state.heartbeatTicker.C:

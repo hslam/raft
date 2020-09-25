@@ -10,14 +10,14 @@ import (
 	"sort"
 )
 
-type Configuration struct {
+type configuration struct {
 	node    *Node
 	storage *ConfigurationStorage
 	nodes   map[string]*NodeInfo
 }
 
-func newConfiguration(node *Node) *Configuration {
-	c := &Configuration{
+func newConfiguration(node *Node) *configuration {
+	c := &configuration{
 		node:    node,
 		storage: &ConfigurationStorage{},
 		nodes:   make(map[string]*NodeInfo),
@@ -29,29 +29,29 @@ func newConfiguration(node *Node) *Configuration {
 	return c
 }
 
-func (c *Configuration) SetNodes(nodes []*NodeInfo) {
+func (c *configuration) SetNodes(nodes []*NodeInfo) {
 	for _, v := range nodes {
 		c.nodes[v.Address] = v
 	}
 	c.save()
 }
-func (c *Configuration) AddPeer(peer *NodeInfo) {
+func (c *configuration) AddPeer(peer *NodeInfo) {
 	c.nodes[peer.Address] = peer
 	c.save()
 }
-func (c *Configuration) RemovePeer(addr string) {
+func (c *configuration) RemovePeer(addr string) {
 	if _, ok := c.nodes[addr]; ok {
 		delete(c.nodes, addr)
 	}
 	c.save()
 }
-func (c *Configuration) LookupPeer(addr string) *NodeInfo {
+func (c *configuration) LookupPeer(addr string) *NodeInfo {
 	if v, ok := c.nodes[addr]; ok {
 		return v
 	}
 	return nil
 }
-func (c *Configuration) Peers() []string {
+func (c *configuration) Peers() []string {
 	peers := make([]string, 0, len(c.nodes))
 	for _, v := range c.nodes {
 		if v.Address != c.node.address {
@@ -60,7 +60,7 @@ func (c *Configuration) Peers() []string {
 	}
 	return peers
 }
-func (c *Configuration) membership() []string {
+func (c *configuration) membership() []string {
 	ms := make([]string, 0, len(c.nodes))
 	for _, v := range c.nodes {
 		if v.Address != c.node.address {
@@ -69,14 +69,14 @@ func (c *Configuration) membership() []string {
 	}
 	return ms
 }
-func (c *Configuration) Nodes() []string {
+func (c *configuration) Nodes() []string {
 	nodes := make([]string, 0)
 	for _, v := range c.nodes {
 		nodes = append(nodes, v.Address)
 	}
 	return nodes
 }
-func (c *Configuration) save() {
+func (c *configuration) save() {
 	c.storage.Nodes = []*NodeInfo{}
 	for _, v := range c.nodes {
 		c.storage.Nodes = append(c.storage.Nodes, v)
@@ -85,7 +85,7 @@ func (c *Configuration) save() {
 	c.node.storage.OverWrite(DefaultConfig, b)
 }
 
-func (c *Configuration) load() error {
+func (c *configuration) load() error {
 	if !c.node.storage.Exists(DefaultConfig) {
 		return nil
 	}
@@ -100,7 +100,7 @@ func (c *Configuration) load() error {
 		c.nodes[v.Address] = v
 	}
 	if !c.membershipChanges() {
-		Infof("Configuration.reconfiguration !membershipChanges")
+		Infof("configuration.reconfiguration !membershipChanges")
 		return nil
 	}
 	lastNodesCount := c.node.NodesCount()
@@ -110,21 +110,21 @@ func (c *Configuration) load() error {
 	}
 	nodesCount := c.node.NodesCount()
 	if lastNodesCount != nodesCount {
-		Infof("Configuration.load %s NodesCount %d==>%d", c.node.address, lastNodesCount, nodesCount)
+		Infof("configuration.load %s NodesCount %d==>%d", c.node.address, lastNodesCount, nodesCount)
 	}
 	return nil
 }
-func (c *Configuration) reconfiguration() error {
+func (c *configuration) reconfiguration() error {
 	lastVotingsCount := c.node.votingsCount()
 	c.node.consideredForMajorities()
 	votingsCount := c.node.votingsCount()
 	if lastVotingsCount != votingsCount {
-		Tracef("Configuration.load %s VotingsCount %d==>%d", c.node.address, lastVotingsCount, votingsCount)
+		Tracef("configuration.load %s VotingsCount %d==>%d", c.node.address, lastVotingsCount, votingsCount)
 	}
 	return nil
 }
 
-func (c *Configuration) membershipChanges() bool {
+func (c *configuration) membershipChanges() bool {
 	old_ms := c.node.membership()
 	new_ms := c.membership()
 	sort.Strings(old_ms)

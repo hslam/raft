@@ -33,14 +33,14 @@ type Node struct {
 
 	//config
 	heartbeatTick time.Duration
-	storage       *Storage
+	storage       *storage
 	raft          Raft
 	proxy         Proxy
-	rpcs          *RPCs
+	rpcs          *rpcs
 	server        *Server
 	log           *Log
-	readIndex     *ReadIndex
-	stateMachine  *StateMachine
+	readIndex     *readIndex
+	stateMachine  *stateMachine
 
 	peers           map[string]*Peer
 	detectTicker    *time.Ticker
@@ -54,8 +54,8 @@ type Node struct {
 	workTicker      *timer.Ticker
 	deferTime       time.Time
 	//persistent state on all servers
-	currentTerm *PersistentUint64
-	votedFor    *PersistentString
+	currentTerm *persistentUint64
+	votedFor    *persistentString
 
 	//volatile state on all servers
 	commitIndex   uint64
@@ -73,8 +73,8 @@ type Node struct {
 	lastPrintNextIndex     uint64
 
 	//candidate
-	votes    *Votes
-	election *Election
+	votes    *votes
+	election *election
 
 	//leader
 	lease bool
@@ -657,11 +657,11 @@ func (n *Node) votingsCount() int {
 	cnt := 0
 	for _, v := range n.peers {
 		if v.voting() {
-			cnt += 1
+			cnt++
 		}
 	}
 	if n.voting() {
-		cnt += 1
+		cnt++
 	}
 	return cnt
 }
@@ -674,7 +674,7 @@ func (n *Node) aliveCount() int {
 	cnt := 1
 	for _, v := range n.peers {
 		if v.alive == true && v.voting() {
-			cnt += 1
+			cnt++
 		}
 	}
 	return cnt

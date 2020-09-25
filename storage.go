@@ -18,87 +18,87 @@ type Fast interface {
 	fast() bool
 }
 
-type Storage struct {
-	fast     Fast
-	data_dir string
+type storage struct {
+	fast    Fast
+	dataDir string
 }
 
 var errSeeker = errors.New("seeker can't seek")
 
-func newStorage(fast Fast, data_dir string) *Storage {
-	s := &Storage{
-		fast:     fast,
-		data_dir: data_dir,
+func newStorage(fast Fast, dataDir string) *storage {
+	s := &storage{
+		fast:    fast,
+		dataDir: dataDir,
 	}
-	s.MkDir(s.data_dir)
+	s.MkDir(s.dataDir)
 	return s
 }
-func (s *Storage) Sync(file_name string) error {
-	file_path := path.Join(s.data_dir, file_name)
-	f, err := os.OpenFile(file_path, os.O_CREATE|os.O_RDWR, 0600)
+func (s *storage) Sync(fileName string) error {
+	filePath := path.Join(s.dataDir, fileName)
+	f, err := os.OpenFile(filePath, os.O_CREATE|os.O_RDWR, 0600)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
 	return f.Sync()
 }
-func (s *Storage) IsEmpty(file_name string) bool {
+func (s *storage) IsEmpty(fileName string) bool {
 	var empty bool
-	if num, err := s.Size(file_name); err != nil || num == 0 || !s.Exists(file_name) {
+	if num, err := s.Size(fileName); err != nil || num == 0 || !s.Exists(fileName) {
 		empty = true
 	} else {
 		empty = false
 	}
 	return empty
 }
-func (s *Storage) SafeExists(file_name string) bool {
-	file_path := path.Join(s.data_dir, file_name)
+func (s *storage) SafeExists(fileName string) bool {
+	filePath := path.Join(s.dataDir, fileName)
 	var exist = true
-	if _, err := os.Stat(file_path); os.IsNotExist(err) {
-		exist = s.SafeRecover(file_name)
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		exist = s.SafeRecover(fileName)
 	}
 	return exist
 }
-func (s *Storage) SafeRecover(file_name string) bool {
-	file_path := path.Join(s.data_dir, file_name)
-	tmp_file_path := path.Join(s.data_dir, file_name+DefaultTmp)
-	if _, err := os.Stat(tmp_file_path); os.IsNotExist(err) {
+func (s *storage) SafeRecover(fileName string) bool {
+	filePath := path.Join(s.dataDir, fileName)
+	tmpFilePath := path.Join(s.dataDir, fileName+DefaultTmp)
+	if _, err := os.Stat(tmpFilePath); os.IsNotExist(err) {
 		return false
 	}
-	err := os.Rename(tmp_file_path, file_path)
+	err := os.Rename(tmpFilePath, filePath)
 	if err != nil {
 		return false
 	}
 	return true
 }
-func (s *Storage) Exists(file_name string) bool {
-	file_path := path.Join(s.data_dir, file_name)
+func (s *storage) Exists(fileName string) bool {
+	filePath := path.Join(s.dataDir, fileName)
 	var exist = true
-	if _, err := os.Stat(file_path); os.IsNotExist(err) {
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		exist = false
 	}
 	return exist
 }
-func (s *Storage) MkDir(dir_name string) {
-	if err := os.MkdirAll(dir_name, 0744); err != nil {
+func (s *storage) MkDir(dirName string) {
+	if err := os.MkdirAll(dirName, 0744); err != nil {
 		Errorf("Unable to create path: %v", err)
 	}
 }
-func (s *Storage) RmDir(dir_name string) {
-	if err := os.RemoveAll(dir_name); err != nil {
+func (s *storage) RmDir(dirName string) {
+	if err := os.RemoveAll(dirName); err != nil {
 		Errorf("Unable to RmDir path: %v", err)
 	}
 }
-func (s *Storage) Rm(file_name string) {
-	file_path := path.Join(s.data_dir, file_name)
-	if err := os.Remove(file_path); err != nil {
+func (s *storage) Rm(fileName string) {
+	filePath := path.Join(s.dataDir, fileName)
+	if err := os.Remove(filePath); err != nil {
 		Errorf("Unable to Rm path: %v", err)
 	}
 }
-func (s *Storage) SafeOverWrite(file_name string, data []byte) error {
-	file_path := path.Join(s.data_dir, file_name)
+func (s *storage) SafeOverWrite(fileName string, data []byte) error {
+	filePath := path.Join(s.dataDir, fileName)
 	if s.fast != nil && s.fast.fast() {
-		f, err := os.OpenFile(file_path, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0600)
+		f, err := os.OpenFile(filePath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0600)
 		if err != nil {
 			return err
 		}
@@ -110,41 +110,40 @@ func (s *Storage) SafeOverWrite(file_name string, data []byte) error {
 			return io.ErrShortWrite
 		}
 		return nil
-	} else {
-		tmp_file_path := path.Join(s.data_dir, file_name+DefaultTmp)
-		flush_file_path := path.Join(s.data_dir, file_name+DefaultFlush)
-		defer func() {
-			os.Rename(file_path, tmp_file_path)
-			os.Rename(flush_file_path, file_path)
-			os.Remove(tmp_file_path)
-		}()
-		f, err := os.OpenFile(flush_file_path, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0600)
-		if err != nil {
-			return err
-		}
-		defer f.Close()
-		n, err := f.Write(data)
-		if err != nil {
-			return err
-		} else if n < len(data) {
-			return io.ErrShortWrite
-		}
-		return f.Sync()
 	}
+	tmpFilePath := path.Join(s.dataDir, fileName+DefaultTmp)
+	flushFilePath := path.Join(s.dataDir, fileName+DefaultFlush)
+	defer func() {
+		os.Rename(filePath, tmpFilePath)
+		os.Rename(flushFilePath, filePath)
+		os.Remove(tmpFilePath)
+	}()
+	f, err := os.OpenFile(flushFilePath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0600)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	n, err := f.Write(data)
+	if err != nil {
+		return err
+	} else if n < len(data) {
+		return io.ErrShortWrite
+	}
+	return f.Sync()
 }
-func (s *Storage) Rename(old_name, new_name string) error {
-	old_path := path.Join(s.data_dir, old_name)
-	new_path := path.Join(s.data_dir, new_name)
-	return os.Rename(old_path, new_path)
+func (s *storage) Rename(oldName, newName string) error {
+	oldPath := path.Join(s.dataDir, oldName)
+	newPath := path.Join(s.dataDir, newName)
+	return os.Rename(oldPath, newPath)
 }
-func (s *Storage) Load(file_name string) ([]byte, error) {
-	file_path := path.Join(s.data_dir, file_name)
-	return ioutil.ReadFile(file_path)
+func (s *storage) Load(fileName string) ([]byte, error) {
+	filePath := path.Join(s.dataDir, fileName)
+	return ioutil.ReadFile(filePath)
 }
 
-func (s *Storage) Size(file_name string) (int64, error) {
-	file_path := path.Join(s.data_dir, file_name)
-	f, err := os.OpenFile(file_path, os.O_RDONLY, 0600)
+func (s *storage) Size(fileName string) (int64, error) {
+	filePath := path.Join(s.dataDir, fileName)
+	f, err := os.OpenFile(filePath, os.O_RDONLY, 0600)
 	if err != nil {
 		return 0, err
 	}
@@ -152,9 +151,9 @@ func (s *Storage) Size(file_name string) (int64, error) {
 	return f.Seek(0, os.SEEK_END)
 }
 
-func (s *Storage) MD5(file_name string) string {
-	file_path := path.Join(s.data_dir, file_name)
-	file, err := os.Open(file_path)
+func (s *storage) MD5(fileName string) string {
+	filePath := path.Join(s.dataDir, fileName)
+	file, err := os.Open(filePath)
 	defer file.Close()
 	if err == nil {
 		hash := md5.New()
@@ -163,9 +162,9 @@ func (s *Storage) MD5(file_name string) string {
 	}
 	return ""
 }
-func (s *Storage) MD5Bytes(file_name string) []byte {
-	file_path := path.Join(s.data_dir, file_name)
-	file, err := os.Open(file_path)
+func (s *storage) MD5Bytes(fileName string) []byte {
+	filePath := path.Join(s.dataDir, fileName)
+	file, err := os.Open(filePath)
 	defer file.Close()
 	if err == nil {
 		hash := md5.New()
@@ -174,9 +173,9 @@ func (s *Storage) MD5Bytes(file_name string) []byte {
 	}
 	return []byte{}
 }
-func (s *Storage) OverWrite(file_name string, data []byte) error {
-	file_path := path.Join(s.data_dir, file_name)
-	f, err := os.OpenFile(file_path, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0600)
+func (s *storage) OverWrite(fileName string, data []byte) error {
+	filePath := path.Join(s.dataDir, fileName)
+	f, err := os.OpenFile(filePath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0600)
 	if err != nil {
 		return err
 	}
@@ -193,9 +192,9 @@ func (s *Storage) OverWrite(file_name string, data []byte) error {
 	return f.Sync()
 }
 
-func (s *Storage) AppendWrite(file_name string, data []byte) error {
-	file_path := path.Join(s.data_dir, file_name)
-	f, err := os.OpenFile(file_path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
+func (s *storage) AppendWrite(fileName string, data []byte) error {
+	filePath := path.Join(s.dataDir, fileName)
+	f, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
 	if err != nil {
 		return err
 	}
@@ -211,9 +210,9 @@ func (s *Storage) AppendWrite(file_name string, data []byte) error {
 	}
 	return f.Sync()
 }
-func (s *Storage) SeekWrite(file_name string, cursor uint64, data []byte) error {
-	file_path := path.Join(s.data_dir, file_name)
-	f, err := os.OpenFile(file_path, os.O_CREATE|os.O_WRONLY, 0600)
+func (s *storage) SeekWrite(fileName string, cursor uint64, data []byte) error {
+	filePath := path.Join(s.dataDir, fileName)
+	f, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
 		return err
 	}
@@ -231,9 +230,9 @@ func (s *Storage) SeekWrite(file_name string, cursor uint64, data []byte) error 
 	return f.Sync()
 }
 
-func (s *Storage) SeekRead(file_name string, cursor uint64, b []byte) (n int, err error) {
-	file_path := path.Join(s.data_dir, file_name)
-	f, err := os.OpenFile(file_path, os.O_RDONLY, 0600)
+func (s *storage) SeekRead(fileName string, cursor uint64, b []byte) (n int, err error) {
+	filePath := path.Join(s.dataDir, fileName)
+	f, err := os.OpenFile(filePath, os.O_RDONLY, 0600)
 	if err != nil {
 		return 0, err
 	}
@@ -242,18 +241,18 @@ func (s *Storage) SeekRead(file_name string, cursor uint64, b []byte) (n int, er
 	return f.ReadAt(b, ret)
 }
 
-func (s *Storage) FileReader(file_name string) (*os.File, error) {
-	file_path := path.Join(s.data_dir, file_name)
-	return os.OpenFile(file_path, os.O_CREATE|os.O_RDONLY, 0600)
+func (s *storage) FileReader(fileName string) (*os.File, error) {
+	filePath := path.Join(s.dataDir, fileName)
+	return os.OpenFile(filePath, os.O_CREATE|os.O_RDONLY, 0600)
 }
 
-func (s *Storage) FileWriter(file_name string) (*os.File, error) {
-	file_path := path.Join(s.data_dir, file_name)
-	return os.OpenFile(file_path, os.O_CREATE|os.O_WRONLY, 0600)
+func (s *storage) FileWriter(fileName string) (*os.File, error) {
+	filePath := path.Join(s.dataDir, fileName)
+	return os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY, 0600)
 }
-func (s *Storage) Truncate(file_name string, size uint64) error {
-	file_path := path.Join(s.data_dir, file_name)
-	f, err := os.OpenFile(file_path, os.O_CREATE|os.O_WRONLY, 0600)
+func (s *storage) Truncate(fileName string, size uint64) error {
+	filePath := path.Join(s.dataDir, fileName)
+	f, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
 		return err
 	}
@@ -264,9 +263,9 @@ func (s *Storage) Truncate(file_name string, size uint64) error {
 	}
 	return f.Sync()
 }
-func (s *Storage) TruncateTop(file_name string, size uint64) error {
-	file_path := path.Join(s.data_dir, file_name)
-	f, err := os.OpenFile(file_path, os.O_CREATE|os.O_RDWR, 0600)
+func (s *storage) TruncateTop(fileName string, size uint64) error {
+	filePath := path.Join(s.dataDir, fileName)
+	f, err := os.OpenFile(filePath, os.O_CREATE|os.O_RDWR, 0600)
 	if err != nil {
 		return err
 	}
@@ -290,193 +289,193 @@ func (s *Storage) TruncateTop(file_name string, size uint64) error {
 	}
 	return f.Sync()
 }
-func (s *Storage) Copy(src_name string, dst_name string, offset, size uint64) error {
-	src_path := path.Join(s.data_dir, src_name)
-	dst_path := path.Join(s.data_dir, dst_name)
-	src_file, err := os.OpenFile(src_path, os.O_CREATE|os.O_RDWR, 0600)
+func (s *storage) Copy(srcName string, dstName string, offset, size uint64) error {
+	srcPath := path.Join(s.dataDir, srcName)
+	dstPath := path.Join(s.dataDir, dstName)
+	srcFile, err := os.OpenFile(srcPath, os.O_CREATE|os.O_RDWR, 0600)
 	if err != nil {
 		return err
 	}
-	defer src_file.Close()
-	dst_file, err := os.OpenFile(dst_path, os.O_CREATE|os.O_RDWR, 0600)
+	defer srcFile.Close()
+	dstFile, err := os.OpenFile(dstPath, os.O_CREATE|os.O_RDWR, 0600)
 	if err != nil {
 		return err
 	}
-	defer dst_file.Close()
-	err = dst_file.Truncate(int64(size))
+	defer dstFile.Close()
+	err = dstFile.Truncate(int64(size))
 	if err != nil {
 		return err
 	}
-	dst_mmap, err := syscall.Mmap(int(dst_file.Fd()), 0, int(size), syscall.PROT_READ|syscall.PROT_WRITE, syscall.MAP_SHARED)
+	dstMmap, err := syscall.Mmap(int(dstFile.Fd()), 0, int(size), syscall.PROT_READ|syscall.PROT_WRITE, syscall.MAP_SHARED)
 	if err != nil {
 		return err
 	}
-	src_mmap, err := syscall.Mmap(int(src_file.Fd()), 0, int(offset+size), syscall.PROT_READ|syscall.PROT_WRITE, syscall.MAP_SHARED)
+	srcMmap, err := syscall.Mmap(int(srcFile.Fd()), 0, int(offset+size), syscall.PROT_READ|syscall.PROT_WRITE, syscall.MAP_SHARED)
 	if err != nil {
 		return err
 	}
-	n := copy(dst_mmap, src_mmap[offset:])
+	n := copy(dstMmap, srcMmap[offset:])
 	if n != int(size) {
 		return errors.New("error length")
 	}
-	err = syscall.Munmap(src_mmap)
+	err = syscall.Munmap(srcMmap)
 	if err != nil {
 		return err
 	}
-	err = syscall.Munmap(dst_mmap)
+	err = syscall.Munmap(dstMmap)
 	if err != nil {
 		return err
 	}
-	return dst_file.Sync()
+	return dstFile.Sync()
 }
-func (s *Storage) AppendCopy(src_name string, dst_name string, size uint64) error {
-	src_path := path.Join(s.data_dir, src_name)
-	dst_path := path.Join(s.data_dir, dst_name)
-	src_file, err := os.OpenFile(src_path, os.O_CREATE|os.O_RDWR, 0600)
+func (s *storage) AppendCopy(srcName string, dstName string, size uint64) error {
+	srcPath := path.Join(s.dataDir, srcName)
+	dstPath := path.Join(s.dataDir, dstName)
+	srcFile, err := os.OpenFile(srcPath, os.O_CREATE|os.O_RDWR, 0600)
 	if err != nil {
 		return err
 	}
-	defer src_file.Close()
-	dst_file, err := os.OpenFile(dst_path, os.O_CREATE|os.O_RDWR, 0600)
+	defer srcFile.Close()
+	dstFile, err := os.OpenFile(dstPath, os.O_CREATE|os.O_RDWR, 0600)
 	if err != nil {
 		return err
 	}
-	defer dst_file.Close()
-	dst_fileInfo, err := dst_file.Stat()
+	defer dstFile.Close()
+	dstFileInfo, err := dstFile.Stat()
 	if err != nil {
 		return err
 	}
-	dst_size := dst_fileInfo.Size()
-	err = dst_file.Truncate(dst_size + int64(size))
+	dstSize := dstFileInfo.Size()
+	err = dstFile.Truncate(dstSize + int64(size))
 	if err != nil {
 		return err
 	}
-	dst_mmap, err := syscall.Mmap(int(dst_file.Fd()), 0, int(size), syscall.PROT_READ|syscall.PROT_WRITE, syscall.MAP_SHARED)
+	dstMmap, err := syscall.Mmap(int(dstFile.Fd()), 0, int(size), syscall.PROT_READ|syscall.PROT_WRITE, syscall.MAP_SHARED)
 	if err != nil {
 		return err
 	}
-	src_fileInfo, err := src_file.Stat()
+	srcFileInfo, err := srcFile.Stat()
 	if err != nil {
 		return err
 	}
-	src_size := src_fileInfo.Size()
-	src_mmap, err := syscall.Mmap(int(src_file.Fd()), 0, int(src_size), syscall.PROT_READ|syscall.PROT_WRITE, syscall.MAP_SHARED)
+	srcSize := srcFileInfo.Size()
+	srcMmap, err := syscall.Mmap(int(srcFile.Fd()), 0, int(srcSize), syscall.PROT_READ|syscall.PROT_WRITE, syscall.MAP_SHARED)
 	if err != nil {
 		return err
 	}
-	copy(dst_mmap[dst_size:], src_mmap[:size])
-	err = syscall.Munmap(src_mmap)
+	copy(dstMmap[dstSize:], srcMmap[:size])
+	err = syscall.Munmap(srcMmap)
 	if err != nil {
 		return err
 	}
-	err = syscall.Munmap(dst_mmap)
+	err = syscall.Munmap(dstMmap)
 	if err != nil {
 		return err
 	}
-	return dst_file.Sync()
+	return dstFile.Sync()
 }
-func (s *Storage) Backup(src_name string, dst_name string, size uint64) error {
-	src_path := path.Join(s.data_dir, src_name)
-	dst_path := path.Join(s.data_dir, dst_name)
-	src_file, err := os.OpenFile(src_path, os.O_CREATE|os.O_RDWR, 0600)
+func (s *storage) Backup(srcName string, dstName string, size uint64) error {
+	srcPath := path.Join(s.dataDir, srcName)
+	dstPath := path.Join(s.dataDir, dstName)
+	srcFile, err := os.OpenFile(srcPath, os.O_CREATE|os.O_RDWR, 0600)
 	if err != nil {
 		return err
 	}
-	defer src_file.Close()
-	dst_file, err := os.OpenFile(dst_path, os.O_CREATE|os.O_RDWR, 0600)
+	defer srcFile.Close()
+	dstFile, err := os.OpenFile(dstPath, os.O_CREATE|os.O_RDWR, 0600)
 	if err != nil {
 		return err
 	}
-	defer dst_file.Close()
-	err = dst_file.Truncate(int64(size))
+	defer dstFile.Close()
+	err = dstFile.Truncate(int64(size))
 	if err != nil {
 		return err
 	}
-	dst_mmap, err := syscall.Mmap(int(dst_file.Fd()), 0, int(size), syscall.PROT_READ|syscall.PROT_WRITE, syscall.MAP_SHARED)
+	dstMmap, err := syscall.Mmap(int(dstFile.Fd()), 0, int(size), syscall.PROT_READ|syscall.PROT_WRITE, syscall.MAP_SHARED)
 	if err != nil {
 		return err
 	}
-	src_fileInfo, err := src_file.Stat()
+	srcFileInfo, err := srcFile.Stat()
 	if err != nil {
 		return err
 	}
-	src_size := src_fileInfo.Size()
-	src_mmap, err := syscall.Mmap(int(src_file.Fd()), 0, int(src_size), syscall.PROT_READ|syscall.PROT_WRITE, syscall.MAP_SHARED)
+	srcSize := srcFileInfo.Size()
+	srcMmap, err := syscall.Mmap(int(srcFile.Fd()), 0, int(srcSize), syscall.PROT_READ|syscall.PROT_WRITE, syscall.MAP_SHARED)
 	if err != nil {
 		return err
 	}
-	copy(dst_mmap[0:], src_mmap[:size])
-	copy(src_mmap[0:], src_mmap[size:])
-	err = syscall.Munmap(src_mmap)
+	copy(dstMmap[0:], srcMmap[:size])
+	copy(srcMmap[0:], srcMmap[size:])
+	err = syscall.Munmap(srcMmap)
 	if err != nil {
 		return err
 	}
-	err = syscall.Munmap(dst_mmap)
+	err = syscall.Munmap(dstMmap)
 	if err != nil {
 		return err
 	}
-	err = src_file.Truncate(src_size - int64(size))
+	err = srcFile.Truncate(srcSize - int64(size))
 	if err != nil {
 		return err
 	}
-	err = src_file.Sync()
+	err = srcFile.Sync()
 	if err != nil {
 		return err
 	}
-	return dst_file.Sync()
+	return dstFile.Sync()
 }
-func (s *Storage) AppendBackup(src_name string, dst_name string, size uint64) error {
-	src_path := path.Join(s.data_dir, src_name)
-	dst_path := path.Join(s.data_dir, dst_name)
-	src_file, err := os.OpenFile(src_path, os.O_CREATE|os.O_RDWR, 0600)
+func (s *storage) AppendBackup(srcName string, dstName string, size uint64) error {
+	srcPath := path.Join(s.dataDir, srcName)
+	dstPath := path.Join(s.dataDir, dstName)
+	srcFile, err := os.OpenFile(srcPath, os.O_CREATE|os.O_RDWR, 0600)
 	if err != nil {
 		return err
 	}
-	defer src_file.Close()
-	dst_file, err := os.OpenFile(dst_path, os.O_CREATE|os.O_RDWR, 0600)
+	defer srcFile.Close()
+	dstFile, err := os.OpenFile(dstPath, os.O_CREATE|os.O_RDWR, 0600)
 	if err != nil {
 		return err
 	}
-	defer dst_file.Close()
-	dst_fileInfo, err := dst_file.Stat()
+	defer dstFile.Close()
+	dstFileInfo, err := dstFile.Stat()
 	if err != nil {
 		return err
 	}
-	dst_size := dst_fileInfo.Size()
-	err = dst_file.Truncate(dst_size + int64(size))
+	dstSize := dstFileInfo.Size()
+	err = dstFile.Truncate(dstSize + int64(size))
 	if err != nil {
 		return err
 	}
-	dst_mmap, err := syscall.Mmap(int(dst_file.Fd()), 0, int(size), syscall.PROT_READ|syscall.PROT_WRITE, syscall.MAP_SHARED)
+	dstMmap, err := syscall.Mmap(int(dstFile.Fd()), 0, int(size), syscall.PROT_READ|syscall.PROT_WRITE, syscall.MAP_SHARED)
 	if err != nil {
 		return err
 	}
-	src_fileInfo, err := src_file.Stat()
+	srcFileInfo, err := srcFile.Stat()
 	if err != nil {
 		return err
 	}
-	src_size := src_fileInfo.Size()
-	src_mmap, err := syscall.Mmap(int(src_file.Fd()), 0, int(src_size), syscall.PROT_READ|syscall.PROT_WRITE, syscall.MAP_SHARED)
+	srcSize := srcFileInfo.Size()
+	srcMmap, err := syscall.Mmap(int(srcFile.Fd()), 0, int(srcSize), syscall.PROT_READ|syscall.PROT_WRITE, syscall.MAP_SHARED)
 	if err != nil {
 		return err
 	}
-	copy(dst_mmap[dst_size:], src_mmap[:size])
-	copy(src_mmap[0:], src_mmap[size:])
-	err = syscall.Munmap(src_mmap)
+	copy(dstMmap[dstSize:], srcMmap[:size])
+	copy(srcMmap[0:], srcMmap[size:])
+	err = syscall.Munmap(srcMmap)
 	if err != nil {
 		return err
 	}
-	err = syscall.Munmap(dst_mmap)
+	err = syscall.Munmap(dstMmap)
 	if err != nil {
 		return err
 	}
-	err = src_file.Truncate(src_size - int64(size))
+	err = srcFile.Truncate(srcSize - int64(size))
 	if err != nil {
 		return err
 	}
-	err = src_file.Sync()
+	err = srcFile.Sync()
 	if err != nil {
 		return err
 	}
-	return dst_file.Sync()
+	return dstFile.Sync()
 }

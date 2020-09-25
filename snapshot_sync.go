@@ -13,12 +13,12 @@ type SyncType struct {
 }
 
 type snapshotSync struct {
-	stateMachine *StateMachine
+	stateMachine *stateMachine
 	ticker       *time.Ticker
 	syncType     *SyncType
 }
 
-func newSnapshotSync(s *StateMachine, syncType *SyncType) *snapshotSync {
+func newSnapshotSync(s *stateMachine, syncType *SyncType) *snapshotSync {
 	return &snapshotSync{
 		stateMachine: s,
 		ticker:       time.NewTicker(time.Second * time.Duration(syncType.Seconds)),
