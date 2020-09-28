@@ -3,18 +3,18 @@
 
 package raft
 
-type Server struct {
-	node *Node
+type server struct {
+	node *node
 	addr string
 }
 
-func newServer(node *Node, addr string) *Server {
-	s := &Server{
-		node: node,
+func newServer(n *node, addr string) *server {
+	s := &server{
+		node: n,
 		addr: addr,
 	}
 	return s
 }
-func (s *Server) listenAndServe() {
+func (s *server) listenAndServe() {
 	go listenAndServe(s.addr, s.node)
 }

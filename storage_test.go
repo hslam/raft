@@ -9,7 +9,7 @@ import (
 
 func TestStorageSafeOverWrite10B(t *testing.T) {
 	b := []byte("123456789\n")
-	storage := newStorage(&Node{}, DefaultDataDir)
+	storage := newStorage(&Node{}, defaultDataDir)
 	err := storage.SafeOverWrite("TestStorageSafeOverWrite10B", b)
 	if err != nil {
 		t.Error(err)
@@ -18,7 +18,7 @@ func TestStorageSafeOverWrite10B(t *testing.T) {
 
 func BenchmarkStorageSafeOverWrite10B(t *testing.B) {
 	b := []byte("123456789\n")
-	storage := newStorage(&Node{}, DefaultDataDir)
+	storage := newStorage(&Node{}, defaultDataDir)
 	t.ResetTimer()
 	for i := 0; i < t.N; i++ {
 		storage.SafeOverWrite("BenchmarkStorageSafeOverWrite10B", b)
@@ -27,7 +27,7 @@ func BenchmarkStorageSafeOverWrite10B(t *testing.B) {
 
 func BenchmarkStorageOverWrite10B(t *testing.B) {
 	b := []byte("123456789\n")
-	storage := newStorage(&Node{}, DefaultDataDir)
+	storage := newStorage(&Node{}, defaultDataDir)
 	t.ResetTimer()
 	for i := 0; i < t.N; i++ {
 		storage.OverWrite("BenchmarkStorageOverWrite10B", b)
@@ -35,7 +35,7 @@ func BenchmarkStorageOverWrite10B(t *testing.B) {
 }
 func BenchmarkStorageAppendWrite10B(t *testing.B) {
 	b := []byte("123456789\n")
-	storage := newStorage(&Node{}, DefaultDataDir)
+	storage := newStorage(&Node{}, defaultDataDir)
 	t.ResetTimer()
 	for i := 0; i < t.N; i++ {
 		storage.AppendWrite("BenchmarkStorageAppendWrite10B", b)
@@ -43,7 +43,7 @@ func BenchmarkStorageAppendWrite10B(t *testing.B) {
 }
 func BenchmarkStorageSeekWrite10B(t *testing.B) {
 	b := []byte("123456789\n")
-	storage := newStorage(&Node{}, DefaultDataDir)
+	storage := newStorage(&Node{}, defaultDataDir)
 	storage.AppendWrite("BenchmarkStorageSeekWrite10B", b)
 	storage.AppendWrite("BenchmarkStorageSeekWrite10B", b)
 	storage.AppendWrite("BenchmarkStorageSeekWrite10B", b)
@@ -61,7 +61,7 @@ func BenchmarkStorageAppendWrite1KB(t *testing.B) {
 		bs = append(bs, b)
 	}
 	bs = append(bs, byte(10))
-	storage := newStorage(&Node{}, DefaultDataDir)
+	storage := newStorage(&Node{}, defaultDataDir)
 	t.ResetTimer()
 	for i := 0; i < t.N; i++ {
 		storage.AppendWrite("BenchmarkStorageAppendWrite1KB", bs)
@@ -74,7 +74,7 @@ func BenchmarkStorageAppendWrite10KB(t *testing.B) {
 		bs = append(bs, b)
 	}
 	bs = append(bs, byte(10))
-	storage := newStorage(&Node{}, DefaultDataDir)
+	storage := newStorage(&Node{}, defaultDataDir)
 	t.ResetTimer()
 	for i := 0; i < t.N; i++ {
 		storage.AppendWrite("BenchmarkStorageAppendWrite10KB", bs)
@@ -87,7 +87,7 @@ func BenchmarkStorageAppendWrite100KB(t *testing.B) {
 		bs = append(bs, b)
 	}
 	bs = append(bs, byte(10))
-	storage := newStorage(&Node{}, DefaultDataDir)
+	storage := newStorage(&Node{}, defaultDataDir)
 	t.ResetTimer()
 	for i := 0; i < t.N; i++ {
 		storage.AppendWrite("BenchmarkStorageAppendWrite100KB", bs)
@@ -101,7 +101,7 @@ func BenchmarkStorageAppendWrite1MB(t *testing.B) {
 		bs = append(bs, b)
 	}
 	bs = append(bs, byte(10))
-	storage := newStorage(&Node{}, DefaultDataDir)
+	storage := newStorage(&Node{}, defaultDataDir)
 	t.ResetTimer()
 	for i := 0; i < t.N; i++ {
 		storage.AppendWrite("BenchmarkStorageAppendWrite1MB", bs)
@@ -114,7 +114,7 @@ func BenchmarkStorageAppendWrite10MB(t *testing.B) {
 		bs = append(bs, b)
 	}
 	bs = append(bs, byte(10))
-	storage := newStorage(&Node{}, DefaultDataDir)
+	storage := newStorage(&Node{}, defaultDataDir)
 	t.ResetTimer()
 	for i := 0; i < t.N; i++ {
 		storage.AppendWrite("BenchmarkStorageAppendWrite10MB", bs)

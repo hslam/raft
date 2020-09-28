@@ -10,11 +10,12 @@ import (
 	"time"
 )
 
-type Log struct {
+//
+type waLog struct {
 	mu               sync.Mutex
 	batchMu          sync.Mutex
 	pauseMu          sync.Mutex
-	node             *Node
+	node             *node
 	wal              *wal.Log
 	compactionTicker *time.Ticker
 	buf              []byte
@@ -25,102 +26,97 @@ type Log struct {
 	paused           bool
 }
 
-func newLog(node *Node) *Log {
-	log := &Log{
-		node:             node,
-		compactionTicker: time.NewTicker(DefaultCompactionTick),
+func newLog(n *node) *waLog {
+	l := &waLog{
+		node:             n,
+		compactionTicker: time.NewTicker(defaultCompactionTick),
 		buf:              make([]byte, 1024*64),
 		stop:             make(chan bool, 1),
 		finish:           make(chan bool, 1),
 		work:             true,
 	}
-	log.wal, _ = wal.Open(node.storage.dataDir, nil)
-	log.entryPool = &sync.Pool{
+	l.wal, _ = wal.Open(n.storage.dataDir, nil)
+	l.entryPool = &sync.Pool{
 		New: func() interface{} {
 			return &Entry{}
 		},
 	}
-	go log.run()
-	return log
+	go l.run()
+	return l
 }
-func (log *Log) getEmtyEntry() *Entry {
-	return log.entryPool.Get().(*Entry)
+func (l *waLog) getEmtyEntry() *Entry {
+	return l.entryPool.Get().(*Entry)
 }
-func (log *Log) putEmtyEntry(entry *Entry) {
+func (l *waLog) putEmtyEntry(entry *Entry) {
 	entry.Index = 0
 	entry.Term = 0
 	entry.Command = []byte{}
 	entry.CommandType = 0
-	log.entryPool.Put(entry)
+	l.entryPool.Put(entry)
 }
-func (log *Log) putEmtyEntries(entries []*Entry) {
+func (l *waLog) putEmtyEntries(entries []*Entry) {
 	for _, entry := range entries {
-		log.putEmtyEntry(entry)
+		l.putEmtyEntry(entry)
 	}
 }
-func (log *Log) Lock() {
-	log.mu.Lock()
+
+func (l *waLog) pause(p bool) {
+	l.pauseMu.Lock()
+	defer l.pauseMu.Unlock()
+	l.paused = p
 }
-func (log *Log) Unlock() {
-	log.mu.Unlock()
+func (l *waLog) isPaused() bool {
+	l.pauseMu.Lock()
+	defer l.pauseMu.Unlock()
+	return l.paused
 }
-func (log *Log) pause(p bool) {
-	log.pauseMu.Lock()
-	defer log.pauseMu.Unlock()
-	log.paused = p
-}
-func (log *Log) isPaused() bool {
-	log.pauseMu.Lock()
-	defer log.pauseMu.Unlock()
-	return log.paused
-}
-func (log *Log) checkPaused() {
+func (l *waLog) checkPaused() {
 	for {
-		if !log.isPaused() {
+		if !l.isPaused() {
 			break
 		}
 		time.Sleep(time.Millisecond * 100)
 	}
 }
-func (log *Log) checkIndex(index uint64) bool {
-	if ok, err := log.wal.IsExist(index); err != nil {
+func (l *waLog) checkIndex(index uint64) bool {
+	ok, err := l.wal.IsExist(index)
+	if err != nil {
 		return false
-	} else {
-		return ok
 	}
+	return ok
 }
 
-func (log *Log) lookup(index uint64) *Entry {
-	log.mu.Lock()
-	defer log.mu.Unlock()
-	log.checkPaused()
-	return log.read(index)
+func (l *waLog) lookup(index uint64) *Entry {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.checkPaused()
+	return l.read(index)
 }
 
-func (log *Log) consistencyCheck(index uint64, term uint64) (ok bool) {
+func (l *waLog) consistencyCheck(index uint64, term uint64) (ok bool) {
 	if index == 0 {
 		return false
 	}
-	if index > log.node.lastLogIndex {
+	if index > l.node.lastLogIndex {
 		return false
 	}
-	if index == log.node.lastLogIndex {
-		if term == log.node.lastLogTerm {
+	if index == l.node.lastLogIndex {
+		if term == l.node.lastLogTerm {
 			return true
 		}
 	}
-	entry := log.node.log.lookup(index)
+	entry := l.node.log.lookup(index)
 	if entry == nil {
 		return false
 	}
 	if entry.Term != term {
-		log.node.log.deleteAfter(index)
-		log.node.nextIndex = log.node.lastLogIndex + 1
+		l.node.log.deleteAfter(index)
+		l.node.nextIndex = l.node.lastLogIndex + 1
 		return false
 	}
 	return true
 }
-func (log *Log) check(entries []*Entry) bool {
+func (l *waLog) check(entries []*Entry) bool {
 	lastIndex := entries[0].Index
 	for i := 1; i < len(entries); i++ {
 		if entries[i].Index == lastIndex+1 {
@@ -132,239 +128,239 @@ func (log *Log) check(entries []*Entry) bool {
 	return true
 }
 
-func (log *Log) deleteAfter(index uint64) {
-	log.mu.Lock()
-	defer log.mu.Unlock()
-	log.pause(true)
-	defer log.pause(false)
-	if index == log.node.firstLogIndex {
-		log.wal.Reset()
-		log.wal.InitFirstIndex(index)
+func (l *waLog) deleteAfter(index uint64) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.pause(true)
+	defer l.pause(false)
+	if index == l.node.firstLogIndex {
+		l.wal.Reset()
+		l.wal.InitFirstIndex(index)
 		return
 	}
-	log.node.lastLogIndex = index - 1
-	log.wal.Truncate(index - 1)
-	lastLogIndex := log.node.lastLogIndex
+	l.node.lastLogIndex = index - 1
+	l.wal.Truncate(index - 1)
+	lastLogIndex := l.node.lastLogIndex
 	if lastLogIndex > 0 {
-		entry := log.read(lastLogIndex)
-		log.node.lastLogTerm = entry.Term
+		entry := l.read(lastLogIndex)
+		l.node.lastLogTerm = entry.Term
 	} else {
-		log.node.lastLogTerm = 0
+		l.node.lastLogTerm = 0
 	}
 }
 
-func (log *Log) deleteBefore(index uint64) {
-	log.mu.Lock()
-	defer log.mu.Unlock()
-	log.checkPaused()
-	log.pause(true)
-	defer log.pause(false)
-	log.wal.Clean(index)
-	log.node.firstLogIndex, _ = log.wal.FirstIndex()
-	Tracef("Log.deleteBefore %s deleteBefore %d", log.node.address, index)
+func (l *waLog) deleteBefore(index uint64) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.checkPaused()
+	l.pause(true)
+	defer l.pause(false)
+	l.wal.Clean(index)
+	l.node.firstLogIndex, _ = l.wal.FirstIndex()
+	Tracef("l.deleteBefore %s deleteBefore %d", l.node.address, index)
 }
-func (log *Log) startIndex(index uint64) uint64 {
-	return maxUint64(log.node.firstLogIndex, index)
+func (l *waLog) startIndex(index uint64) uint64 {
+	return maxUint64(l.node.firstLogIndex, index)
 }
-func (log *Log) endIndex(index uint64) uint64 {
-	return minUint64(index, log.node.lastLogIndex)
+func (l *waLog) endIndex(index uint64) uint64 {
+	return minUint64(index, l.node.lastLogIndex)
 }
-func (log *Log) copyAfter(index uint64, max int) (entries []*Entry) {
-	log.mu.Lock()
-	defer log.mu.Unlock()
-	log.checkPaused()
-	startIndex := log.startIndex(index)
-	endIndex := log.endIndex(startIndex + uint64(max))
-	return log.copyRange(startIndex, endIndex)
+func (l *waLog) copyAfter(index uint64, max int) (entries []*Entry) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.checkPaused()
+	startIndex := l.startIndex(index)
+	endIndex := l.endIndex(startIndex + uint64(max))
+	return l.copyRange(startIndex, endIndex)
 }
-func (log *Log) copyRange(startIndex uint64, endIndex uint64) []*Entry {
-	//Tracef("Log.copyRange %s startIndex %d endIndex %d",log.node.address,metas[0].Index,metas[len(metas)-1].Index)
-	return log.batchRead(startIndex, endIndex)
+func (l *waLog) copyRange(startIndex uint64, endIndex uint64) []*Entry {
+	//Tracef("l.copyRange %s startIndex %d endIndex %d",l.node.address,metas[0].Index,metas[len(metas)-1].Index)
+	return l.batchRead(startIndex, endIndex)
 }
 
-func (log *Log) applyCommited() {
-	log.node.stateMachine.Lock()
-	defer log.node.stateMachine.Unlock()
-	log.mu.Lock()
-	defer log.mu.Unlock()
-	log.checkPaused()
-	lastLogIndex := log.node.lastLogIndex
+func (l *waLog) applyCommited() {
+	l.node.stateMachine.Lock()
+	defer l.node.stateMachine.Unlock()
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.checkPaused()
+	lastLogIndex := l.node.lastLogIndex
 	if lastLogIndex == 0 {
 		return
 	}
-	var startIndex = maxUint64(log.node.stateMachine.lastApplied+1, 1)
-	var endIndex = log.node.commitIndex
+	var startIndex = maxUint64(l.node.stateMachine.lastApplied+1, 1)
+	var endIndex = l.node.commitIndex
 	if startIndex > endIndex {
 		return
 	}
-	if endIndex-startIndex > DefaultMaxBatch {
+	if endIndex-startIndex > defaultMaxBatch {
 		index := startIndex
 		for {
-			log.applyCommitedRange(index, index+DefaultMaxBatch)
-			index += DefaultMaxBatch
-			if endIndex-index <= DefaultMaxBatch {
-				log.applyCommitedRange(index, endIndex)
+			l.applyCommitedRange(index, index+defaultMaxBatch)
+			index += defaultMaxBatch
+			if endIndex-index <= defaultMaxBatch {
+				l.applyCommitedRange(index, endIndex)
 				break
 			}
 		}
 	} else {
-		log.applyCommitedRange(startIndex, endIndex)
+		l.applyCommitedRange(startIndex, endIndex)
 	}
 }
 
-func (log *Log) applyCommitedEnd(endIndex uint64) {
-	log.node.stateMachine.Lock()
-	defer log.node.stateMachine.Unlock()
-	log.mu.Lock()
-	defer log.mu.Unlock()
-	log.checkPaused()
-	lastLogIndex := log.node.lastLogIndex
+func (l *waLog) applyCommitedEnd(endIndex uint64) {
+	l.node.stateMachine.Lock()
+	defer l.node.stateMachine.Unlock()
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.checkPaused()
+	lastLogIndex := l.node.lastLogIndex
 	if lastLogIndex == 0 {
 		return
 	}
-	var startIndex = maxUint64(log.node.stateMachine.lastApplied+1, 1)
-	endIndex = minUint64(log.node.commitIndex, endIndex)
+	var startIndex = maxUint64(l.node.stateMachine.lastApplied+1, 1)
+	endIndex = minUint64(l.node.commitIndex, endIndex)
 	if startIndex > endIndex {
 		return
 	}
-	if endIndex-startIndex > DefaultMaxBatch {
+	if endIndex-startIndex > defaultMaxBatch {
 		index := startIndex
 		for {
-			log.applyCommitedRange(index, index+DefaultMaxBatch)
-			index += DefaultMaxBatch
-			if endIndex-index <= DefaultMaxBatch {
-				log.applyCommitedRange(index, endIndex)
+			l.applyCommitedRange(index, index+defaultMaxBatch)
+			index += defaultMaxBatch
+			if endIndex-index <= defaultMaxBatch {
+				l.applyCommitedRange(index, endIndex)
 				break
 			}
 		}
 	} else {
-		log.applyCommitedRange(startIndex, endIndex)
+		l.applyCommitedRange(startIndex, endIndex)
 	}
 }
 
-func (log *Log) applyCommitedRange(startIndex uint64, endIndex uint64) {
-	//Tracef("Log.applyCommitedRange %s startIndex %d endIndex %d Start",log.node.address,startIndex,endIndex)
-	entries := log.copyRange(startIndex, endIndex)
+func (l *waLog) applyCommitedRange(startIndex uint64, endIndex uint64) {
+	//Tracef("l.applyCommitedRange %s startIndex %d endIndex %d Start",l.node.address,startIndex,endIndex)
+	entries := l.copyRange(startIndex, endIndex)
 	if entries == nil || len(entries) == 0 {
 		return
 	}
-	//Tracef("Log.applyCommitedRange %s startIndex %d endIndex %d length %d",log.node.address,startIndex,endIndex,len(entries))
+	//Tracef("l.applyCommitedRange %s startIndex %d endIndex %d length %d",l.node.address,startIndex,endIndex,len(entries))
 	for i := 0; i < len(entries); i++ {
-		//Tracef("Log.applyCommitedRange %s Index %d Type %d",log.node.address,entries[i].Index,entries[i].CommandType)
-		command := log.node.commands.clone(entries[i].CommandType)
+		//Tracef("l.applyCommitedRange %s Index %d Type %d",l.node.address,entries[i].Index,entries[i].CommandType)
+		command := l.node.commands.clone(entries[i].CommandType)
 		var err error
 		if entries[i].CommandType >= 0 {
-			err = log.node.codec.Unmarshal(entries[i].Command, command)
+			err = l.node.codec.Unmarshal(entries[i].Command, command)
 		} else {
-			err = log.node.raftCodec.Unmarshal(entries[i].Command, command)
+			err = l.node.raftCodec.Unmarshal(entries[i].Command, command)
 		}
 		if err == nil {
-			log.node.stateMachine.apply(entries[i].Index, command)
+			l.node.stateMachine.apply(entries[i].Index, command)
 		} else {
-			Errorf("Log.applyCommitedRange %s %d error %s", log.node.address, i, err)
+			Errorf("l.applyCommitedRange %s %d error %s", l.node.address, i, err)
 		}
-		log.node.commands.put(command)
+		l.node.commands.put(command)
 	}
-	log.putEmtyEntries(entries)
-	//Tracef("Log.applyCommitedRange %s startIndex %d endIndex %d End %d",log.node.address,startIndex,endIndex,len(entries))
+	l.putEmtyEntries(entries)
+	//Tracef("l.applyCommitedRange %s startIndex %d endIndex %d End %d",l.node.address,startIndex,endIndex,len(entries))
 }
 
-func (log *Log) appendEntries(entries []*Entry) bool {
-	log.mu.Lock()
-	defer log.mu.Unlock()
-	log.checkPaused()
-	if !log.node.isLeader() {
-		if !log.check(entries) {
+func (l *waLog) appendEntries(entries []*Entry) bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.checkPaused()
+	if !l.node.isLeader() {
+		if !l.check(entries) {
 			return false
 		}
 	}
-	if log.node.lastLogIndex != entries[0].Index-1 {
+	if l.node.lastLogIndex != entries[0].Index-1 {
 		return false
 	}
-	log.Write(entries)
-	log.node.lastLogIndex = entries[len(entries)-1].Index
-	log.node.lastLogTerm = entries[len(entries)-1].Term
-	log.putEmtyEntries(entries)
-	//Tracef("Log.appendEntries %s entries %d", log.node.address, len(entries))
+	l.Write(entries)
+	l.node.lastLogIndex = entries[len(entries)-1].Index
+	l.node.lastLogTerm = entries[len(entries)-1].Term
+	l.putEmtyEntries(entries)
+	//Tracef("l.appendEntries %s entries %d", l.node.address, len(entries))
 	return true
 }
-func (log *Log) read(index uint64) *Entry {
-	b, err := log.wal.Read(index)
+func (l *waLog) read(index uint64) *Entry {
+	b, err := l.wal.Read(index)
 	if err != nil {
 		return nil
 	}
-	entry := log.getEmtyEntry()
-	err = log.node.raftCodec.Unmarshal(b, entry)
+	entry := l.getEmtyEntry()
+	err = l.node.raftCodec.Unmarshal(b, entry)
 	if err != nil {
-		Errorf("Log.Decode %s", string(b))
+		Errorf("l.Decode %s", string(b))
 		return nil
 	}
 	return entry
 }
 
-func (log *Log) batchRead(startIndex uint64, endIndex uint64) []*Entry {
+func (l *waLog) batchRead(startIndex uint64, endIndex uint64) []*Entry {
 	entries := make([]*Entry, 0, endIndex-startIndex+1)
 	for i := startIndex; i < endIndex+1; i++ {
-		entries = append(entries, log.read(i))
+		entries = append(entries, l.read(i))
 	}
 	return entries
 }
 
-func (log *Log) load() (err error) {
-	log.mu.Lock()
-	defer log.mu.Unlock()
-	log.checkPaused()
-	lastLogIndex := log.node.lastLogIndex
-	log.node.firstLogIndex, err = log.wal.FirstIndex()
+func (l *waLog) load() (err error) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.checkPaused()
+	lastLogIndex := l.node.lastLogIndex
+	l.node.firstLogIndex, err = l.wal.FirstIndex()
 	if err != nil {
 		return err
 	}
-	log.node.lastLogIndex, err = log.wal.LastIndex()
+	l.node.lastLogIndex, err = l.wal.LastIndex()
 	if err != nil {
 		return err
 	}
-	if log.node.lastLogIndex > 0 {
-		entry := log.read(log.node.lastLogIndex)
+	if l.node.lastLogIndex > 0 {
+		entry := l.read(l.node.lastLogIndex)
 		if entry != nil {
-			log.node.lastLogTerm = entry.Term
-			log.node.recoverLogIndex = log.node.lastLogIndex
-			log.node.nextIndex = log.node.lastLogIndex + 1
+			l.node.lastLogTerm = entry.Term
+			l.node.recoverLogIndex = l.node.lastLogIndex
+			l.node.nextIndex = l.node.lastLogIndex + 1
 		}
 	}
-	if log.node.lastLogIndex > lastLogIndex {
-		Tracef("Log.recover %s lastLogIndex %d", log.node.address, lastLogIndex)
+	if l.node.lastLogIndex > lastLogIndex {
+		Tracef("l.recover %s lastLogIndex %d", l.node.address, lastLogIndex)
 	}
 	return nil
 }
 
-func (log *Log) Write(entries []*Entry) (err error) {
+func (l *waLog) Write(entries []*Entry) (err error) {
 	for i := 0; i < len(entries); i++ {
 		entry := entries[i]
-		b, err := log.node.raftCodec.Marshal(log.buf, entry)
+		b, err := l.node.raftCodec.Marshal(l.buf, entry)
 		if err != nil {
 			return err
 		}
-		if err = log.wal.Write(entry.Index, b); err != nil {
+		if err = l.wal.Write(entry.Index, b); err != nil {
 			return err
 		}
 	}
-	//Tracef("Log.Write %d", len(entries))
-	return log.wal.FlushAndSync()
+	//Tracef("l.Write %d", len(entries))
+	return l.wal.FlushAndSync()
 }
 
-func (log *Log) compaction() error {
-	//log.mu.Lock()
-	//defer log.mu.Unlock()
-	//md5, err:=log.loadMd5()
+func (l *waLog) compaction() error {
+	//l.mu.Lock()
+	//defer l.mu.Unlock()
+	//md5, err:=l.loadMd5()
 	//if err==nil&&md5!=""{
-	//	if md5==log.node.storage.MD5(DefaultLog){
+	//	if md5==l.node.storage.MD5(DefaultLog){
 	//		return nil
 	//	}
 	//}
 	//var compactionEntries =make(map[string]*Entry)
 	//var entries	=make([]*Entry,0)
-	//for i:=len(log.entries)-1;i>=0;i--{
-	//	entry:= log.entries[i]
+	//for i:=len(l.entries)-1;i>=0;i--{
+	//	entry:= l.entries[i]
 	//	key:=string(int32ToBytes(entry.CommandType))+entry.CommandId
 	//	if _,ok:=compactionEntries[key];!ok{
 	//		entries=append(entries,entry)
@@ -374,75 +370,75 @@ func (log *Log) compaction() error {
 	//for i,j:= 0,len(entries)-1;i<j;i,j=i+1,j-1{
 	//	entries[i], entries[j] = entries[j], entries[i]
 	//}
-	//log.entries=entries
+	//l.entries=entries
 	//
-	//b,metas,_:=log.Encode(log.entries,0)
-	//var lastLogSize ,_= log.node.storage.Size(DefaultLog)
-	//log.node.storage.SafeOverWrite(DefaultLog,b)
-	//log.indexs.metas=metas
-	//log.indexs.save()
-	//log.ret=uint64(len(b))
-	//if len(log.entries)>0{
-	//	log.node.lastLogIndex=log.entries[len(log.entries)-1].Index
-	//	log.node.lastLogTerm=log.entries[len(log.entries)-1].Term
+	//b,metas,_:=l.Encode(l.entries,0)
+	//var lastLogSize ,_= l.node.storage.Size(DefaultLog)
+	//l.node.storage.SafeOverWrite(DefaultLog,b)
+	//l.indexs.metas=metas
+	//l.indexs.save()
+	//l.ret=uint64(len(b))
+	//if len(l.entries)>0{
+	//	l.node.lastLogIndex=l.entries[len(l.entries)-1].Index
+	//	l.node.lastLogTerm=l.entries[len(l.entries)-1].Term
 	//}
-	//var logSize ,_= log.node.storage.Size(DefaultLog)
-	//Tracef("Log.compaction %s LogSize %d==>%d",log.node.address,lastLogSize,logSize)
-	//log.saveMd5()
-	//Tracef("Log.compaction %s md5 %s==>%s",log.node.address,md5,log.node.storage.MD5(DefaultLog))
+	//var logSize ,_= l.node.storage.Size(DefaultLog)
+	//Tracef("l.compaction %s LogSize %d==>%d",l.node.address,lastLogSize,logSize)
+	//l.saveMd5()
+	//Tracef("l.compaction %s md5 %s==>%s",l.node.address,md5,l.node.storage.MD5(DefaultLog))
 	return nil
 }
-func (log *Log) saveMd5() {
-	//md5 := log.node.storage.MD5(DefaultLog)
+func (l *waLog) saveMd5() {
+	//md5 := l.node.storage.MD5(DefaultLog)
 	//if len(md5) > 0 {
-	//	log.node.storage.OverWrite(DefaultMd5, []byte(md5))
+	//	l.node.storage.OverWrite(DefaultMd5, []byte(md5))
 	//}
 }
 
-func (log *Log) loadMd5() (string, error) {
-	if !log.node.storage.Exists(DefaultMd5) {
+func (l *waLog) loadMd5() (string, error) {
+	if !l.node.storage.Exists(defaultMd5) {
 		return "", errors.New("md5 file is not existed")
 	}
-	b, err := log.node.storage.Load(DefaultMd5)
+	b, err := l.node.storage.Load(defaultMd5)
 	if err != nil {
 		return "", err
 	}
 	return string(b), nil
 }
 
-func (log *Log) run() {
+func (l *waLog) run() {
 	for {
 		select {
-		case <-log.compactionTicker.C:
+		case <-l.compactionTicker.C:
 			func() {
 				defer func() {
 					if err := recover(); err != nil {
 					}
 				}()
-				//log.compaction()
+				//l.compaction()
 			}()
-		case <-log.stop:
-			close(log.stop)
-			log.stop = nil
+		case <-l.stop:
+			close(l.stop)
+			l.stop = nil
 			goto endfor
 		}
 	}
 endfor:
-	log.compactionTicker.Stop()
-	log.compactionTicker = nil
-	log.finish <- true
+	l.compactionTicker.Stop()
+	l.compactionTicker = nil
+	l.finish <- true
 }
-func (log *Log) ticker(entries []*Entry) {
-	log.appendEntries(entries)
+func (l *waLog) ticker(entries []*Entry) {
+	l.appendEntries(entries)
 }
-func (log *Log) Stop() {
-	if log.stop == nil {
+func (l *waLog) Stop() {
+	if l.stop == nil {
 		return
 	}
-	log.stop <- true
+	l.stop <- true
 	select {
-	case <-log.finish:
-		close(log.finish)
-		log.finish = nil
+	case <-l.finish:
+		close(l.finish)
+		l.finish = nil
 	}
 }

@@ -7,6 +7,7 @@ import (
 	"time"
 )
 
+// SyncType represents a sync type.
 type SyncType struct {
 	Seconds int
 	Changes int
@@ -28,7 +29,7 @@ func newSnapshotSync(s *stateMachine, syncType *SyncType) *snapshotSync {
 
 func (s *snapshotSync) run() {
 	for range s.ticker.C {
-		changes := s.stateMachine.lastApplied - s.stateMachine.snapshotReadWriter.lastIncludedIndex.Id()
+		changes := s.stateMachine.lastApplied - s.stateMachine.snapshotReadWriter.lastIncludedIndex.ID()
 		if changes >= uint64(s.syncType.Changes) {
 			s.stateMachine.SaveSnapshot()
 		}

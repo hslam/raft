@@ -3,14 +3,17 @@
 
 package raft
 
+// NewNoOperationCommand returns a new NoOperationCommand.
 func NewNoOperationCommand() Command {
 	return &NoOperationCommand{}
 }
 
+// Type implements the Command Type method.
 func (c *NoOperationCommand) Type() int32 {
-	return CommandTypeNoOperation
+	return commandTypeNoOperation
 }
 
+// Do implements the Command Do method.
 func (c *NoOperationCommand) Do(context interface{}) (interface{}, error) {
 	return true, nil
 }

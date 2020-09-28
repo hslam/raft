@@ -4,7 +4,7 @@
 package raft
 
 type service struct {
-	node *Node
+	node *node
 }
 
 //RPCMethodName

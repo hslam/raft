@@ -50,7 +50,7 @@ func main() {
 	}
 	node.Start()
 	for {
-		fmt.Printf("%d State:%s - Term:%d - Leader:%s\n", time.Now().Unix(), node.State(), node.Term(), node.Leader())
+		fmt.Printf("%d State:%s - Leader:%s\n", time.Now().Unix(), node.State(), node.Leader())
 		time.Sleep(time.Second * 3)
 	}
 	select {}

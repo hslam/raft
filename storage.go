@@ -14,20 +14,14 @@ import (
 	"syscall"
 )
 
-type Fast interface {
-	fast() bool
-}
-
 type storage struct {
-	fast    Fast
 	dataDir string
 }
 
 var errSeeker = errors.New("seeker can't seek")
 
-func newStorage(fast Fast, dataDir string) *storage {
+func newStorage(dataDir string) *storage {
 	s := &storage{
-		fast:    fast,
 		dataDir: dataDir,
 	}
 	s.MkDir(s.dataDir)
@@ -61,7 +55,7 @@ func (s *storage) SafeExists(fileName string) bool {
 }
 func (s *storage) SafeRecover(fileName string) bool {
 	filePath := path.Join(s.dataDir, fileName)
-	tmpFilePath := path.Join(s.dataDir, fileName+DefaultTmp)
+	tmpFilePath := path.Join(s.dataDir, fileName+defaultTmp)
 	if _, err := os.Stat(tmpFilePath); os.IsNotExist(err) {
 		return false
 	}
@@ -97,22 +91,8 @@ func (s *storage) Rm(fileName string) {
 }
 func (s *storage) SafeOverWrite(fileName string, data []byte) error {
 	filePath := path.Join(s.dataDir, fileName)
-	if s.fast != nil && s.fast.fast() {
-		f, err := os.OpenFile(filePath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0600)
-		if err != nil {
-			return err
-		}
-		defer f.Close()
-		n, err := f.Write(data)
-		if err != nil {
-			return err
-		} else if n < len(data) {
-			return io.ErrShortWrite
-		}
-		return nil
-	}
-	tmpFilePath := path.Join(s.dataDir, fileName+DefaultTmp)
-	flushFilePath := path.Join(s.dataDir, fileName+DefaultFlush)
+	tmpFilePath := path.Join(s.dataDir, fileName+defaultTmp)
+	flushFilePath := path.Join(s.dataDir, fileName+defaultFlush)
 	defer func() {
 		os.Rename(filePath, tmpFilePath)
 		os.Rename(flushFilePath, filePath)
@@ -186,9 +166,6 @@ func (s *storage) OverWrite(fileName string, data []byte) error {
 	} else if n < len(data) {
 		return io.ErrShortWrite
 	}
-	if s.fast != nil && s.fast.fast() {
-		return nil
-	}
 	return f.Sync()
 }
 
@@ -205,9 +182,6 @@ func (s *storage) AppendWrite(fileName string, data []byte) error {
 	} else if n < len(data) {
 		return io.ErrShortWrite
 	}
-	if s.fast != nil && s.fast.fast() {
-		return nil
-	}
 	return f.Sync()
 }
 func (s *storage) SeekWrite(fileName string, cursor uint64, data []byte) error {
@@ -223,9 +197,6 @@ func (s *storage) SeekWrite(fileName string, cursor uint64, data []byte) error {
 		return err
 	} else if n < len(data) {
 		return io.ErrShortWrite
-	}
-	if s.fast != nil && s.fast.fast() {
-		return nil
 	}
 	return f.Sync()
 }

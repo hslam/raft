@@ -3,18 +3,22 @@
 
 package raft
 
+// NewAddPeerCommand returns a new AddPeerCommand.
 func NewAddPeerCommand(nodeInfo *NodeInfo) Command {
 	return &AddPeerCommand{
 		NodeInfo: nodeInfo,
 	}
 }
+
+// Type implements the Command Type method.
 func (c *AddPeerCommand) Type() int32 {
-	return CommandTypeAddPeer
+	return commandTypeAddPeer
 }
 
+// Do implements the Command Do method.
 func (c *AddPeerCommand) Do(context interface{}) (interface{}, error) {
-	node := context.(*Node)
-	node.stateMachine.configuration.AddPeer(c.NodeInfo)
-	node.stateMachine.configuration.load()
+	n := context.(*node)
+	n.stateMachine.configuration.AddPeer(c.NodeInfo)
+	n.stateMachine.configuration.load()
 	return nil, nil
 }

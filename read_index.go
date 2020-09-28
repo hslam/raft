@@ -10,17 +10,17 @@ import (
 
 type readIndex struct {
 	mu       sync.Mutex
-	node     *Node
+	node     *node
 	readChan chan chan bool
 	m        map[uint64][]chan bool
 	id       uint64
 	work     bool
 }
 
-func newReadIndex(node *Node) *readIndex {
+func newReadIndex(n *node) *readIndex {
 	r := &readIndex{
-		node:     node,
-		readChan: make(chan chan bool, DefaultMaxConcurrencyRead),
+		node:     n,
+		readChan: make(chan chan bool, defaultMaxConcurrencyRead),
 		m:        make(map[uint64][]chan bool),
 		work:     true,
 	}
@@ -33,7 +33,7 @@ func (r *readIndex) Read() (ok bool) {
 	r.readChan <- ch
 	select {
 	case ok = <-ch:
-	case <-time.After(DefaultCommandTimeout):
+	case <-time.After(defaultCommandTimeout):
 		ok = false
 	}
 	return
@@ -72,9 +72,9 @@ func (r *readIndex) Update() bool {
 		defer r.mu.Unlock()
 		if _, ok := r.m[r.id]; ok {
 			if len(r.m[r.id]) > 0 {
-				go func(node *Node, id uint64) {
+				go func(n *node, id uint64) {
 					noOperationCommand := NewNoOperationCommand()
-					if ok, _ := node.do(noOperationCommand, DefaultCommandTimeout); ok != nil {
+					if ok, _ := n.do(noOperationCommand, defaultCommandTimeout); ok != nil {
 						r.reply(id, true)
 						return
 					}

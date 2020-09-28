@@ -4,57 +4,57 @@
 package raft
 
 type candidateState struct {
-	node *Node
+	node *node
 }
 
-func newCandidateState(node *Node) State {
+func newCandidateState(n *node) state {
 	//Tracef("%s newCandidateState",node.address)
-	state := &candidateState{
-		node: node,
+	s := &candidateState{
+		node: n,
 	}
-	state.Start()
-	return state
+	s.Start()
+	return s
 }
 
-func (state *candidateState) Start() {
-	state.node.election.Random(true)
-	state.node.election.Reset()
-	state.node.currentTerm.Incre()
-	state.node.votedFor.Set(state.node.address)
-	state.node.leader = ""
-	state.node.requestVotes()
-	Infof("%s candidateState.Start Term :%d", state.node.address, state.node.currentTerm.Id())
+func (s *candidateState) Start() {
+	s.node.election.Random(true)
+	s.node.election.Reset()
+	s.node.currentTerm.Incre()
+	s.node.votedFor.Set(s.node.address)
+	s.node.leader = ""
+	s.node.requestVotes()
+	Infof("%s candidateState.Start Term :%d", s.node.address, s.node.currentTerm.ID())
 }
-func (state *candidateState) Update() bool {
+func (s *candidateState) Update() bool {
 	return false
 }
-func (state *candidateState) FixedUpdate() {
-	if !state.node.voting() {
-		state.node.lease = false
-		state.node.stepDown()
-		Tracef("%s candidateState.FixedUpdate non-voting", state.node.address)
+func (s *candidateState) FixedUpdate() {
+	if !s.node.voting() {
+		s.node.lease = false
+		s.node.stepDown()
+		Tracef("%s candidateState.FixedUpdate non-voting", s.node.address)
 		return
-	} else if state.node.election.Timeout() {
-		Tracef("%s candidateState.FixedUpdate ElectionTimeout", state.node.address)
-		state.node.stay()
+	} else if s.node.election.Timeout() {
+		Tracef("%s candidateState.FixedUpdate ElectionTimeout", s.node.address)
+		s.node.stay()
 		return
-	} else if state.node.votes.Count() >= state.node.Quorum() {
-		Tracef("%s candidateState.FixedUpdate request Enough Votes %d Quorum %d Term %d", state.node.address, state.node.votes.Count(), state.node.Quorum(), state.node.currentTerm.Id())
-		state.node.nextState()
+	} else if s.node.votes.Count() >= s.node.Quorum() {
+		Tracef("%s candidateState.FixedUpdate request Enough Votes %d Quorum %d Term %d", s.node.address, s.node.votes.Count(), s.node.Quorum(), s.node.currentTerm.ID())
+		s.node.nextState()
 		return
 	}
 }
 
-func (state *candidateState) String() string {
-	return Candidate
+func (s *candidateState) String() string {
+	return candidate
 }
 
-func (state *candidateState) StepDown() State {
-	Tracef("%s candidateState.StepDown", state.node.address)
-	return newFollowerState(state.node)
+func (s *candidateState) StepDown() state {
+	Tracef("%s candidateState.StepDown", s.node.address)
+	return newFollowerState(s.node)
 }
 
-func (state *candidateState) NextState() State {
-	Tracef("%s candidateState.NextState", state.node.address)
-	return newLeaderState(state.node)
+func (s *candidateState) NextState() state {
+	Tracef("%s candidateState.NextState", s.node.address)
+	return newLeaderState(s.node)
 }

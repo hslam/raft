@@ -11,14 +11,14 @@ import (
 )
 
 type configuration struct {
-	node    *Node
+	node    *node
 	storage *ConfigurationStorage
 	nodes   map[string]*NodeInfo
 }
 
-func newConfiguration(node *Node) *configuration {
+func newConfiguration(n *node) *configuration {
 	c := &configuration{
-		node:    node,
+		node:    n,
 		storage: &ConfigurationStorage{},
 		nodes:   make(map[string]*NodeInfo),
 	}
@@ -82,14 +82,14 @@ func (c *configuration) save() {
 		c.storage.Nodes = append(c.storage.Nodes, v)
 	}
 	b, _ := json.Marshal(c.storage)
-	c.node.storage.OverWrite(DefaultConfig, b)
+	c.node.storage.OverWrite(defaultConfig, b)
 }
 
 func (c *configuration) load() error {
-	if !c.node.storage.Exists(DefaultConfig) {
+	if !c.node.storage.Exists(defaultConfig) {
 		return nil
 	}
-	b, err := c.node.storage.Load(DefaultConfig)
+	b, err := c.node.storage.Load(defaultConfig)
 	if err != nil {
 		return nil
 	}
@@ -125,9 +125,9 @@ func (c *configuration) reconfiguration() error {
 }
 
 func (c *configuration) membershipChanges() bool {
-	old_ms := c.node.membership()
-	new_ms := c.membership()
-	sort.Strings(old_ms)
-	sort.Strings(new_ms)
-	return !reflect.DeepEqual(old_ms, new_ms)
+	oldMembership := c.node.membership()
+	newMembership := c.membership()
+	sort.Strings(oldMembership)
+	sort.Strings(newMembership)
+	return !reflect.DeepEqual(oldMembership, newMembership)
 }

@@ -8,9 +8,9 @@ import (
 	"sync"
 )
 
-type Peer struct {
+type peer struct {
 	mu                 sync.Mutex
-	node               *Node
+	node               *node
 	address            string
 	alive              bool
 	nextIndex          uint64
@@ -26,9 +26,9 @@ type Peer struct {
 	chunkNum           int
 }
 
-func newPeer(node *Node, address string) *Peer {
-	p := &Peer{
-		node:      node,
+func newPeer(n *node, address string) *peer {
+	p := &peer{
+		node:      n,
 		address:   address,
 		nextIndex: 0,
 		send:      true,
@@ -38,18 +38,18 @@ func newPeer(node *Node, address string) *Peer {
 	return p
 }
 
-func (p *Peer) heartbeat() {
+func (p *peer) heartbeat() {
 	p.appendEntries([]*Entry{})
 }
 
-func (p *Peer) requestVote() {
+func (p *peer) requestVote() {
 	if !p.alive {
 		return
 	}
 	p.alive = p.node.raft.RequestVote(p.address)
 }
 
-func (p *Peer) appendEntries(entries []*Entry) (nextIndex uint64, term uint64, success bool, ok bool) {
+func (p *peer) appendEntries(entries []*Entry) (nextIndex uint64, term uint64, success bool, ok bool) {
 	if !p.alive {
 		return
 	}
@@ -72,19 +72,19 @@ func (p *Peer) appendEntries(entries []*Entry) (nextIndex uint64, term uint64, s
 	if success && ok {
 		//Tracef("Peer.run %s nextIndex %d==>%d",p.address,p.nextIndex,nextIndex)
 		p.nextIndex = nextIndex
-	} else if ok && term == p.node.currentTerm.Id() {
+	} else if ok && term == p.node.currentTerm.ID() {
 		p.nextIndex = nextIndex
 	} else if !ok {
 		p.alive = false
 	}
 	return
 }
-func (p *Peer) installSnapshot(offset uint64, data []byte, Done bool) (recv_offset uint64) {
+func (p *peer) installSnapshot(offset uint64, data []byte, Done bool) (recvOffset uint64) {
 	if !p.alive {
 		return
 	}
 	var nextIndex uint64
-	recv_offset, nextIndex, p.alive = p.node.raft.InstallSnapshot(p.address, p.node.stateMachine.snapshotReadWriter.lastIncludedIndex.Id(), p.node.stateMachine.snapshotReadWriter.lastIncludedTerm.Id(), offset, data, Done)
+	recvOffset, nextIndex, p.alive = p.node.raft.InstallSnapshot(p.address, p.node.stateMachine.snapshotReadWriter.lastIncludedIndex.ID(), p.node.stateMachine.snapshotReadWriter.lastIncludedTerm.ID(), offset, data, Done)
 	if nextIndex > 0 {
 		p.nextIndex = nextIndex
 	}
@@ -92,18 +92,18 @@ func (p *Peer) installSnapshot(offset uint64, data []byte, Done bool) (recv_offs
 	return
 }
 
-func (p *Peer) ping() {
+func (p *peer) ping() {
 	p.alive = p.node.rpcs.Ping(p.address)
 	//Debugf("Peer.ping %s %t",p.address,p.alive)
 }
 
-func (p *Peer) voting() bool {
+func (p *peer) voting() bool {
 	return !p.nonVoting && p.majorities
 }
 
-func (p *Peer) check() {
+func (p *peer) check() {
 	if p.node.lastLogIndex > p.nextIndex-1 && p.nextIndex > 0 {
-		if ((p.nextIndex == 1 || (p.nextIndex > 1 && p.nextIndex-1 < p.node.firstLogIndex)) && p.node.commitIndex > 1) || p.node.lastLogIndex-(p.nextIndex-1) > DefaultNumInstallSnapshot {
+		if ((p.nextIndex == 1 || (p.nextIndex > 1 && p.nextIndex-1 < p.node.firstLogIndex)) && p.node.commitIndex > 1) || p.node.lastLogIndex-(p.nextIndex-1) > defaultNumInstallSnapshot {
 			if p.install {
 				p.install = false
 				defer func() {
@@ -134,16 +134,16 @@ func (p *Peer) check() {
 									return
 								}
 								p.size = uint64(size)
-								p.chunkNum = int(math.Ceil(float64(size) / float64(DefaultChunkSize)))
+								p.chunkNum = int(math.Ceil(float64(size) / float64(defaultChunkSize)))
 							}
 							if p.chunkNum > 1 {
 								if p.chunk < p.chunkNum-1 {
-									b := make([]byte, DefaultChunkSize)
+									b := make([]byte, defaultChunkSize)
 									n, err := p.node.storage.SeekRead(p.node.stateMachine.snapshotReadWriter.FileName(), p.offset, b)
 									if err != nil {
 										return
 									}
-									if int64(n) == DefaultChunkSize {
+									if int64(n) == defaultChunkSize {
 										offset := p.installSnapshot(p.offset, b[:n], false)
 										if offset == p.offset+uint64(n) {
 											p.offset += uint64(n)
@@ -199,7 +199,7 @@ func (p *Peer) check() {
 					defer func() {
 						p.send = true
 					}()
-					entries := p.node.log.copyAfter(p.nextIndex, DefaultMaxBatch)
+					entries := p.node.log.copyAfter(p.nextIndex, defaultMaxBatch)
 					if len(entries) > 0 {
 						//Debugf("Peer.check %s send %d %d %d", p.address, p.nextIndex, p.node.firstLogIndex, len(entries))
 						p.appendEntries(entries)

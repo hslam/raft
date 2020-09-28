@@ -10,134 +10,134 @@ import (
 
 type leaderState struct {
 	once            *sync.Once
-	node            *Node
+	node            *node
 	stop            chan bool
 	notice          chan bool
 	heartbeatTicker *time.Ticker
 }
 
-func newLeaderState(node *Node) State {
+func newLeaderState(n *node) state {
 	//Tracef("%s newLeaderState",node.address)
-	state := &leaderState{
+	s := &leaderState{
 		once:            &sync.Once{},
-		node:            node,
+		node:            n,
 		stop:            make(chan bool, 1),
 		notice:          make(chan bool, 1),
-		heartbeatTicker: time.NewTicker(node.heartbeatTick),
+		heartbeatTicker: time.NewTicker(n.heartbeatTick),
 	}
-	state.Start()
-	go state.run()
-	return state
+	s.Start()
+	go s.run()
+	return s
 }
 
-func (state *leaderState) Start() {
-	Debugf("%s leaderState.Start %s nextIndex:%d", state.node.address, state.node.address, state.node.nextIndex)
-	if len(state.node.peers) > 0 {
-		for _, v := range state.node.peers {
+func (s *leaderState) Start() {
+	Debugf("%s leaderState.Start %s nextIndex:%d", s.node.address, s.node.address, s.node.nextIndex)
+	if len(s.node.peers) > 0 {
+		for _, v := range s.node.peers {
 			v.nextIndex = 0
-			Debugf("%s leaderState.Start %s nextIndex:%d", state.node.address, v.address, v.nextIndex)
+			Debugf("%s leaderState.Start %s nextIndex:%d", s.node.address, v.address, v.nextIndex)
 		}
 	}
-	state.node.pipeline.init(state.node.lastLogIndex)
-	state.node.leader = state.node.address
-	state.node.lease = true
-	state.node.election.Random(false)
-	state.node.election.Reset()
-	Infof("%s leaderState.Start Term:%d", state.node.address, state.node.currentTerm.Id())
-	go func(node *Node, term uint64) {
+	s.node.pipeline.init(s.node.lastLogIndex)
+	s.node.leader = s.node.address
+	s.node.lease = true
+	s.node.election.Random(false)
+	s.node.election.Reset()
+	Infof("%s leaderState.Start Term:%d", s.node.address, s.node.currentTerm.ID())
+	go func(n *node, term uint64) {
 		noOperationCommand := NewNoOperationCommand()
-		if ok, _ := node.do(noOperationCommand, time.Minute*10); ok != nil {
-			if node.currentTerm.Id() == term {
-				node.ready = true
+		if ok, _ := n.do(noOperationCommand, time.Minute*10); ok != nil {
+			if n.currentTerm.ID() == term {
+				n.ready = true
 				return
 			}
 		}
-		if node.currentTerm.Id() == term {
-			state.node.lease = false
-			state.node.stepDown()
+		if n.currentTerm.ID() == term {
+			s.node.lease = false
+			s.node.stepDown()
 		}
-	}(state.node, state.node.currentTerm.Id())
+	}(s.node, s.node.currentTerm.ID())
 }
 
-func (state *leaderState) Update() bool {
-	state.node.check()
-	return state.node.commit()
+func (s *leaderState) Update() bool {
+	s.node.check()
+	return s.node.commit()
 }
-func (state *leaderState) FixedUpdate() {
-	if !state.node.voting() {
-		state.node.lease = false
-		state.node.stepDown()
-		Tracef("%s leaderState.FixedUpdate non-voting", state.node.address)
+func (s *leaderState) FixedUpdate() {
+	if !s.node.voting() {
+		s.node.lease = false
+		s.node.stepDown()
+		Tracef("%s leaderState.FixedUpdate non-voting", s.node.address)
 		return
-	} else if state.node.election.Timeout() {
-		state.node.lease = false
-		state.node.stepDown()
-		Tracef("%s leaderState.FixedUpdate ElectionTimeout", state.node.address)
+	} else if s.node.election.Timeout() {
+		s.node.lease = false
+		s.node.stepDown()
+		Tracef("%s leaderState.FixedUpdate ElectionTimeout", s.node.address)
 		return
 	}
-	if state.node.AliveCount() >= state.node.Quorum() {
-		state.node.lease = true
-		state.node.election.Reset()
+	if s.node.AliveCount() >= s.node.Quorum() {
+		s.node.lease = true
+		s.node.election.Reset()
 	}
 }
 
-func (state *leaderState) String() string {
-	return Leader
+func (s *leaderState) String() string {
+	return leader
 }
 
-func (state *leaderState) StepDown() State {
+func (s *leaderState) StepDown() state {
 	defer func() {
 		if err := recover(); err != nil {
 		}
 	}()
-	Tracef("%s leaderState.StepDown", state.node.address)
-	state.once.Do(func() {
-		state.stop <- true
-		if state.notice != nil {
+	Tracef("%s leaderState.StepDown", s.node.address)
+	s.once.Do(func() {
+		s.stop <- true
+		if s.notice != nil {
 			select {
-			case <-state.notice:
-				close(state.notice)
+			case <-s.notice:
+				close(s.notice)
 			}
 		}
 	})
-	return newFollowerState(state.node)
+	return newFollowerState(s.node)
 }
-func (state *leaderState) NextState() State {
+func (s *leaderState) NextState() state {
 	defer func() {
 		if err := recover(); err != nil {
 		}
 	}()
-	Tracef("%s leaderState.NextState", state.node.address)
-	state.once.Do(func() {
-		state.stop <- true
-		if state.notice != nil {
+	Tracef("%s leaderState.NextState", s.node.address)
+	s.once.Do(func() {
+		s.stop <- true
+		if s.notice != nil {
 			select {
-			case <-state.notice:
-				close(state.notice)
+			case <-s.notice:
+				close(s.notice)
 			}
 		}
 	})
-	return newFollowerState(state.node)
+	return newFollowerState(s.node)
 }
 
-func (state *leaderState) run() {
+func (s *leaderState) run() {
 	for {
 		select {
-		case <-state.heartbeatTicker.C:
+		case <-s.heartbeatTicker.C:
 			func() {
 				defer func() {
 					if err := recover(); err != nil {
 					}
 				}()
-				state.node.heartbeats()
+				s.node.heartbeats()
 			}()
-		case <-state.stop:
+		case <-s.stop:
 			goto endfor
 		}
 	}
 endfor:
-	close(state.stop)
-	state.heartbeatTicker.Stop()
-	state.heartbeatTicker = nil
-	state.notice <- true
+	close(s.stop)
+	s.heartbeatTicker.Stop()
+	s.heartbeatTicker = nil
+	s.notice <- true
 }

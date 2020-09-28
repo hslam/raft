@@ -8,24 +8,24 @@ import (
 )
 
 const (
-	MaxConnsPerHost     = 2
-	MaxIdleConnsPerHost = 2
+	maxConnsPerHost     = 2
+	maxIdleConnsPerHost = 2
 	network             = "tcp"
 	codec               = "pb"
-	ServiceName         = "R"
-	RequestVoteName     = "R"
-	AppendEntriesName   = "A"
-	InstallSnapshotName = "I"
-	QueryLeaderName     = "Q"
-	AddPeerName         = "J"
-	RemovePeerName      = "L"
+	serviceName         = "R"
+	requestVoteName     = "R"
+	appendEntriesName   = "A"
+	installSnapshotName = "I"
+	queryLeaderName     = "Q"
+	addPeerName         = "J"
+	removePeerName      = "L"
 )
 
-func listenAndServe(address string, node *Node) {
+func listenAndServe(address string, n *node) {
 	service := new(service)
-	service.node = node
+	service.node = n
 	server := rpc.NewServer()
-	server.RegisterName(ServiceName, service)
+	server.RegisterName(serviceName, service)
 	rpc.SetLogLevel(rpc.OffLevel)
 	Infoln(server.Listen(network, address, codec))
 }
@@ -37,8 +37,8 @@ type rpcs struct {
 func newRPCs() *rpcs {
 	r := &rpcs{
 		&rpc.Transport{
-			MaxConnsPerHost:     MaxConnsPerHost,
-			MaxIdleConnsPerHost: MaxIdleConnsPerHost,
+			MaxConnsPerHost:     maxConnsPerHost,
+			MaxIdleConnsPerHost: maxIdleConnsPerHost,
 			Options:             &rpc.Options{Network: network, Codec: codec},
 		},
 	}
@@ -46,27 +46,27 @@ func newRPCs() *rpcs {
 }
 
 func (r *rpcs) AppendEntriesServiceName() string {
-	return ServiceName + "." + AppendEntriesName
+	return serviceName + "." + appendEntriesName
 }
 
 func (r *rpcs) RequestVoteServiceName() string {
-	return ServiceName + "." + RequestVoteName
+	return serviceName + "." + requestVoteName
 }
 
 func (r *rpcs) InstallSnapshotServiceName() string {
-	return ServiceName + "." + InstallSnapshotName
+	return serviceName + "." + installSnapshotName
 }
 
 func (r *rpcs) QueryLeaderServiceName() string {
-	return ServiceName + "." + QueryLeaderName
+	return serviceName + "." + queryLeaderName
 }
 
 func (r *rpcs) AddPeerServiceName() string {
-	return ServiceName + "." + AddPeerName
+	return serviceName + "." + addPeerName
 }
 
 func (r *rpcs) RemovePeerServiceName() string {
-	return ServiceName + "." + RemovePeerName
+	return serviceName + "." + removePeerName
 }
 
 func (r *rpcs) Ping(addr string) bool {

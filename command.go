@@ -8,8 +8,11 @@ import (
 	"sync"
 )
 
+// Command represents a command.
 type Command interface {
+	// Type returns the command type. The type must be >= 0.
 	Type() int32
+	// Do does the command.
 	Do(context interface{}) (interface{}, error)
 }
 

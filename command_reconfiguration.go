@@ -3,16 +3,19 @@
 
 package raft
 
+// NewReconfigurationCommand returns a new ReconfigurationCommand.
 func NewReconfigurationCommand() Command {
 	return &ReconfigurationCommand{}
 }
 
+// Type implements the Command Type method.
 func (c *ReconfigurationCommand) Type() int32 {
-	return CommandTypeReconfiguration
+	return commandTypeReconfiguration
 }
 
+// Do implements the Command Do method.
 func (c *ReconfigurationCommand) Do(context interface{}) (interface{}, error) {
-	node := context.(*Node)
-	node.stateMachine.configuration.reconfiguration()
+	n := context.(*node)
+	n.stateMachine.configuration.reconfiguration()
 	return nil, nil
 }

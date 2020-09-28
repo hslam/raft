@@ -9,8 +9,9 @@ import (
 	"time"
 )
 
+// Proxy represents the proxy service.
 type Proxy interface {
-	QueryLeader(addr string) (term uint64, leaderId string, ok bool)
+	QueryLeader(addr string) (term uint64, leaderID string, ok bool)
 	AddPeer(addr string, info *NodeInfo) (success bool, ok bool)
 	RemovePeer(addr string, Address string) (success bool, ok bool)
 	HandleQueryLeader(req *QueryLeaderRequest, res *QueryLeaderResponse) error
@@ -19,7 +20,7 @@ type Proxy interface {
 }
 
 type proxy struct {
-	node               *Node
+	node               *node
 	callPool           *sync.Pool
 	donePool           *sync.Pool
 	queryLeaderTimeout time.Duration
@@ -27,18 +28,18 @@ type proxy struct {
 	removePeerTimeout  time.Duration
 }
 
-func newProxy(node *Node) Proxy {
+func newProxy(n *node) Proxy {
 	return &proxy{
-		node:               node,
+		node:               n,
 		callPool:           &sync.Pool{New: func() interface{} { return &rpc.Call{} }},
 		donePool:           &sync.Pool{New: func() interface{} { return make(chan *rpc.Call, 10) }},
-		queryLeaderTimeout: DefaultQueryLeaderTimeout,
-		addPeerTimeout:     DefaultAddPeerTimeout,
-		removePeerTimeout:  DefaultRemovePeerTimeout,
+		queryLeaderTimeout: defaultQueryLeaderTimeout,
+		addPeerTimeout:     defaultAddPeerTimeout,
+		removePeerTimeout:  defaultRemovePeerTimeout,
 	}
 }
 
-func (p *proxy) QueryLeader(addr string) (term uint64, leaderId string, ok bool) {
+func (p *proxy) QueryLeader(addr string) (term uint64, leaderID string, ok bool) {
 	var req = &QueryLeaderRequest{}
 	done := p.donePool.Get().(chan *rpc.Call)
 	call := p.callPool.Get().(*rpc.Call)
@@ -141,9 +142,9 @@ func (p *proxy) HandleQueryLeader(req *QueryLeaderRequest, res *QueryLeaderRespo
 	}
 	peers := p.node.Peers()
 	for i := 0; i < len(peers); i++ {
-		term, leaderId, ok := p.QueryLeader(peers[i])
+		term, leaderID, ok := p.QueryLeader(peers[i])
 		if ok {
-			res.LeaderId = leaderId
+			res.LeaderId = leaderID
 			res.Term = term
 			return nil
 		}
@@ -152,9 +153,9 @@ func (p *proxy) HandleQueryLeader(req *QueryLeaderRequest, res *QueryLeaderRespo
 }
 func (p *proxy) HandleAddPeer(req *AddPeerRequest, res *AddPeerResponse) error {
 	if p.node.IsLeader() {
-		_, err := p.node.do(NewAddPeerCommand(req.Node), DefaultCommandTimeout)
+		_, err := p.node.do(NewAddPeerCommand(req.Node), defaultCommandTimeout)
 		if err == nil {
-			_, err = p.node.do(NewReconfigurationCommand(), DefaultCommandTimeout)
+			_, err = p.node.do(NewReconfigurationCommand(), defaultCommandTimeout)
 			if err == nil {
 				res.Success = true
 				return nil
@@ -162,28 +163,26 @@ func (p *proxy) HandleAddPeer(req *AddPeerRequest, res *AddPeerResponse) error {
 			return err
 		}
 		return err
-	} else {
-		leader := p.node.Leader()
-		if leader != "" {
-			return p.node.rpcs.Call(leader, p.node.rpcs.AddPeerServiceName(), req, res)
-		}
-		peers := p.node.Peers()
-		for i := 0; i < len(peers); i++ {
-			_, leaderId, ok := p.QueryLeader(peers[i])
-			if leaderId != "" && ok {
-				return p.node.rpcs.Call(leaderId, p.node.rpcs.AddPeerServiceName(), req, res)
-			}
-		}
-		return ErrNotLeader
 	}
-	return nil
+	leader := p.node.Leader()
+	if leader != "" {
+		return p.node.rpcs.Call(leader, p.node.rpcs.AddPeerServiceName(), req, res)
+	}
+	peers := p.node.Peers()
+	for i := 0; i < len(peers); i++ {
+		_, leaderID, ok := p.QueryLeader(peers[i])
+		if leaderID != "" && ok {
+			return p.node.rpcs.Call(leaderID, p.node.rpcs.AddPeerServiceName(), req, res)
+		}
+	}
+	return ErrNotLeader
 }
 
 func (p *proxy) HandleRemovePeer(req *RemovePeerRequest, res *RemovePeerResponse) error {
 	if p.node.IsLeader() {
-		_, err := p.node.do(NewRemovePeerCommand(req.Address), DefaultCommandTimeout)
+		_, err := p.node.do(NewRemovePeerCommand(req.Address), defaultCommandTimeout)
 		if err == nil {
-			_, err = p.node.do(NewReconfigurationCommand(), DefaultCommandTimeout)
+			_, err = p.node.do(NewReconfigurationCommand(), defaultCommandTimeout)
 			if err == nil {
 				res.Success = true
 				return nil
@@ -191,19 +190,17 @@ func (p *proxy) HandleRemovePeer(req *RemovePeerRequest, res *RemovePeerResponse
 			return err
 		}
 		return err
-	} else {
-		leader := p.node.Leader()
-		if leader != "" {
-			return p.node.rpcs.Call(leader, p.node.rpcs.RemovePeerServiceName(), req, res)
-		}
-		peers := p.node.Peers()
-		for i := 0; i < len(peers); i++ {
-			_, leaderId, ok := p.QueryLeader(peers[i])
-			if leaderId != "" && ok {
-				return p.node.rpcs.Call(leaderId, p.node.rpcs.RemovePeerServiceName(), req, res)
-			}
-		}
-		return ErrNotLeader
 	}
-	return nil
+	leader := p.node.Leader()
+	if leader != "" {
+		return p.node.rpcs.Call(leader, p.node.rpcs.RemovePeerServiceName(), req, res)
+	}
+	peers := p.node.Peers()
+	for i := 0; i < len(peers); i++ {
+		_, leaderID, ok := p.QueryLeader(peers[i])
+		if leaderID != "" && ok {
+			return p.node.rpcs.Call(leaderID, p.node.rpcs.RemovePeerServiceName(), req, res)
+		}
+	}
+	return ErrNotLeader
 }

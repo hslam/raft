@@ -15,29 +15,29 @@ var (
 func init() {
 	invokerPool = &sync.Pool{
 		New: func() interface{} {
-			return &Invoker{}
+			return &invoker{}
 		},
 	}
 	invokerPool.Put(invokerPool.Get())
 	donePool = &sync.Pool{
 		New: func() interface{} {
-			return make(chan *Invoker, 10)
+			return make(chan *invoker, 10)
 		},
 	}
 	donePool.Put(donePool.Get())
 }
 
-type Invoker struct {
+type invoker struct {
 	index   uint64
 	Command Command
 	Reply   interface{}
 	Error   error
-	Done    chan *Invoker
+	Done    chan *invoker
 }
 
-func (invoker *Invoker) done() {
+func (i *invoker) done() {
 	select {
-	case invoker.Done <- invoker:
+	case i.Done <- i:
 	default:
 	}
 }

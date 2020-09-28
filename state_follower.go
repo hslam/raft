@@ -8,34 +8,34 @@ import (
 )
 
 type followerState struct {
-	node *Node
+	node *node
 	work bool
 }
 
-func newFollowerState(node *Node) State {
+func newFollowerState(n *node) state {
 	//Tracef("%s newFollowerState",node.address)
-	state := &followerState{
-		node: node,
+	s := &followerState{
+		node: n,
 		work: true,
 	}
-	state.node.votedFor.Reset()
-	state.Start()
-	return state
+	s.node.votedFor.Reset()
+	s.Start()
+	return s
 }
 
-func (state *followerState) Start() {
-	state.node.leader = ""
-	state.node.election.Random(true)
-	state.node.election.Reset()
-	Infof("%s followerState.Start Term :%d", state.node.address, state.node.currentTerm.Id())
+func (s *followerState) Start() {
+	s.node.leader = ""
+	s.node.election.Random(true)
+	s.node.election.Reset()
+	Infof("%s followerState.Start Term :%d", s.node.address, s.node.currentTerm.ID())
 }
 
-func (state *followerState) Update() bool {
-	if state.work {
-		if state.node.commitIndex > 0 && state.node.commitIndex > state.node.stateMachine.lastApplied {
-			state.work = false
+func (s *followerState) Update() bool {
+	if s.work {
+		if s.node.commitIndex > 0 && s.node.commitIndex > s.node.stateMachine.lastApplied {
+			s.work = false
 			func() {
-				defer func() { state.work = true }()
+				defer func() { s.work = true }()
 				var ch = make(chan bool, 1)
 				go func(ch chan bool) {
 					defer func() {
@@ -43,7 +43,7 @@ func (state *followerState) Update() bool {
 						}
 					}()
 					//var lastApplied=state.node.stateMachine.lastApplied
-					state.node.log.applyCommited()
+					s.node.log.applyCommited()
 					//Tracef("followerState.Update %s lastApplied %d==>%d",state.node.address, lastApplied,state.node.stateMachine.lastApplied)
 					ch <- true
 				}(ch)
@@ -51,8 +51,8 @@ func (state *followerState) Update() bool {
 				case <-ch:
 					close(ch)
 				case <-time.After(time.Minute):
-					Tracef("%s followerState.Update applyCommited time out", state.node.address)
-					Tracef("%s followerState.Update first-%d last-%d", state.node.address, state.node.firstLogIndex, state.node.lastLogIndex)
+					Tracef("%s followerState.Update applyCommited time out", s.node.address)
+					Tracef("%s followerState.Update first-%d last-%d", s.node.address, s.node.firstLogIndex, s.node.lastLogIndex)
 				}
 			}()
 			return true
@@ -61,31 +61,31 @@ func (state *followerState) Update() bool {
 	return false
 }
 
-func (state *followerState) FixedUpdate() {
-	if state.node.election.Timeout() {
-		state.node.leader = ""
-		state.node.votedFor.Set("")
-		if !state.node.voting() {
+func (s *followerState) FixedUpdate() {
+	if s.node.election.Timeout() {
+		s.node.leader = ""
+		s.node.votedFor.Set("")
+		if !s.node.voting() {
 			return
 		}
-		Tracef("%s followerState.FixedUpdate ElectionTimeout", state.node.address)
-		state.node.nextState()
+		Tracef("%s followerState.FixedUpdate ElectionTimeout", s.node.address)
+		s.node.nextState()
 		return
 	}
 }
-func (state *followerState) String() string {
-	return Follower
+func (s *followerState) String() string {
+	return follower
 }
 
-func (state *followerState) StepDown() State {
-	Tracef("%s followerState.StepDown", state.node.address)
-	state.Start()
-	return state
+func (s *followerState) StepDown() state {
+	Tracef("%s followerState.StepDown", s.node.address)
+	s.Start()
+	return s
 }
-func (state *followerState) NextState() State {
-	if !state.node.voting() {
-		return state
+func (s *followerState) NextState() state {
+	if !s.node.voting() {
+		return s
 	}
-	Tracef("%s followerState.NextState", state.node.address)
-	return newCandidateState(state.node)
+	Tracef("%s followerState.NextState", s.node.address)
+	return newCandidateState(s.node)
 }

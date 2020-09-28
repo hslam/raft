@@ -11,10 +11,37 @@ import (
 	"time"
 )
 
-func init() {
+// Node is a raft node.
+type Node interface {
+	Start()
+	Running() bool
+	Stop()
+	Stoped() bool
+	State() string
+	Leader() string
+	Ready() bool
+	Lease() bool
+	IsLeader() bool
+	Address() string
+	SetCodec(codec Codec)
+	SetContext(context interface{})
+	Context() interface{}
+	SetGzipSnapshot(gzip bool)
+	SetSnapshotPolicy(snapshotPolicy SnapshotPolicy)
+	SetSnapshot(snapshot Snapshot)
+	ClearSyncType()
+	AppendSyncType(seconds, changes int)
+	SetSyncTypes(saves []*SyncType)
+	RegisterCommand(command Command) error
+	Do(command Command) (interface{}, error)
+	ReadIndex() bool
+	Peers() []string
+	Join(info *NodeInfo) (success bool)
+	Leave(Address string) (success bool, ok bool)
+	LookupPeer(addr string) *NodeInfo
 }
 
-type Node struct {
+type node struct {
 	mu        sync.RWMutex
 	nodesMut  sync.RWMutex
 	syncMut   sync.RWMutex
@@ -37,17 +64,17 @@ type Node struct {
 	raft          Raft
 	proxy         Proxy
 	rpcs          *rpcs
-	server        *Server
-	log           *Log
+	server        *server
+	log           *waLog
 	readIndex     *readIndex
 	stateMachine  *stateMachine
 
-	peers           map[string]*Peer
+	peers           map[string]*peer
 	detectTicker    *time.Ticker
 	keepAliveTicker *time.Ticker
 	printTicker     *time.Ticker
 	checkLogTicker  *time.Ticker
-	state           State
+	state           state
 	changeStateChan chan int
 	ticker          *time.Ticker
 	updateTicker    *time.Ticker
@@ -95,26 +122,27 @@ type Node struct {
 	leave      bool
 }
 
-func NewNode(host string, port int, data_dir string, context interface{}, join bool, nodes []*NodeInfo) (*Node, error) {
-	if data_dir == "" {
-		data_dir = DefaultDataDir
+// NewNode returns a new raft node.
+func NewNode(host string, port int, dataDir string, context interface{}, join bool, nodes []*NodeInfo) (Node, error) {
+	if dataDir == "" {
+		dataDir = defaultDataDir
 	}
 	address := fmt.Sprintf("%s:%d", host, port)
-	n := &Node{
+	n := &node{
 		host:            host,
 		port:            port,
 		address:         address,
 		rpcs:            newRPCs(),
-		peers:           make(map[string]*Peer),
-		printTicker:     time.NewTicker(DefaultNodeTracePrintTick),
-		detectTicker:    time.NewTicker(DefaultDetectTick),
-		keepAliveTicker: time.NewTicker(DefaultKeepAliveTick),
-		checkLogTicker:  time.NewTicker(DefaultCheckLogTick),
-		ticker:          time.NewTicker(DefaultNodeTick),
-		updateTicker:    time.NewTicker(DefaultUpdateTick),
+		peers:           make(map[string]*peer),
+		printTicker:     time.NewTicker(defaultNodeTracePrintTick),
+		detectTicker:    time.NewTicker(defaultDetectTick),
+		keepAliveTicker: time.NewTicker(defaultKeepAliveTick),
+		checkLogTicker:  time.NewTicker(defaultCheckLogTick),
+		ticker:          time.NewTicker(defaultNodeTick),
+		updateTicker:    time.NewTicker(defaultUpdateTick),
 		stop:            make(chan bool, 1),
 		changeStateChan: make(chan int, 1),
-		heartbeatTick:   DefaultHeartbeatTick,
+		heartbeatTick:   defaultHeartbeatTick,
 		raftCodec:       new(GOGOPBCodec),
 		codec:           new(JSONCodec),
 		context:         context,
@@ -123,22 +151,22 @@ func NewNode(host string, port int, data_dir string, context interface{}, join b
 		join:            join,
 		commitWork:      true,
 	}
-	n.storage = newStorage(n, data_dir)
+	n.storage = newStorage(dataDir)
 	n.votes = newVotes(n)
 	n.readIndex = newReadIndex(n)
 	n.stateMachine = newStateMachine(n)
 	n.setNodes(nodes)
 	n.log = newLog(n)
-	n.election = newElection(n, DefaultElectionTimeout)
+	n.election = newElection(n, defaultElectionTimeout)
 	n.raft = newRaft(n)
 	n.proxy = newProxy(n)
 	n.server = newServer(n, fmt.Sprintf(":%d", port))
-	n.currentTerm = newPersistentUint64(n, DefaultTerm, 0)
+	n.currentTerm = newPersistentUint64(n, defaultTerm, 0)
 	n.commitIndex = 0
-	n.votedFor = newPersistentString(n, DefaultVoteFor)
+	n.votedFor = newPersistentString(n, defaultVoteFor)
 	n.state = newFollowerState(n)
 	n.pipeline = newPipeline(n)
-	n.pipelineChan = make(chan bool, DefaultMaxConcurrency)
+	n.pipelineChan = make(chan bool, defaultMaxConcurrency)
 	n.registerCommand(&NoOperationCommand{})
 	n.registerCommand(&AddPeerCommand{})
 	n.registerCommand(&RemovePeerCommand{})
@@ -164,7 +192,7 @@ func NewNode(host string, port int, data_dir string, context interface{}, join b
 	}
 	return n, nil
 }
-func (n *Node) Start() {
+func (n *node) Start() {
 	n.onceStart.Do(func() {
 		n.recover()
 		n.checkLog()
@@ -174,7 +202,7 @@ func (n *Node) Start() {
 	n.election.Reset()
 	n.running = true
 }
-func (n *Node) run() {
+func (n *node) run() {
 	updateStop := make(chan bool, 1)
 	go func(updateTicker *time.Ticker, updateStop chan bool) {
 		for {
@@ -190,14 +218,14 @@ func (n *Node) run() {
 					if !n.running {
 						return
 					}
-					if n.workTicker != nil && n.deferTime.Add(DefaultCommandTimeout).Before(time.Now()) {
+					if n.workTicker != nil && n.deferTime.Add(defaultCommandTimeout).Before(time.Now()) {
 						n.workTicker.Stop()
 						n.workTicker = nil
 					}
 					if n.state.Update() || n.pipeline.Update() || n.readIndex.Update() {
 						if n.workTicker == nil {
 							n.deferTime = time.Now()
-							n.workTicker = timer.TickFunc(DefaultMaxDelay, func() {
+							n.workTicker = timer.TickFunc(defaultMaxDelay, func() {
 								defer func() {
 									if err := recover(); err != nil {
 									}
@@ -296,55 +324,49 @@ endfor:
 	n.updateTicker = nil
 }
 
-func (n *Node) Running() bool {
+func (n *node) Running() bool {
 	n.mu.RLock()
 	defer n.mu.RUnlock()
 	return n.running
 }
-func (n *Node) Stop() {
+func (n *node) Stop() {
 	n.onceStop.Do(func() {
 		n.stop <- true
 		n.stoped = true
 	})
 }
-func (n *Node) Stoped() bool {
+func (n *node) Stoped() bool {
 	n.mu.RLock()
 	defer n.mu.RUnlock()
 	return n.stoped
 }
-func (n *Node) voting() bool {
+func (n *node) voting() bool {
 	return !n.nonVoting && n.majorities
 }
 
-func (n *Node) setState(state State) {
-	n.state = state
+func (n *node) setState(s state) {
+	n.state = s
 }
 
-func (n *Node) GetState() State {
-	n.mu.RLock()
-	defer n.mu.RUnlock()
-	return n.state
-}
-
-func (n *Node) stepDown() {
+func (n *node) stepDown() {
 	n.changeState(-1)
 }
-func (n *Node) nextState() {
+func (n *node) nextState() {
 	n.changeState(1)
 }
 
-func (n *Node) stay() {
+func (n *node) stay() {
 	n.changeState(0)
 }
 
-func (n *Node) changeState(i int) {
+func (n *node) changeState(i int) {
 	if len(n.changeStateChan) == 1 {
 		return
 	}
 	n.changeStateChan <- i
 }
 
-func (n *Node) State() string {
+func (n *node) State() string {
 	n.mu.RLock()
 	defer n.mu.RUnlock()
 	if n.state == nil {
@@ -353,94 +375,93 @@ func (n *Node) State() string {
 	return n.state.String()
 }
 
-func (n *Node) Term() uint64 {
+func (n *node) Term() uint64 {
 	n.mu.RLock()
 	defer n.mu.RUnlock()
 	return n.term()
 }
-func (n *Node) term() uint64 {
+func (n *node) term() uint64 {
 	if !n.running {
 		return 0
 	}
-	return n.currentTerm.Id()
+	return n.currentTerm.ID()
 }
-func (n *Node) Leader() string {
+func (n *node) Leader() string {
 	n.mu.RLock()
 	defer n.mu.RUnlock()
 	return n.leader
 }
-func (n *Node) Ready() bool {
+func (n *node) Ready() bool {
 	n.mu.RLock()
 	defer n.mu.RUnlock()
 	return n.ready
 }
-func (n *Node) Lease() bool {
+func (n *node) Lease() bool {
 	n.mu.RLock()
 	defer n.mu.RUnlock()
 	return n.lease
 }
-func (n *Node) IsLeader() bool {
+func (n *node) IsLeader() bool {
 	n.mu.RLock()
 	defer n.mu.RUnlock()
 	return n.isLeader()
 }
-func (n *Node) isLeader() bool {
+func (n *node) isLeader() bool {
 	if !n.running {
 		return false
 	}
-	if n.leader == n.address && n.state.String() == Leader && n.lease {
+	if n.leader == n.address && n.state.String() == leader && n.lease {
 		return true
-	} else {
-		return false
 	}
+	return false
 }
-func (n *Node) Address() string {
+func (n *node) Address() string {
 	n.mu.RLock()
 	defer n.mu.RUnlock()
 	return n.address
 }
-func (n *Node) SetCodec(codec Codec) {
+func (n *node) SetCodec(codec Codec) {
 	n.mu.RLock()
 	defer n.mu.RUnlock()
 	n.codec = codec
 }
-func (n *Node) SetContext(context interface{}) {
+func (n *node) SetContext(context interface{}) {
 	n.mu.Lock()
 	defer n.mu.Unlock()
 	n.context = context
 }
 
-func (n *Node) Context() interface{} {
+func (n *node) Context() interface{} {
 	n.mu.RLock()
 	defer n.mu.RUnlock()
 	return n.context
 }
 
-func (n *Node) GzipSnapshot() {
-	n.stateMachine.snapshotReadWriter.Gzip(true)
+func (n *node) SetGzipSnapshot(gzip bool) {
+	n.stateMachine.snapshotReadWriter.Gzip(gzip)
 }
 
-func (n *Node) SetSnapshotPolicy(snapshotPolicy SnapshotPolicy) {
+func (n *node) SetSnapshotPolicy(snapshotPolicy SnapshotPolicy) {
 	n.stateMachine.SetSnapshotPolicy(snapshotPolicy)
 }
 
-func (n *Node) SetSnapshot(snapshot Snapshot) {
+func (n *node) SetSnapshot(snapshot Snapshot) {
 	n.stateMachine.SetSnapshot(snapshot)
 }
 
-func (n *Node) ClearSyncType() {
+func (n *node) ClearSyncType() {
 	n.stateMachine.ClearSyncType()
 }
 
-func (n *Node) AppendSyncType(seconds, changes int) {
+func (n *node) AppendSyncType(seconds, changes int) {
 	n.stateMachine.AppendSyncType(seconds, changes)
 }
 
-func (n *Node) SetSyncTypes(saves []*SyncType) {
+func (n *node) SetSyncTypes(saves []*SyncType) {
 	n.stateMachine.SetSyncTypes(saves)
 }
 
-func (n *Node) RegisterCommand(command Command) error {
+func (n *node) RegisterCommand(command Command) error {
 	if command == nil {
 		return ErrCommandNil
 	} else if command.Type() < 0 {
@@ -450,19 +471,19 @@ func (n *Node) RegisterCommand(command Command) error {
 	defer n.mu.Unlock()
 	return n.commands.register(command)
 }
-func (n *Node) registerCommand(command Command) error {
+func (n *node) registerCommand(command Command) error {
 	if command == nil {
 		return ErrCommandNil
 	}
 	return n.commands.register(command)
 }
-func (n *Node) Do(command Command) (interface{}, error) {
+func (n *node) Do(command Command) (interface{}, error) {
 	if command.Type() < 0 {
 		return nil, ErrCommandTypeMinus
 	}
-	return n.do(command, DefaultCommandTimeout)
+	return n.do(command, defaultCommandTimeout)
 }
-func (n *Node) do(command Command, timeout time.Duration) (reply interface{}, err error) {
+func (n *node) do(command Command, timeout time.Duration) (reply interface{}, err error) {
 	if !n.running {
 		return nil, ErrNotRunning
 	}
@@ -471,23 +492,23 @@ func (n *Node) do(command Command, timeout time.Duration) (reply interface{}, er
 	}
 	if n.IsLeader() {
 		if n.commands.exists(command) {
-			var invoker = invokerPool.Get().(*Invoker)
-			var done = donePool.Get().(chan *Invoker)
-			invoker.Command = command
-			invoker.Reply = reply
-			invoker.Error = err
-			invoker.Done = done
-			n.pipeline.write(invoker)
+			var i = invokerPool.Get().(*invoker)
+			var done = donePool.Get().(chan *invoker)
+			i.Command = command
+			i.Reply = reply
+			i.Error = err
+			i.Done = done
+			n.pipeline.write(i)
 			select {
 			case <-done:
 				for len(done) > 0 {
 					<-done
 				}
 				donePool.Put(done)
-				reply = invoker.Reply
-				err = invoker.Error
-				*invoker = Invoker{}
-				invokerPool.Put(invoker)
+				reply = i.Reply
+				err = i.Error
+				*i = invoker{}
+				invokerPool.Put(i)
 			case <-time.After(timeout):
 				err = ErrCommandTimeout
 			}
@@ -499,7 +520,7 @@ func (n *Node) do(command Command, timeout time.Duration) (reply interface{}, er
 	}
 	return reply, err
 }
-func (n *Node) ReadIndex() bool {
+func (n *node) ReadIndex() bool {
 	if !n.running {
 		return false
 	}
@@ -511,10 +532,8 @@ func (n *Node) ReadIndex() bool {
 	}
 	return n.readIndex.Read()
 }
-func (n *Node) fast() bool {
-	return n.isLeader() && n.votingsCount() > 1
-}
-func (n *Node) Peers() []string {
+
+func (n *node) Peers() []string {
 	n.nodesMut.Lock()
 	defer n.nodesMut.Unlock()
 	peers := make([]string, 0, len(n.peers))
@@ -523,7 +542,7 @@ func (n *Node) Peers() []string {
 	}
 	return peers
 }
-func (n *Node) membership() []string {
+func (n *node) membership() []string {
 	n.nodesMut.Lock()
 	defer n.nodesMut.Unlock()
 	ms := make([]string, 0, len(n.peers)+1)
@@ -535,7 +554,7 @@ func (n *Node) membership() []string {
 	}
 	return ms
 }
-func (n *Node) Join(info *NodeInfo) (success bool) {
+func (n *node) Join(info *NodeInfo) (success bool) {
 	leader := n.Leader()
 	if leader != "" {
 		success, ok := n.proxy.AddPeer(leader, info)
@@ -545,9 +564,9 @@ func (n *Node) Join(info *NodeInfo) (success bool) {
 	}
 	peers := n.Peers()
 	for i := 0; i < len(peers); i++ {
-		_, leaderId, ok := n.proxy.QueryLeader(peers[i])
-		if leaderId != "" && ok {
-			success, ok := n.proxy.AddPeer(leaderId, info)
+		_, leaderID, ok := n.proxy.QueryLeader(peers[i])
+		if leaderID != "" && ok {
+			success, ok := n.proxy.AddPeer(leaderID, info)
 			if success && ok {
 				return true
 			}
@@ -555,21 +574,21 @@ func (n *Node) Join(info *NodeInfo) (success bool) {
 	}
 	return false
 }
-func (n *Node) Leave(Address string) (success bool, ok bool) {
+func (n *node) Leave(Address string) (success bool, ok bool) {
 	leader := n.Leader()
 	if leader != "" {
 		return n.proxy.RemovePeer(leader, Address)
 	}
 	peers := n.Peers()
 	for i := 0; i < len(peers); i++ {
-		_, leaderId, ok := n.proxy.QueryLeader(peers[i])
-		if leaderId != "" && ok {
-			n.proxy.RemovePeer(leaderId, Address)
+		_, leaderID, ok := n.proxy.QueryLeader(peers[i])
+		if leaderID != "" && ok {
+			n.proxy.RemovePeer(leaderID, Address)
 		}
 	}
 	return
 }
-func (n *Node) setNodes(nodes []*NodeInfo) {
+func (n *node) setNodes(nodes []*NodeInfo) {
 	n.stateMachine.configuration.SetNodes(nodes)
 	n.stateMachine.configuration.load()
 	for _, v := range n.peers {
@@ -577,7 +596,7 @@ func (n *Node) setNodes(nodes []*NodeInfo) {
 	}
 	n.resetVotes()
 }
-func (n *Node) addNode(info *NodeInfo) {
+func (n *node) addNode(info *NodeInfo) {
 	n.nodesMut.Lock()
 	defer n.nodesMut.Unlock()
 	if _, ok := n.peers[info.Address]; ok {
@@ -594,14 +613,14 @@ func (n *Node) addNode(info *NodeInfo) {
 	n.resetVotes()
 	return
 }
-func (n *Node) resetVotes() {
+func (n *node) resetVotes() {
 	if n.votingsCount() == 0 {
 		n.votes.Reset(1)
 	}
 	n.votes.Reset(n.votingsCount())
 	return
 }
-func (n *Node) consideredForMajorities() {
+func (n *node) consideredForMajorities() {
 	n.nodesMut.Lock()
 	defer n.nodesMut.Unlock()
 	if n.stateMachine.configuration.LookupPeer(n.address) != nil {
@@ -613,7 +632,7 @@ func (n *Node) consideredForMajorities() {
 		v.majorities = true
 	}
 }
-func (n *Node) deleteNotPeers(peers []string) {
+func (n *node) deleteNotPeers(peers []string) {
 	if len(peers) == 0 {
 		n.clearPeers()
 		return
@@ -630,30 +649,30 @@ func (n *Node) deleteNotPeers(peers []string) {
 		}
 	}
 }
-func (n *Node) clearPeers() {
+func (n *node) clearPeers() {
 	n.nodesMut.Lock()
 	defer n.nodesMut.Unlock()
-	n.peers = make(map[string]*Peer)
+	n.peers = make(map[string]*peer)
 }
-func (n *Node) LookupPeer(addr string) *NodeInfo {
+func (n *node) LookupPeer(addr string) *NodeInfo {
 	n.nodesMut.Lock()
 	defer n.nodesMut.Unlock()
 	return n.stateMachine.configuration.LookupPeer(addr)
 }
-func (n *Node) NodesCount() int {
+func (n *node) NodesCount() int {
 	n.nodesMut.RLock()
 	defer n.nodesMut.RUnlock()
 	return len(n.peers) + 1
 }
-func (n *Node) Quorum() int {
+func (n *node) Quorum() int {
 	n.nodesMut.RLock()
 	defer n.nodesMut.RUnlock()
 	return n.quorum()
 }
-func (n *Node) quorum() int {
+func (n *node) quorum() int {
 	return n.votingsCount()/2 + 1
 }
-func (n *Node) votingsCount() int {
+func (n *node) votingsCount() int {
 	cnt := 0
 	for _, v := range n.peers {
 		if v.voting() {
@@ -665,12 +684,12 @@ func (n *Node) votingsCount() int {
 	}
 	return cnt
 }
-func (n *Node) AliveCount() int {
+func (n *node) AliveCount() int {
 	n.nodesMut.RLock()
 	defer n.nodesMut.RUnlock()
 	return n.aliveCount()
 }
-func (n *Node) aliveCount() int {
+func (n *node) aliveCount() int {
 	cnt := 1
 	for _, v := range n.peers {
 		if v.alive == true && v.voting() {
@@ -679,11 +698,11 @@ func (n *Node) aliveCount() int {
 	}
 	return cnt
 }
-func (n *Node) requestVotes() error {
+func (n *node) requestVotes() error {
 	n.nodesMut.RLock()
 	defer n.nodesMut.RUnlock()
 	n.votes.Clear()
-	n.votes.vote <- newVote(n.address, n.currentTerm.Id(), 1)
+	n.votes.vote <- newVote(n.address, n.currentTerm.ID(), 1)
 	for _, v := range n.peers {
 		if v.alive == true && v.voting() {
 			go v.requestVote()
@@ -691,7 +710,7 @@ func (n *Node) requestVotes() error {
 	}
 	return nil
 }
-func (n *Node) detectNodes() error {
+func (n *node) detectNodes() error {
 	n.nodesMut.RLock()
 	defer n.nodesMut.RUnlock()
 	for _, v := range n.peers {
@@ -701,7 +720,7 @@ func (n *Node) detectNodes() error {
 	}
 	return nil
 }
-func (n *Node) keepAliveNodes() error {
+func (n *node) keepAliveNodes() error {
 	n.nodesMut.RLock()
 	defer n.nodesMut.RUnlock()
 	for _, v := range n.peers {
@@ -709,7 +728,7 @@ func (n *Node) keepAliveNodes() error {
 	}
 	return nil
 }
-func (n *Node) heartbeats() error {
+func (n *node) heartbeats() error {
 	n.nodesMut.RLock()
 	defer n.nodesMut.RUnlock()
 	for _, v := range n.peers {
@@ -719,7 +738,7 @@ func (n *Node) heartbeats() error {
 	}
 	return nil
 }
-func (n *Node) install() bool {
+func (n *node) install() bool {
 	n.nodesMut.RLock()
 	defer n.nodesMut.RUnlock()
 	for _, v := range n.peers {
@@ -729,7 +748,7 @@ func (n *Node) install() bool {
 	}
 	return true
 }
-func (n *Node) check() error {
+func (n *node) check() error {
 	n.nodesMut.RLock()
 	defer n.nodesMut.RUnlock()
 	for _, v := range n.peers {
@@ -739,7 +758,7 @@ func (n *Node) check() error {
 	}
 	return nil
 }
-func (n *Node) minNextIndex() uint64 {
+func (n *node) minNextIndex() uint64 {
 	n.nodesMut.RLock()
 	defer n.nodesMut.RUnlock()
 	var min uint64
@@ -754,7 +773,7 @@ func (n *Node) minNextIndex() uint64 {
 	}
 	return min
 }
-func (n *Node) reset() {
+func (n *node) reset() {
 	n.recoverLogIndex = 0
 	n.lastPrintNextIndex = 1
 	n.lastPrintLastApplied = 0
@@ -770,13 +789,13 @@ func (n *Node) reset() {
 	n.stateMachine.snapshotReadWriter.lastTarIndex.Set(0)
 }
 
-func (n *Node) load() {
+func (n *node) load() {
 	n.stateMachine.load()
 	n.log.load()
 }
 
-func (n *Node) recover() error {
-	Tracef("Node.recover %s start", n.address)
+func (n *node) recover() error {
+	Tracef("node.recover %s start", n.address)
 	//if n.storage.IsEmpty(DefaultIndex) {
 	//	if !n.storage.IsEmpty(n.stateMachine.snapshotReadWriter.FileName()) {
 	//		n.stateMachine.snapshotReadWriter.untar()
@@ -805,26 +824,26 @@ func (n *Node) recover() error {
 	n.log.applyCommited()
 	n.print()
 	recoverApplyStop <- true
-	Tracef("Node.recover %s finish", n.address)
+	Tracef("node.recover %s finish", n.address)
 	return nil
 }
-func (n *Node) checkLog() error {
-	if n.storage.IsEmpty(DefaultLastIncludedIndex) {
+func (n *node) checkLog() error {
+	if n.storage.IsEmpty(defaultLastIncludedIndex) {
 		n.stateMachine.snapshotReadWriter.lastIncludedIndex.save()
 	}
-	if n.storage.IsEmpty(DefaultLastIncludedTerm) {
+	if n.storage.IsEmpty(defaultLastIncludedTerm) {
 		n.stateMachine.snapshotReadWriter.lastIncludedTerm.save()
 	}
-	if n.storage.IsEmpty(DefaultLastTarIndex) {
+	if n.storage.IsEmpty(defaultLastTarIndex) {
 		n.stateMachine.snapshotReadWriter.lastTarIndex.save()
 	}
-	if n.storage.IsEmpty(DefaultTerm) {
+	if n.storage.IsEmpty(defaultTerm) {
 		n.currentTerm.save()
 	}
-	if n.storage.IsEmpty(DefaultConfig) {
+	if n.storage.IsEmpty(defaultConfig) {
 		n.stateMachine.configuration.save()
 	}
-	if n.storage.IsEmpty(DefaultVoteFor) {
+	if n.storage.IsEmpty(defaultVoteFor) {
 		n.votedFor.save()
 	}
 	//if n.storage.IsEmpty(DefaultSnapshot) && n.stateMachine.snapshot != nil && !n.storage.IsEmpty(DefaultIndex) && !n.storage.IsEmpty(DefaultLog) {
@@ -853,21 +872,21 @@ func (n *Node) checkLog() error {
 	//		n.nextIndex = 1
 	//	}
 	//}
-	if n.storage.IsEmpty(DefaultSnapshot) && n.stateMachine.snapshot != nil {
+	if n.storage.IsEmpty(defaultSnapshot) && n.stateMachine.snapshot != nil {
 		n.stateMachine.SaveSnapshot()
 	} else if n.stateMachine.snapshot == nil {
-		if !n.storage.Exists(DefaultSnapshot) {
-			n.storage.Truncate(DefaultSnapshot, 1)
+		if !n.storage.Exists(defaultSnapshot) {
+			n.storage.Truncate(defaultSnapshot, 1)
 		}
 	}
-	if n.isLeader() && n.storage.IsEmpty(n.stateMachine.snapshotReadWriter.FileName()) && !n.storage.IsEmpty(DefaultSnapshot) && !n.storage.IsEmpty(DefaultLastIncludedIndex) && !n.storage.IsEmpty(DefaultLastIncludedTerm) {
+	if n.isLeader() && n.storage.IsEmpty(n.stateMachine.snapshotReadWriter.FileName()) && !n.storage.IsEmpty(defaultSnapshot) && !n.storage.IsEmpty(defaultLastIncludedIndex) && !n.storage.IsEmpty(defaultLastIncludedTerm) {
 		n.stateMachine.snapshotReadWriter.lastTarIndex.Set(0)
 		n.stateMachine.snapshotReadWriter.Tar()
 	}
 	return nil
 }
 
-func (n *Node) printPeers() {
+func (n *node) printPeers() {
 	if !n.isLeader() {
 		return
 	}
@@ -875,36 +894,36 @@ func (n *Node) printPeers() {
 	defer n.nodesMut.RUnlock()
 	for _, v := range n.peers {
 		if v.nextIndex > v.lastPrintNextIndex {
-			Tracef("Node.printPeers %s nextIndex %d==>%d", v.address, v.lastPrintNextIndex, v.nextIndex)
+			Tracef("node.printPeers %s nextIndex %d==>%d", v.address, v.lastPrintNextIndex, v.nextIndex)
 			v.lastPrintNextIndex = v.nextIndex
 		}
 	}
 }
 
-func (n *Node) print() {
+func (n *node) print() {
 	if n.firstLogIndex > n.lastPrintFirstLogIndex {
-		Infof("Node.print %s firstLogIndex %d==>%d", n.address, n.lastPrintFirstLogIndex, n.firstLogIndex)
+		Infof("node.print %s firstLogIndex %d==>%d", n.address, n.lastPrintFirstLogIndex, n.firstLogIndex)
 		n.lastPrintFirstLogIndex = n.firstLogIndex
 	}
 	if n.lastLogIndex > n.lastPrintLastLogIndex {
-		Infof("Node.print %s lastLogIndex %d==>%d", n.address, n.lastPrintLastLogIndex, n.lastLogIndex)
+		Infof("node.print %s lastLogIndex %d==>%d", n.address, n.lastPrintLastLogIndex, n.lastLogIndex)
 		n.lastPrintLastLogIndex = n.lastLogIndex
 	}
 	if n.commitIndex > n.lastPrintCommitIndex {
-		Infof("Node.print %s commitIndex %d==>%d", n.address, n.lastPrintCommitIndex, n.commitIndex)
+		Infof("node.print %s commitIndex %d==>%d", n.address, n.lastPrintCommitIndex, n.commitIndex)
 		n.lastPrintCommitIndex = n.commitIndex
 	}
 	if n.stateMachine.lastApplied > n.lastPrintLastApplied {
-		Infof("Node.print %s lastApplied %d==>%d", n.address, n.lastPrintLastApplied, n.stateMachine.lastApplied)
+		Infof("node.print %s lastApplied %d==>%d", n.address, n.lastPrintLastApplied, n.stateMachine.lastApplied)
 		n.lastPrintLastApplied = n.stateMachine.lastApplied
 	}
 	if n.nextIndex > n.lastPrintNextIndex {
-		Infof("Node.print %s nextIndex %d==>%d", n.address, n.lastPrintNextIndex, n.nextIndex)
+		Infof("node.print %s nextIndex %d==>%d", n.address, n.lastPrintNextIndex, n.nextIndex)
 		n.lastPrintNextIndex = n.nextIndex
 	}
 	n.printPeers()
 }
-func (n *Node) commit() bool {
+func (n *node) commit() bool {
 	n.nodesMut.RLock()
 	defer n.nodesMut.RUnlock()
 	if n.votingsCount() == 1 {

@@ -13,12 +13,12 @@ const lastsSize = 4
 const minLatency = int64(time.Millisecond * 10)
 
 type pipeline struct {
-	node           *Node
+	node           *node
 	wMutex         sync.Mutex
 	buffer         []byte
 	applyIndex     uint64
 	mutex          sync.Mutex
-	pending        map[uint64]*Invoker
+	pending        map[uint64]*invoker
 	readyEntries   []*Entry
 	bMutex         sync.Mutex
 	count          uint64
@@ -34,11 +34,11 @@ type pipeline struct {
 	trigger        chan bool
 }
 
-func newPipeline(node *Node) *pipeline {
+func newPipeline(n *node) *pipeline {
 	p := &pipeline{
-		node:     node,
+		node:     n,
 		buffer:   make([]byte, 1024*64),
-		pending:  make(map[uint64]*Invoker),
+		pending:  make(map[uint64]*invoker),
 		lastTime: time.Now(),
 		trigger:  make(chan bool, 1024),
 		done:     make(chan bool, 1),
@@ -54,7 +54,7 @@ func (p *pipeline) init(lastLogIndex uint64) {
 	p.applyIndex = lastLogIndex + 1
 }
 func (p *pipeline) concurrency() (n int) {
-	p.lastsCursor += 1
+	p.lastsCursor++
 	p.mutex.Lock()
 	concurrency := len(p.pending)
 	p.lasts[p.lastsCursor%lastsSize] = concurrency
@@ -71,7 +71,7 @@ func (p *pipeline) concurrency() (n int) {
 	return p.max
 }
 func (p *pipeline) updateLatency(d int64) (n int64) {
-	p.latencysCursor += 1
+	p.latencysCursor++
 	p.mutex.Lock()
 	p.latencys[p.latencysCursor%lastsSize] = d
 	p.mutex.Unlock()
@@ -109,31 +109,31 @@ func (p *pipeline) Update() bool {
 	return false
 }
 
-func (p *pipeline) write(invoker *Invoker) {
+func (p *pipeline) write(i *invoker) {
 	p.wMutex.Lock()
 	defer p.wMutex.Unlock()
 	nextIndex := atomic.AddUint64(&p.node.nextIndex, 1)
-	invoker.index = nextIndex - 1
+	i.index = nextIndex - 1
 	p.mutex.Lock()
-	p.pending[invoker.index] = invoker
+	p.pending[i.index] = i
 	p.mutex.Unlock()
 	concurrency := p.concurrency()
 	//Tracef("pipeline.write concurrency-%d", concurrency)
 	var data []byte
-	if invoker.Command.Type() >= 0 {
-		b, _ := p.node.codec.Marshal(p.buffer, invoker.Command)
+	if i.Command.Type() >= 0 {
+		b, _ := p.node.codec.Marshal(p.buffer, i.Command)
 		data = make([]byte, len(b))
 		copy(data, b)
 	} else {
-		b, _ := p.node.raftCodec.Marshal(p.buffer, invoker.Command)
+		b, _ := p.node.raftCodec.Marshal(p.buffer, i.Command)
 		data = make([]byte, len(b))
 		copy(data, b)
 	}
 	entry := p.node.log.getEmtyEntry()
-	entry.Index = invoker.index
-	entry.Term = p.node.currentTerm.Id()
+	entry.Index = i.index
+	entry.Term = p.node.currentTerm.ID()
 	entry.Command = data
-	entry.CommandType = invoker.Command.Type()
+	entry.CommandType = i.Command.Type()
 	p.bMutex.Lock()
 	p.readyEntries = append(p.readyEntries, entry)
 	if len(p.readyEntries) >= concurrency {
@@ -186,9 +186,9 @@ func (p *pipeline) read() {
 			}
 			for p.applyIndex <= p.node.commitIndex {
 				p.mutex.Lock()
-				var invoker *Invoker
-				if i, ok := p.pending[p.applyIndex]; ok {
-					invoker = i
+				var i *invoker
+				if in, ok := p.pending[p.applyIndex]; ok {
+					i = in
 				} else {
 					p.mutex.Unlock()
 					//Traceln("pipeline.read sleep")
@@ -197,11 +197,11 @@ func (p *pipeline) read() {
 				}
 				delete(p.pending, p.applyIndex)
 				p.mutex.Unlock()
-				invoker.Reply, invoker.Error, err = p.node.stateMachine.Apply(invoker.index, invoker.Command)
+				i.Reply, i.Error, err = p.node.stateMachine.Apply(i.index, i.Command)
 				if err != nil {
 					continue
 				}
-				invoker.done()
+				i.done()
 				p.mutex.Lock()
 				p.applyIndex++
 				p.mutex.Unlock()

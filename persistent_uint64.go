@@ -13,7 +13,7 @@ import (
 
 type persistentUint64 struct {
 	mu            sync.RWMutex
-	node          *Node
+	node          *node
 	value         uint64
 	name          string
 	ticker        *time.Ticker
@@ -21,9 +21,9 @@ type persistentUint64 struct {
 	deferSave     bool
 }
 
-func newPersistentUint64(node *Node, name string, tick time.Duration) *persistentUint64 {
+func newPersistentUint64(n *node, name string, tick time.Duration) *persistentUint64 {
 	p := &persistentUint64{
-		node: node,
+		node: n,
 		name: name,
 	}
 	if tick > 0 {
@@ -37,7 +37,7 @@ func newPersistentUint64(node *Node, name string, tick time.Duration) *persisten
 func (p *persistentUint64) Incre() uint64 {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.value += 1
+	p.value++
 	if !p.deferSave {
 		p.save()
 	}
@@ -51,7 +51,7 @@ func (p *persistentUint64) Set(t uint64) {
 		p.save()
 	}
 }
-func (p *persistentUint64) Id() uint64 {
+func (p *persistentUint64) ID() uint64 {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 	return p.value

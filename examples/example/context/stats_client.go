@@ -6,7 +6,7 @@ import (
 )
 
 type Client struct {
-	Node      *raft.Node
+	Node      raft.Node
 	Ctx       *Context
 	Operation string
 }

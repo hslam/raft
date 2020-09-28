@@ -3,22 +3,21 @@
 
 package raft
 
-import "fmt"
-
+// NewRemovePeerCommand returns a new RemovePeerCommand.
 func NewRemovePeerCommand(address string) Command {
 	return &RemovePeerCommand{
 		Address: address,
 	}
 }
 
+// Type implements the Command Type method.
 func (c *RemovePeerCommand) Type() int32 {
-	return CommandTypeRemovePeer
+	return commandTypeRemovePeer
 }
 
+// Do implements the Command Do method.
 func (c *RemovePeerCommand) Do(context interface{}) (interface{}, error) {
-	fmt.Println("ReconfigurationCommand")
-	return nil, nil
-	node := context.(*Node)
-	node.stateMachine.configuration.RemovePeer(c.Address)
+	n := context.(*node)
+	n.stateMachine.configuration.RemovePeer(c.Address)
 	return nil, nil
 }

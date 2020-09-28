@@ -11,14 +11,14 @@ import (
 
 type persistentString struct {
 	mu    sync.RWMutex
-	node  *Node
+	node  *node
 	value string
 	name  string
 }
 
-func newPersistentString(node *Node, name string) *persistentString {
+func newPersistentString(n *node, name string) *persistentString {
 	p := &persistentString{
-		node: node,
+		node: n,
 		name: name,
 	}
 	p.load()

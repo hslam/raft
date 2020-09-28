@@ -28,7 +28,7 @@ func (v *vote) Key() string {
 
 type votes struct {
 	mu        sync.RWMutex
-	node      *Node
+	node      *node
 	vote      chan *vote
 	voteDic   map[string]int
 	voteTotal int
@@ -39,9 +39,9 @@ type votes struct {
 	timeout   time.Duration
 }
 
-func newVotes(node *Node) *votes {
+func newVotes(n *node) *votes {
 	vs := &votes{
-		node:   node,
+		node:   n,
 		notice: make(chan bool, 1),
 	}
 	vs.Reset(1)
@@ -56,7 +56,7 @@ func (vs *votes) AddVote(v *vote) {
 		return
 	}
 	vs.voteDic[v.Key()] = v.vote
-	if v.term == vs.node.currentTerm.Id() {
+	if v.term == vs.node.currentTerm.ID() {
 		vs.voteTotal++
 		vs.voteCount += v.vote
 	}

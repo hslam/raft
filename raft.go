@@ -9,6 +9,7 @@ import (
 	"time"
 )
 
+// Raft represents the raft service.
 type Raft interface {
 	RequestVote(addr string) (ok bool)
 	AppendEntries(addr string, prevLogIndex, prevLogTerm uint64, entries []*Entry) (nextIndex, term uint64, success, ok bool)
@@ -19,7 +20,7 @@ type Raft interface {
 }
 
 type raft struct {
-	node                   *Node
+	node                   *node
 	callPool               *sync.Pool
 	donePool               *sync.Pool
 	hearbeatTimeout        time.Duration
@@ -28,21 +29,21 @@ type raft struct {
 	installSnapshotTimeout time.Duration
 }
 
-func newRaft(node *Node) Raft {
+func newRaft(n *node) Raft {
 	return &raft{
-		node:                   node,
+		node:                   n,
 		callPool:               &sync.Pool{New: func() interface{} { return &rpc.Call{} }},
 		donePool:               &sync.Pool{New: func() interface{} { return make(chan *rpc.Call, 10) }},
-		hearbeatTimeout:        DefaultHearbeatTimeout,
-		requestVoteTimeout:     DefaultRequestVoteTimeout,
-		appendEntriesTimeout:   DefaultAppendEntriesTimeout,
-		installSnapshotTimeout: DefaultInstallSnapshotTimeout,
+		hearbeatTimeout:        defaultHearbeatTimeout,
+		requestVoteTimeout:     defaultRequestVoteTimeout,
+		appendEntriesTimeout:   defaultAppendEntriesTimeout,
+		installSnapshotTimeout: defaultInstallSnapshotTimeout,
 	}
 }
 
 func (r *raft) RequestVote(addr string) (ok bool) {
 	var req = &RequestVoteRequest{}
-	req.Term = r.node.currentTerm.Id()
+	req.Term = r.node.currentTerm.ID()
 	req.CandidateId = r.node.address
 	req.LastLogIndex = r.node.lastLogIndex
 	req.LastLogTerm = r.node.lastLogTerm
@@ -68,7 +69,7 @@ func (r *raft) RequestVote(addr string) (ok bool) {
 		res := call.Reply.(*RequestVoteResponse)
 		*call = rpc.Call{}
 		r.callPool.Put(call)
-		if res.Term > r.node.currentTerm.Id() {
+		if res.Term > r.node.currentTerm.ID() {
 			r.node.currentTerm.Set(res.Term)
 			r.node.stepDown()
 		}
@@ -88,7 +89,7 @@ func (r *raft) RequestVote(addr string) (ok bool) {
 
 func (r *raft) AppendEntries(addr string, prevLogIndex, prevLogTerm uint64, entries []*Entry) (nextIndex uint64, term uint64, success bool, ok bool) {
 	var req = &AppendEntriesRequest{}
-	req.Term = r.node.currentTerm.Id()
+	req.Term = r.node.currentTerm.ID()
 	req.LeaderId = r.node.leader
 	req.LeaderCommit = r.node.commitIndex
 	req.PrevLogIndex = prevLogIndex
@@ -120,7 +121,7 @@ func (r *raft) AppendEntries(addr string, prevLogIndex, prevLogTerm uint64, entr
 		res := call.Reply.(*AppendEntriesResponse)
 		*call = rpc.Call{}
 		r.callPool.Put(call)
-		if res.Term > r.node.currentTerm.Id() {
+		if res.Term > r.node.currentTerm.ID() {
 			r.node.currentTerm.Set(res.Term)
 			r.node.stepDown()
 			if len(entries) > 0 {
@@ -137,7 +138,7 @@ func (r *raft) AppendEntries(addr string, prevLogIndex, prevLogTerm uint64, entr
 
 func (r *raft) InstallSnapshot(addr string, LastIncludedIndex, LastIncludedTerm, Offset uint64, Data []byte, Done bool) (offset uint64, nextIndex uint64, ok bool) {
 	var req = &InstallSnapshotRequest{}
-	req.Term = r.node.currentTerm.Id()
+	req.Term = r.node.currentTerm.ID()
 	req.LeaderId = r.node.leader
 	req.LastIncludedIndex = LastIncludedIndex
 	req.LastIncludedTerm = LastIncludedTerm
@@ -166,7 +167,7 @@ func (r *raft) InstallSnapshot(addr string, LastIncludedIndex, LastIncludedTerm,
 		res := call.Reply.(*InstallSnapshotResponse)
 		*call = rpc.Call{}
 		r.callPool.Put(call)
-		if res.Term > r.node.currentTerm.Id() {
+		if res.Term > r.node.currentTerm.ID() {
 			r.node.currentTerm.Set(res.Term)
 			r.node.stepDown()
 		}
@@ -179,16 +180,16 @@ func (r *raft) InstallSnapshot(addr string, LastIncludedIndex, LastIncludedTerm,
 }
 
 func (r *raft) HandleRequestVote(req *RequestVoteRequest, res *RequestVoteResponse) error {
-	res.Term = r.node.currentTerm.Id()
-	if req.Term < r.node.currentTerm.Id() {
+	res.Term = r.node.currentTerm.ID()
+	if req.Term < r.node.currentTerm.ID() {
 		res.VoteGranted = false
 		return nil
-	} else if req.Term > r.node.currentTerm.Id() && req.LastLogIndex >= r.node.lastLogIndex && req.LastLogTerm >= r.node.lastLogTerm {
+	} else if req.Term > r.node.currentTerm.ID() && req.LastLogIndex >= r.node.lastLogIndex && req.LastLogTerm >= r.node.lastLogTerm {
 		r.node.currentTerm.Set(req.Term)
 		r.node.votedFor.Reset()
 		r.node.stepDown()
 	}
-	if r.node.state.String() == Leader || r.node.state.String() == Candidate || r.node.leader != "" {
+	if r.node.state.String() == leader || r.node.state.String() == candidate || r.node.leader != "" {
 		res.VoteGranted = false
 		return nil
 	} else if (r.node.votedFor.String() == "" || r.node.votedFor.String() == req.CandidateId) && req.LastLogIndex >= r.node.lastLogIndex && req.LastLogTerm >= r.node.lastLogTerm {
@@ -201,15 +202,15 @@ func (r *raft) HandleRequestVote(req *RequestVoteRequest, res *RequestVoteRespon
 }
 
 func (r *raft) HandleAppendEntries(req *AppendEntriesRequest, res *AppendEntriesResponse) error {
-	res.Term = r.node.currentTerm.Id()
+	res.Term = r.node.currentTerm.ID()
 	res.NextIndex = r.node.nextIndex
-	if req.Term < r.node.currentTerm.Id() {
+	if req.Term < r.node.currentTerm.ID() {
 		res.Success = false
 		return nil
-	} else if req.Term > r.node.currentTerm.Id() {
+	} else if req.Term > r.node.currentTerm.ID() {
 		r.node.currentTerm.Set(req.Term)
 		r.node.stepDown()
-		if r.node.state.String() == Leader || r.node.state.String() == Candidate {
+		if r.node.state.String() == leader || r.node.state.String() == candidate {
 			res.Success = false
 			return nil
 		}
@@ -217,16 +218,16 @@ func (r *raft) HandleAppendEntries(req *AppendEntriesRequest, res *AppendEntries
 	if r.node.leader == "" {
 		r.node.votedFor.Set(req.LeaderId)
 		r.node.leader = req.LeaderId
-		Tracef("raft.HandleAppendEntries %s State:%s leader-%s Term:%d", r.node.address, r.node.State(), r.node.leader, r.node.currentTerm.Id())
+		Tracef("raft.HandleAppendEntries %s State:%s leader-%s Term:%d", r.node.address, r.node.State(), r.node.leader, r.node.currentTerm.ID())
 	}
 	if r.node.leader != req.LeaderId {
 		res.Success = false
 		r.node.stepDown()
 		return nil
 	}
-	if r.node.state.String() == Leader || r.node.state.String() == Candidate {
+	if r.node.state.String() == leader || r.node.state.String() == candidate {
 		r.node.stepDown()
-		Tracef("raft.HandleAppendEntries %s State:%s Term:%d", r.node.address, r.node.State(), r.node.currentTerm.Id())
+		Tracef("raft.HandleAppendEntries %s State:%s Term:%d", r.node.address, r.node.State(), r.node.currentTerm.ID())
 	}
 	r.node.election.Reset()
 	if req.PrevLogIndex == 0 && req.PrevLogTerm == 0 && len(req.Entries) == 0 {
@@ -261,10 +262,10 @@ func (r *raft) HandleAppendEntries(req *AppendEntriesRequest, res *AppendEntries
 }
 
 func (r *raft) HandleInstallSnapshot(req *InstallSnapshotRequest, res *InstallSnapshotResponse) error {
-	res.Term = r.node.currentTerm.Id()
-	if req.Term < r.node.currentTerm.Id() {
+	res.Term = r.node.currentTerm.ID()
+	if req.Term < r.node.currentTerm.ID() {
 		return nil
-	} else if req.Term > r.node.currentTerm.Id() {
+	} else if req.Term > r.node.currentTerm.ID() {
 		r.node.currentTerm.Set(req.Term)
 		r.node.stepDown()
 	}

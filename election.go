@@ -9,7 +9,7 @@ import (
 )
 
 type election struct {
-	node                   *Node
+	node                   *node
 	once                   sync.Once
 	onceDisabled           bool
 	random                 bool
@@ -18,9 +18,9 @@ type election struct {
 	electionTimeout        time.Duration
 }
 
-func newElection(node *Node, electionTimeout time.Duration) *election {
+func newElection(n *node, electionTimeout time.Duration) *election {
 	e := &election{
-		node:                   node,
+		node:                   n,
 		defaultElectionTimeout: electionTimeout,
 		random:                 true,
 	}
@@ -37,7 +37,7 @@ func (e *election) Reset() {
 		}
 	}
 	e.once.Do(func() {
-		e.electionTimeout = DefaultStartWait
+		e.electionTimeout = defaultStartWait
 	})
 }
 
