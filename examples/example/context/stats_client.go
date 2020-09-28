@@ -3,7 +3,6 @@ package context
 import (
 	"github.com/hslam/raft"
 	"math/rand"
-	"time"
 )
 
 type Client struct {
@@ -35,10 +34,9 @@ func (c *Client) Call() (int64, int64, bool) {
 	return 0, 0, false
 }
 func RandString(len int) string {
-	r := rand.New(rand.NewSource(time.Now().Unix()))
 	bytes := make([]byte, len)
 	for i := 0; i < len; i++ {
-		b := r.Intn(26) + 65
+		b := rand.Intn(26) + 65
 		bytes[i] = byte(b)
 	}
 	return string(bytes)

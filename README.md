@@ -10,7 +10,7 @@ A Golang implementation of the Raft distributed consensus protocol.
 * [RPC](https://github.com/hslam/rpc "rpc") transport
 * ReadIndex/Lease Read
 * Non-Voting Members (The leader only replicates log entries to them)
-* Snapshot Policies (Never/EverySecond/DefalutSync/CustomSync/Always)
+* Snapshot Policies (Never/EverySecond/CustomSync/Always)
 
 ## Get started
 
