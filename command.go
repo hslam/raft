@@ -13,46 +13,46 @@ type Command interface {
 	Do(context interface{}) (interface{}, error)
 }
 
-type CommandType struct {
+type commands struct {
 	mu    sync.RWMutex
 	types map[int32]*sync.Pool
 }
 
-func (m *CommandType) register(cmd Command) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if _, ok := m.types[cmd.Type()]; ok {
+func (c *commands) register(cmd Command) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if _, ok := c.types[cmd.Type()]; ok {
 		return ErrCommandTypeExisted
 	}
 	pool := &sync.Pool{New: func() interface{} {
 		return reflect.New(reflect.Indirect(reflect.ValueOf(cmd)).Type()).Interface()
 	}}
 	pool.Put(pool.Get())
-	m.types[cmd.Type()] = pool
+	c.types[cmd.Type()] = pool
 	return nil
 }
 
-func (m *CommandType) clone(Type int32) Command {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	if commandPool, ok := m.types[Type]; ok {
+func (c *commands) clone(Type int32) Command {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	if commandPool, ok := c.types[Type]; ok {
 		return commandPool.Get().(Command)
 	}
 	Debugf("CommandType.clone Unregistered %d", Type)
 	return nil
 }
 
-func (m *CommandType) put(cmd Command) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	if commandPool, ok := m.types[cmd.Type()]; ok {
+func (c *commands) put(cmd Command) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	if commandPool, ok := c.types[cmd.Type()]; ok {
 		commandPool.Put(cmd)
 	}
 }
 
-func (m *CommandType) exists(cmd Command) bool {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	_, ok := m.types[cmd.Type()]
+func (c *commands) exists(cmd Command) bool {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	_, ok := c.types[cmd.Type()]
 	return ok
 }

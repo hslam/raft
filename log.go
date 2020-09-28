@@ -251,7 +251,7 @@ func (log *Log) applyCommitedRange(startIndex uint64, endIndex uint64) {
 	//Tracef("Log.applyCommitedRange %s startIndex %d endIndex %d length %d",log.node.address,startIndex,endIndex,len(entries))
 	for i := 0; i < len(entries); i++ {
 		//Tracef("Log.applyCommitedRange %s Index %d Type %d",log.node.address,entries[i].Index,entries[i].CommandType)
-		command := log.node.commandType.clone(entries[i].CommandType)
+		command := log.node.commands.clone(entries[i].CommandType)
 		var err error
 		if entries[i].CommandType >= 0 {
 			err = log.node.codec.Unmarshal(entries[i].Command, command)
@@ -263,7 +263,7 @@ func (log *Log) applyCommitedRange(startIndex uint64, endIndex uint64) {
 		} else {
 			Errorf("Log.applyCommitedRange %s %d error %s", log.node.address, i, err)
 		}
-		log.node.commandType.put(command)
+		log.node.commands.put(command)
 	}
 	log.putEmtyEntries(entries)
 	//Tracef("Log.applyCommitedRange %s startIndex %d endIndex %d End %d",log.node.address,startIndex,endIndex,len(entries))

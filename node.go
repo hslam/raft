@@ -84,7 +84,7 @@ type Node struct {
 	codec     Codec
 
 	context      interface{}
-	commandType  *CommandType
+	commands     *commands
 	pipeline     *pipeline
 	pipelineChan chan bool
 
@@ -118,7 +118,7 @@ func NewNode(host string, port int, data_dir string, context interface{}, join b
 		raftCodec:       new(GOGOPBCodec),
 		codec:           new(JSONCodec),
 		context:         context,
-		commandType:     &CommandType{types: make(map[int32]*sync.Pool)},
+		commands:        &commands{types: make(map[int32]*sync.Pool)},
 		nextIndex:       1,
 		join:            join,
 		commitWork:      true,
@@ -448,13 +448,13 @@ func (n *Node) RegisterCommand(command Command) error {
 	}
 	n.mu.Lock()
 	defer n.mu.Unlock()
-	return n.commandType.register(command)
+	return n.commands.register(command)
 }
 func (n *Node) registerCommand(command Command) error {
 	if command == nil {
 		return ErrCommandNil
 	}
-	return n.commandType.register(command)
+	return n.commands.register(command)
 }
 func (n *Node) Do(command Command) (interface{}, error) {
 	if command.Type() < 0 {
@@ -470,7 +470,7 @@ func (n *Node) do(command Command, timeout time.Duration) (reply interface{}, er
 		return nil, ErrCommandNil
 	}
 	if n.IsLeader() {
-		if n.commandType.exists(command) {
+		if n.commands.exists(command) {
 			var invoker = invokerPool.Get().(*Invoker)
 			var done = donePool.Get().(chan *Invoker)
 			invoker.Command = command
