@@ -134,7 +134,6 @@ func (p *pipeline) write(invoker *Invoker) {
 	entry.Term = p.node.currentTerm.Id()
 	entry.Command = data
 	entry.CommandType = invoker.Command.Type()
-	entry.CommandId = invoker.Command.UniqueID()
 	p.bMutex.Lock()
 	p.readyEntries = append(p.readyEntries, entry)
 	if len(p.readyEntries) >= concurrency {

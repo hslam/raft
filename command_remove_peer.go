@@ -10,12 +10,9 @@ func NewRemovePeerCommand(address string) Command {
 		Address: address,
 	}
 }
+
 func (c *RemovePeerCommand) Type() int32 {
 	return CommandTypeRemovePeer
-}
-
-func (c *RemovePeerCommand) UniqueID() string {
-	return c.Address
 }
 
 func (c *RemovePeerCommand) Do(context interface{}) (interface{}, error) {

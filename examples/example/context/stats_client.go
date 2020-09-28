@@ -33,6 +33,7 @@ func (c *Client) Call() (int64, int64, bool) {
 	}
 	return 0, 0, false
 }
+
 func RandString(len int) string {
 	bytes := make([]byte, len)
 	for i := 0; i < len; i++ {

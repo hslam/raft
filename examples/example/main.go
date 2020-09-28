@@ -35,6 +35,7 @@ func init() {
 	flag.IntVar(&parallel, "parallel", 1024, "parallel: -total=10000")
 	flag.IntVar(&total_calls, "total", 100000, "total_calls: -total=10000")
 }
+
 func main() {
 	flag.Parse()
 	if log {

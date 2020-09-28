@@ -10,7 +10,6 @@ import (
 
 type Command interface {
 	Type() int32
-	UniqueID() string
 	Do(context interface{}) (interface{}, error)
 }
 

@@ -12,11 +12,13 @@ type Context struct {
 func NewContext() *Context {
 	return &Context{data: ""}
 }
+
 func (ctx *Context) Set(value string) {
 	ctx.mut.Lock()
 	defer ctx.mut.Unlock()
 	ctx.data = value
 }
+
 func (ctx *Context) Get() string {
 	ctx.mut.RLock()
 	defer ctx.mut.RUnlock()

@@ -51,7 +51,6 @@ func (log *Log) putEmtyEntry(entry *Entry) {
 	entry.Term = 0
 	entry.Command = []byte{}
 	entry.CommandType = 0
-	entry.CommandId = ""
 	log.entryPool.Put(entry)
 }
 func (log *Log) putEmtyEntries(entries []*Entry) {
