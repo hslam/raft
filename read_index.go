@@ -31,9 +31,11 @@ func newReadIndex(n *node) *readIndex {
 func (r *readIndex) Read() (ok bool) {
 	var ch = make(chan bool, 1)
 	r.readChan <- ch
+	timer := time.NewTimer(defaultCommandTimeout)
 	select {
 	case ok = <-ch:
-	case <-time.After(defaultCommandTimeout):
+		timer.Stop()
+	case <-timer.C:
 		ok = false
 	}
 	return

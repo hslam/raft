@@ -48,8 +48,10 @@ func (p *proxy) QueryLeader(addr string) (term uint64, leaderID string, ok bool)
 	call.Reply = &QueryLeaderResponse{}
 	call.Done = done
 	p.node.rpcs.RoundTrip(addr, call)
+	timer := time.NewTimer(p.queryLeaderTimeout)
 	select {
 	case call := <-done:
+		timer.Stop()
 		for len(done) > 0 {
 			<-done
 		}
@@ -65,7 +67,7 @@ func (p *proxy) QueryLeader(addr string) (term uint64, leaderID string, ok bool)
 		p.callPool.Put(call)
 		logger.Tracef("raft.QueryLeader %s -> %s LeaderId %s", p.node.address, addr, res.LeaderId)
 		return res.Term, res.LeaderId, true
-	case <-time.After(p.addPeerTimeout):
+	case <-timer.C:
 		logger.Tracef("raft.QueryLeader %s -> %s time out", p.node.address, addr)
 	}
 	return 0, "", false
@@ -80,8 +82,10 @@ func (p *proxy) AddPeer(addr string, info *NodeInfo) (success bool, ok bool) {
 	call.Reply = &AddPeerResponse{}
 	call.Done = done
 	p.node.rpcs.RoundTrip(addr, call)
+	timer := time.NewTimer(p.addPeerTimeout)
 	select {
 	case call := <-done:
+		timer.Stop()
 		for len(done) > 0 {
 			<-done
 		}
@@ -97,7 +101,7 @@ func (p *proxy) AddPeer(addr string, info *NodeInfo) (success bool, ok bool) {
 		p.callPool.Put(call)
 		logger.Tracef("raft.AddPeer %s -> %s Success %t", p.node.address, addr, res.Success)
 		return res.Success, true
-	case <-time.After(p.addPeerTimeout):
+	case <-timer.C:
 		logger.Tracef("raft.AddPeer %s -> %s time out", p.node.address, addr)
 	}
 	return false, false
@@ -112,8 +116,10 @@ func (p *proxy) RemovePeer(addr string, Address string) (success bool, ok bool) 
 	call.Reply = &RemovePeerResponse{}
 	call.Done = done
 	p.node.rpcs.RoundTrip(addr, call)
+	timer := time.NewTimer(p.removePeerTimeout)
 	select {
 	case call := <-done:
+		timer.Stop()
 		for len(done) > 0 {
 			<-done
 		}
@@ -129,7 +135,7 @@ func (p *proxy) RemovePeer(addr string, Address string) (success bool, ok bool) 
 		p.callPool.Put(call)
 		logger.Tracef("raft.RemovePeer %s -> %s Success %t", p.node.address, addr, res.Success)
 		return res.Success, true
-	case <-time.After(p.removePeerTimeout):
+	case <-timer.C:
 		logger.Tracef("raft.RemovePeer %s -> %s time out", p.node.address, addr)
 	}
 	return false, false

@@ -499,8 +499,10 @@ func (n *node) do(command Command, timeout time.Duration) (reply interface{}, er
 			i.Error = err
 			i.Done = done
 			n.pipeline.write(i)
+			timer := time.NewTimer(timeout)
 			select {
 			case <-done:
+				timer.Stop()
 				for len(done) > 0 {
 					<-done
 				}
@@ -509,7 +511,7 @@ func (n *node) do(command Command, timeout time.Duration) (reply interface{}, er
 				err = i.Error
 				*i = invoker{}
 				invokerPool.Put(i)
-			case <-time.After(timeout):
+			case <-timer.C:
 				err = ErrCommandTimeout
 			}
 		} else {
@@ -902,23 +904,23 @@ func (n *node) printPeers() {
 
 func (n *node) print() {
 	if n.firstLogIndex > n.lastPrintFirstLogIndex {
-		logger.Infof("node.print %s firstLogIndex %d==>%d", n.address, n.lastPrintFirstLogIndex, n.firstLogIndex)
+		logger.Tracef("node.print %s firstLogIndex %d==>%d", n.address, n.lastPrintFirstLogIndex, n.firstLogIndex)
 		n.lastPrintFirstLogIndex = n.firstLogIndex
 	}
 	if n.lastLogIndex > n.lastPrintLastLogIndex {
-		logger.Infof("node.print %s lastLogIndex %d==>%d", n.address, n.lastPrintLastLogIndex, n.lastLogIndex)
+		logger.Tracef("node.print %s lastLogIndex %d==>%d", n.address, n.lastPrintLastLogIndex, n.lastLogIndex)
 		n.lastPrintLastLogIndex = n.lastLogIndex
 	}
 	if n.commitIndex > n.lastPrintCommitIndex {
-		logger.Infof("node.print %s commitIndex %d==>%d", n.address, n.lastPrintCommitIndex, n.commitIndex)
+		logger.Tracef("node.print %s commitIndex %d==>%d", n.address, n.lastPrintCommitIndex, n.commitIndex)
 		n.lastPrintCommitIndex = n.commitIndex
 	}
 	if n.stateMachine.lastApplied > n.lastPrintLastApplied {
-		logger.Infof("node.print %s lastApplied %d==>%d", n.address, n.lastPrintLastApplied, n.stateMachine.lastApplied)
+		logger.Tracef("node.print %s lastApplied %d==>%d", n.address, n.lastPrintLastApplied, n.stateMachine.lastApplied)
 		n.lastPrintLastApplied = n.stateMachine.lastApplied
 	}
 	if n.nextIndex > n.lastPrintNextIndex {
-		logger.Infof("node.print %s nextIndex %d==>%d", n.address, n.lastPrintNextIndex, n.nextIndex)
+		logger.Tracef("node.print %s nextIndex %d==>%d", n.address, n.lastPrintNextIndex, n.nextIndex)
 		n.lastPrintNextIndex = n.nextIndex
 	}
 	n.printPeers()

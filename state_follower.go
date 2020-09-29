@@ -27,7 +27,7 @@ func (s *followerState) Start() {
 	s.node.leader = ""
 	s.node.election.Random(true)
 	s.node.election.Reset()
-	logger.Infof("%s followerState.Start Term :%d", s.node.address, s.node.currentTerm.ID())
+	logger.Tracef("%s followerState.Start Term :%d", s.node.address, s.node.currentTerm.ID())
 }
 
 func (s *followerState) Update() bool {
@@ -47,12 +47,13 @@ func (s *followerState) Update() bool {
 					//logger.Tracef("followerState.Update %s lastApplied %d==>%d",state.node.address, lastApplied,state.node.stateMachine.lastApplied)
 					ch <- true
 				}(ch)
+				timer := time.NewTimer(defaultCommandTimeout)
 				select {
 				case <-ch:
+					timer.Stop()
 					close(ch)
-				case <-time.After(time.Minute):
+				case <-timer.C:
 					logger.Tracef("%s followerState.Update applyCommited time out", s.node.address)
-					logger.Tracef("%s followerState.Update first-%d last-%d", s.node.address, s.node.firstLogIndex, s.node.lastLogIndex)
 				}
 			}()
 			return true

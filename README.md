@@ -23,12 +23,6 @@ go get github.com/hslam/raft
 import "github.com/hslam/raft"
 ```
 
-## Projects
-
-* [HelloWorld](https://github.com/hslam/raft/tree/master/examples/helloworld "helloworld")
-* [Example](https://github.com/hslam/raft/tree/master/examples/example "example")
-* [RaftDB](https://github.com/hslam/raftdb "raftdb")
-
 ### [HelloWorld](https://github.com/hslam/raft/tree/master/examples/helloworld "helloworld")
 
 * Leader Election

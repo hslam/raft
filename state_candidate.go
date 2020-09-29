@@ -23,7 +23,7 @@ func (s *candidateState) Start() {
 	s.node.votedFor.Set(s.node.address)
 	s.node.leader = ""
 	s.node.requestVotes()
-	logger.Infof("%s candidateState.Start Term :%d", s.node.address, s.node.currentTerm.ID())
+	logger.Tracef("%s candidateState.Start Term :%d", s.node.address, s.node.currentTerm.ID())
 }
 func (s *candidateState) Update() bool {
 	return false

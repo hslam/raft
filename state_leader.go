@@ -31,11 +31,11 @@ func newLeaderState(n *node) state {
 }
 
 func (s *leaderState) Start() {
-	logger.Debugf("%s leaderState.Start %s nextIndex:%d", s.node.address, s.node.address, s.node.nextIndex)
+	logger.Tracef("%s leaderState.Start %s nextIndex:%d", s.node.address, s.node.address, s.node.nextIndex)
 	if len(s.node.peers) > 0 {
 		for _, v := range s.node.peers {
 			v.nextIndex = 0
-			logger.Debugf("%s leaderState.Start %s nextIndex:%d", s.node.address, v.address, v.nextIndex)
+			logger.Tracef("%s leaderState.Start %s nextIndex:%d", s.node.address, v.address, v.nextIndex)
 		}
 	}
 	s.node.pipeline.init(s.node.lastLogIndex)
@@ -43,10 +43,10 @@ func (s *leaderState) Start() {
 	s.node.lease = true
 	s.node.election.Random(false)
 	s.node.election.Reset()
-	logger.Infof("%s leaderState.Start Term:%d", s.node.address, s.node.currentTerm.ID())
+	logger.Tracef("%s leaderState.Start Term:%d", s.node.address, s.node.currentTerm.ID())
 	go func(n *node, term uint64) {
 		noOperationCommand := NewNoOperationCommand()
-		if ok, _ := n.do(noOperationCommand, time.Minute*10); ok != nil {
+		if ok, _ := n.do(noOperationCommand, defaultCommandTimeout*10); ok != nil {
 			if n.currentTerm.ID() == term {
 				n.ready = true
 				return

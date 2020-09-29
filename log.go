@@ -277,7 +277,14 @@ func (l *waLog) appendEntries(entries []*Entry) bool {
 	if l.node.lastLogIndex != entries[0].Index-1 {
 		return false
 	}
+	//start := time.Now()
 	l.Write(entries)
+	//logger.Debugf("l.appendEntries %s Write Time %v", l.node.address, time.Now().Sub(start))
+	//start = time.Now()
+	//if !l.node.isLeader() || (l.node.isLeader() && l.node.votingsCount() < 2) {
+	//	l.wal.Sync()
+	//	//logger.Debugf("l.appendEntries %s Write Sync %v", l.node.address, time.Now().Sub(start))
+	//}
 	l.node.lastLogIndex = entries[len(entries)-1].Index
 	l.node.lastLogTerm = entries[len(entries)-1].Term
 	l.putEmtyEntries(entries)

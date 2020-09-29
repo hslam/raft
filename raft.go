@@ -54,8 +54,10 @@ func (r *raft) RequestVote(addr string) (ok bool) {
 	call.Reply = &RequestVoteResponse{}
 	call.Done = done
 	r.node.rpcs.RoundTrip(addr, call)
+	timer := time.NewTimer(r.requestVoteTimeout)
 	select {
 	case call := <-done:
+		timer.Stop()
 		for len(done) > 0 {
 			<-done
 		}
@@ -80,7 +82,7 @@ func (r *raft) RequestVote(addr string) (ok bool) {
 			r.node.votes.vote <- newVote(addr, req.Term, 0)
 		}
 		return true
-	case <-time.After(r.requestVoteTimeout):
+	case <-timer.C:
 		logger.Tracef("raft.RequestVote %s recv %s vote time out", r.node.address, addr)
 		r.node.votes.vote <- newVote(addr, req.Term, 0)
 	}
@@ -106,8 +108,10 @@ func (r *raft) AppendEntries(addr string, prevLogIndex, prevLogTerm uint64, entr
 	call.Reply = &AppendEntriesResponse{}
 	call.Done = done
 	r.node.rpcs.RoundTrip(addr, call)
+	timer := time.NewTimer(timeout)
 	select {
 	case call := <-done:
+		timer.Stop()
 		for len(done) > 0 {
 			<-done
 		}
@@ -130,7 +134,7 @@ func (r *raft) AppendEntries(addr string, prevLogIndex, prevLogTerm uint64, entr
 		}
 		//logger.Tracef("raft.AppendEntries %s -> %s",r.node.address,addr)
 		return res.NextIndex, res.Term, res.Success, true
-	case <-time.After(timeout):
+	case <-timer.C:
 		logger.Tracef("raft.AppendEntries %s -> %s time out", r.node.address, addr)
 	}
 	return 0, 0, false, false
@@ -152,8 +156,10 @@ func (r *raft) InstallSnapshot(addr string, LastIncludedIndex, LastIncludedTerm,
 	call.Reply = &InstallSnapshotResponse{}
 	call.Done = done
 	r.node.rpcs.RoundTrip(addr, call)
+	timer := time.NewTimer(r.installSnapshotTimeout)
 	select {
 	case call := <-done:
+		timer.Stop()
 		for len(done) > 0 {
 			<-done
 		}
@@ -173,7 +179,7 @@ func (r *raft) InstallSnapshot(addr string, LastIncludedIndex, LastIncludedTerm,
 		}
 		//logger.Tracef("raft.InstallSnapshot %s -> %s offset %d",r.node.address,addr,res.Offset)
 		return res.Offset, res.NextIndex, true
-	case <-time.After(r.installSnapshotTimeout):
+	case <-timer.C:
 		logger.Tracef("raft.InstallSnapshot %s -> %s time out", r.node.address, addr)
 	}
 	return 0, 0, false

@@ -30,7 +30,6 @@ type pipeline struct {
 	max            int
 	min            int64
 	lastTime       time.Time
-	triggerCnt     int64
 	trigger        chan bool
 }
 
@@ -143,9 +142,9 @@ func (p *pipeline) write(i *invoker) {
 		p.updateLatency(time.Now().UnixNano() - start)
 	}
 	p.bMutex.Unlock()
-	if atomic.LoadInt64(&p.triggerCnt) < 1 {
-		atomic.AddInt64(&p.triggerCnt, 1)
-		p.trigger <- true
+	select {
+	case p.trigger <- true:
+	default:
 	}
 }
 func (p *pipeline) run() {
@@ -169,7 +168,6 @@ func (p *pipeline) run() {
 		case <-p.trigger:
 			d = p.sleepTime()
 			time.Sleep(time.Duration(d))
-			atomic.StoreInt64(&p.triggerCnt, 0)
 		case <-p.done:
 			return
 		}
@@ -206,7 +204,9 @@ func (p *pipeline) read() {
 				p.applyIndex++
 				p.mutex.Unlock()
 			}
-			time.Sleep(p.sleepTime() / 50)
+			d := p.sleepTime() / 50
+			time.Sleep(d)
+			//logger.Tracef("pipeline.read sleepTime-%v", d)
 		} else {
 			time.Sleep(p.sleepTime())
 		}

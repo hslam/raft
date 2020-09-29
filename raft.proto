@@ -9,7 +9,6 @@ message Entry {
     bytes       Command     = 4;
 }
 
-
 message RequestVoteRequest {
     uint64      Term         = 1;
     string      CandidateId  = 2;
@@ -30,7 +29,6 @@ message AppendEntriesRequest {
     uint64          LeaderCommit    = 5;
     repeated Entry  Entries         = 6;
 }
-
 
 message AppendEntriesResponse {
     uint64      Term            = 1;
@@ -54,15 +52,14 @@ message InstallSnapshotResponse {
     uint64  NextIndex   = 3;
 }
 
-
-message ConfigurationStorage {
-    repeated NodeInfo Nodes       = 1;
-}
-
 message NodeInfo {
     string          Address     = 1;
     bool            NonVoting   = 2;
     bytes           Data        = 3;
+}
+
+message ConfigurationStorage {
+    repeated NodeInfo Nodes       = 1;
 }
 
 message AddPeerCommand {

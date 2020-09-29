@@ -100,7 +100,7 @@ func (c *configuration) load() error {
 		c.nodes[v.Address] = v
 	}
 	if !c.membershipChanges() {
-		logger.Infof("configuration.reconfiguration !membershipChanges")
+		logger.Tracef("configuration.reconfiguration !membershipChanges")
 		return nil
 	}
 	lastNodesCount := c.node.NodesCount()
@@ -110,7 +110,7 @@ func (c *configuration) load() error {
 	}
 	nodesCount := c.node.NodesCount()
 	if lastNodesCount != nodesCount {
-		logger.Infof("configuration.load %s NodesCount %d==>%d", c.node.address, lastNodesCount, nodesCount)
+		logger.Tracef("configuration.load %s NodesCount %d==>%d", c.node.address, lastNodesCount, nodesCount)
 	}
 	return nil
 }
