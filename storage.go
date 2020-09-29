@@ -75,18 +75,18 @@ func (s *storage) Exists(fileName string) bool {
 }
 func (s *storage) MkDir(dirName string) {
 	if err := os.MkdirAll(dirName, 0744); err != nil {
-		Errorf("Unable to create path: %v", err)
+		logger.Errorf("Unable to create path: %v", err)
 	}
 }
 func (s *storage) RmDir(dirName string) {
 	if err := os.RemoveAll(dirName); err != nil {
-		Errorf("Unable to RmDir path: %v", err)
+		logger.Errorf("Unable to RmDir path: %v", err)
 	}
 }
 func (s *storage) Rm(fileName string) {
 	filePath := path.Join(s.dataDir, fileName)
 	if err := os.Remove(filePath); err != nil {
-		Errorf("Unable to Rm path: %v", err)
+		logger.Errorf("Unable to Rm path: %v", err)
 	}
 }
 func (s *storage) SafeOverWrite(fileName string, data []byte) error {

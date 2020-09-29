@@ -157,7 +157,7 @@ func (l *waLog) deleteBefore(index uint64) {
 	defer l.pause(false)
 	l.wal.Clean(index)
 	l.node.firstLogIndex, _ = l.wal.FirstIndex()
-	Tracef("l.deleteBefore %s deleteBefore %d", l.node.address, index)
+	logger.Tracef("l.deleteBefore %s deleteBefore %d", l.node.address, index)
 }
 func (l *waLog) startIndex(index uint64) uint64 {
 	return maxUint64(l.node.firstLogIndex, index)
@@ -174,7 +174,7 @@ func (l *waLog) copyAfter(index uint64, max int) (entries []*Entry) {
 	return l.copyRange(startIndex, endIndex)
 }
 func (l *waLog) copyRange(startIndex uint64, endIndex uint64) []*Entry {
-	//Tracef("l.copyRange %s startIndex %d endIndex %d",l.node.address,metas[0].Index,metas[len(metas)-1].Index)
+	//logger.Tracef("l.copyRange %s startIndex %d endIndex %d",l.node.address,metas[0].Index,metas[len(metas)-1].Index)
 	return l.batchRead(startIndex, endIndex)
 }
 
@@ -239,14 +239,14 @@ func (l *waLog) applyCommitedEnd(endIndex uint64) {
 }
 
 func (l *waLog) applyCommitedRange(startIndex uint64, endIndex uint64) {
-	//Tracef("l.applyCommitedRange %s startIndex %d endIndex %d Start",l.node.address,startIndex,endIndex)
+	//logger.Tracef("l.applyCommitedRange %s startIndex %d endIndex %d Start",l.node.address,startIndex,endIndex)
 	entries := l.copyRange(startIndex, endIndex)
 	if entries == nil || len(entries) == 0 {
 		return
 	}
-	//Tracef("l.applyCommitedRange %s startIndex %d endIndex %d length %d",l.node.address,startIndex,endIndex,len(entries))
+	//logger.Tracef("l.applyCommitedRange %s startIndex %d endIndex %d length %d",l.node.address,startIndex,endIndex,len(entries))
 	for i := 0; i < len(entries); i++ {
-		//Tracef("l.applyCommitedRange %s Index %d Type %d",l.node.address,entries[i].Index,entries[i].CommandType)
+		//logger.Tracef("l.applyCommitedRange %s Index %d Type %d",l.node.address,entries[i].Index,entries[i].CommandType)
 		command := l.node.commands.clone(entries[i].CommandType)
 		var err error
 		if entries[i].CommandType >= 0 {
@@ -257,12 +257,12 @@ func (l *waLog) applyCommitedRange(startIndex uint64, endIndex uint64) {
 		if err == nil {
 			l.node.stateMachine.apply(entries[i].Index, command)
 		} else {
-			Errorf("l.applyCommitedRange %s %d error %s", l.node.address, i, err)
+			logger.Errorf("l.applyCommitedRange %s %d error %s", l.node.address, i, err)
 		}
 		l.node.commands.put(command)
 	}
 	l.putEmtyEntries(entries)
-	//Tracef("l.applyCommitedRange %s startIndex %d endIndex %d End %d",l.node.address,startIndex,endIndex,len(entries))
+	//logger.Tracef("l.applyCommitedRange %s startIndex %d endIndex %d End %d",l.node.address,startIndex,endIndex,len(entries))
 }
 
 func (l *waLog) appendEntries(entries []*Entry) bool {
@@ -281,7 +281,7 @@ func (l *waLog) appendEntries(entries []*Entry) bool {
 	l.node.lastLogIndex = entries[len(entries)-1].Index
 	l.node.lastLogTerm = entries[len(entries)-1].Term
 	l.putEmtyEntries(entries)
-	//Tracef("l.appendEntries %s entries %d", l.node.address, len(entries))
+	//logger.Tracef("l.appendEntries %s entries %d", l.node.address, len(entries))
 	return true
 }
 func (l *waLog) read(index uint64) *Entry {
@@ -292,7 +292,7 @@ func (l *waLog) read(index uint64) *Entry {
 	entry := l.getEmtyEntry()
 	err = l.node.raftCodec.Unmarshal(b, entry)
 	if err != nil {
-		Errorf("l.Decode %s", string(b))
+		logger.Errorf("l.Decode %s", string(b))
 		return nil
 	}
 	return entry
@@ -328,7 +328,7 @@ func (l *waLog) load() (err error) {
 		}
 	}
 	if l.node.lastLogIndex > lastLogIndex {
-		Tracef("l.recover %s lastLogIndex %d", l.node.address, lastLogIndex)
+		logger.Tracef("l.recover %s lastLogIndex %d", l.node.address, lastLogIndex)
 	}
 	return nil
 }
@@ -344,7 +344,7 @@ func (l *waLog) Write(entries []*Entry) (err error) {
 			return err
 		}
 	}
-	//Tracef("l.Write %d", len(entries))
+	//logger.Tracef("l.Write %d", len(entries))
 	return l.wal.FlushAndSync()
 }
 
@@ -383,9 +383,9 @@ func (l *waLog) compaction() error {
 	//	l.node.lastLogTerm=l.entries[len(l.entries)-1].Term
 	//}
 	//var logSize ,_= l.node.storage.Size(DefaultLog)
-	//Tracef("l.compaction %s LogSize %d==>%d",l.node.address,lastLogSize,logSize)
+	//logger.Tracef("l.compaction %s LogSize %d==>%d",l.node.address,lastLogSize,logSize)
 	//l.saveMd5()
-	//Tracef("l.compaction %s md5 %s==>%s",l.node.address,md5,l.node.storage.MD5(DefaultLog))
+	//logger.Tracef("l.compaction %s md5 %s==>%s",l.node.address,md5,l.node.storage.MD5(DefaultLog))
 	return nil
 }
 func (l *waLog) saveMd5() {

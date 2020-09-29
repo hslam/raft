@@ -179,5 +179,5 @@ ThreeNodes Write     RPC       118325     33.74ms 9.76ms  33.40ms 71.38ms  81.32
 ## Licence
 This package is licenced under a MIT licence (Copyright (c) 2019 Meng Huang)
 
-## Authors
+## Author
 raft was written by Meng Huang.

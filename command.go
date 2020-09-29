@@ -41,7 +41,7 @@ func (c *commands) clone(Type int32) Command {
 	if commandPool, ok := c.types[Type]; ok {
 		return commandPool.Get().(Command)
 	}
-	Debugf("CommandType.clone Unregistered %d", Type)
+	logger.Debugf("CommandType.clone Unregistered %d", Type)
 	return nil
 }
 

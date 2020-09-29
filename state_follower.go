@@ -13,7 +13,7 @@ type followerState struct {
 }
 
 func newFollowerState(n *node) state {
-	//Tracef("%s newFollowerState",node.address)
+	//logger.Tracef("%s newFollowerState",node.address)
 	s := &followerState{
 		node: n,
 		work: true,
@@ -27,7 +27,7 @@ func (s *followerState) Start() {
 	s.node.leader = ""
 	s.node.election.Random(true)
 	s.node.election.Reset()
-	Infof("%s followerState.Start Term :%d", s.node.address, s.node.currentTerm.ID())
+	logger.Infof("%s followerState.Start Term :%d", s.node.address, s.node.currentTerm.ID())
 }
 
 func (s *followerState) Update() bool {
@@ -44,15 +44,15 @@ func (s *followerState) Update() bool {
 					}()
 					//var lastApplied=state.node.stateMachine.lastApplied
 					s.node.log.applyCommited()
-					//Tracef("followerState.Update %s lastApplied %d==>%d",state.node.address, lastApplied,state.node.stateMachine.lastApplied)
+					//logger.Tracef("followerState.Update %s lastApplied %d==>%d",state.node.address, lastApplied,state.node.stateMachine.lastApplied)
 					ch <- true
 				}(ch)
 				select {
 				case <-ch:
 					close(ch)
 				case <-time.After(time.Minute):
-					Tracef("%s followerState.Update applyCommited time out", s.node.address)
-					Tracef("%s followerState.Update first-%d last-%d", s.node.address, s.node.firstLogIndex, s.node.lastLogIndex)
+					logger.Tracef("%s followerState.Update applyCommited time out", s.node.address)
+					logger.Tracef("%s followerState.Update first-%d last-%d", s.node.address, s.node.firstLogIndex, s.node.lastLogIndex)
 				}
 			}()
 			return true
@@ -68,7 +68,7 @@ func (s *followerState) FixedUpdate() {
 		if !s.node.voting() {
 			return
 		}
-		Tracef("%s followerState.FixedUpdate ElectionTimeout", s.node.address)
+		logger.Tracef("%s followerState.FixedUpdate ElectionTimeout", s.node.address)
 		s.node.nextState()
 		return
 	}
@@ -78,7 +78,7 @@ func (s *followerState) String() string {
 }
 
 func (s *followerState) StepDown() state {
-	Tracef("%s followerState.StepDown", s.node.address)
+	logger.Tracef("%s followerState.StepDown", s.node.address)
 	s.Start()
 	return s
 }
@@ -86,6 +86,6 @@ func (s *followerState) NextState() state {
 	if !s.node.voting() {
 		return s
 	}
-	Tracef("%s followerState.NextState", s.node.address)
+	logger.Tracef("%s followerState.NextState", s.node.address)
 	return newCandidateState(s.node)
 }

@@ -100,7 +100,7 @@ func (c *configuration) load() error {
 		c.nodes[v.Address] = v
 	}
 	if !c.membershipChanges() {
-		Infof("configuration.reconfiguration !membershipChanges")
+		logger.Infof("configuration.reconfiguration !membershipChanges")
 		return nil
 	}
 	lastNodesCount := c.node.NodesCount()
@@ -110,7 +110,7 @@ func (c *configuration) load() error {
 	}
 	nodesCount := c.node.NodesCount()
 	if lastNodesCount != nodesCount {
-		Infof("configuration.load %s NodesCount %d==>%d", c.node.address, lastNodesCount, nodesCount)
+		logger.Infof("configuration.load %s NodesCount %d==>%d", c.node.address, lastNodesCount, nodesCount)
 	}
 	return nil
 }
@@ -119,7 +119,7 @@ func (c *configuration) reconfiguration() error {
 	c.node.consideredForMajorities()
 	votingsCount := c.node.votingsCount()
 	if lastVotingsCount != votingsCount {
-		Tracef("configuration.load %s VotingsCount %d==>%d", c.node.address, lastVotingsCount, votingsCount)
+		logger.Tracef("configuration.load %s VotingsCount %d==>%d", c.node.address, lastVotingsCount, votingsCount)
 	}
 	return nil
 }

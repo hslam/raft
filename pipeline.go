@@ -50,7 +50,7 @@ func newPipeline(n *node) *pipeline {
 }
 
 func (p *pipeline) init(lastLogIndex uint64) {
-	//Tracef("pipeline.init %d", lastLogIndex)
+	//logger.Tracef("pipeline.init %d", lastLogIndex)
 	p.applyIndex = lastLogIndex + 1
 }
 func (p *pipeline) concurrency() (n int) {
@@ -81,7 +81,7 @@ func (p *pipeline) updateLatency(d int64) (n int64) {
 			min = p.latencys[i]
 		}
 	}
-	//Tracef("pipeline.updateLatency %v,%d", p.latencys, min)
+	//logger.Tracef("pipeline.updateLatency %v,%d", p.latencys, min)
 	p.min = min
 	return p.min
 }
@@ -89,7 +89,7 @@ func (p *pipeline) minLatency() int64 {
 	p.mutex.Lock()
 	min := p.min
 	p.mutex.Unlock()
-	//Tracef("pipeline.minLatency%d", min)
+	//logger.Tracef("pipeline.minLatency%d", min)
 	return min
 }
 
@@ -118,7 +118,7 @@ func (p *pipeline) write(i *invoker) {
 	p.pending[i.index] = i
 	p.mutex.Unlock()
 	concurrency := p.concurrency()
-	//Tracef("pipeline.write concurrency-%d", concurrency)
+	//logger.Tracef("pipeline.write concurrency-%d", concurrency)
 	var data []byte
 	if i.Command.Type() >= 0 {
 		b, _ := p.node.codec.Marshal(p.buffer, i.Command)
@@ -181,7 +181,7 @@ func (p *pipeline) read() {
 	for err == nil {
 		if p.node.isLeader() {
 			if p.applyIndex-1 > p.node.stateMachine.lastApplied && p.node.commitIndex > p.node.stateMachine.lastApplied {
-				//Tracef("pipeline.read commitIndex-%d", p.node.commitIndex)
+				//logger.Tracef("pipeline.read commitIndex-%d", p.node.commitIndex)
 				p.node.log.applyCommitedEnd(p.applyIndex - 1)
 			}
 			for p.applyIndex <= p.node.commitIndex {

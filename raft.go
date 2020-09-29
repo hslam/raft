@@ -61,7 +61,7 @@ func (r *raft) RequestVote(addr string) (ok bool) {
 		}
 		r.donePool.Put(done)
 		if call.Error != nil {
-			Tracef("raft.RequestVote %s recv %s vote error %s", r.node.address, addr, call.Error.Error())
+			logger.Tracef("raft.RequestVote %s recv %s vote error %s", r.node.address, addr, call.Error.Error())
 			*call = rpc.Call{}
 			r.callPool.Put(call)
 			return false
@@ -73,7 +73,7 @@ func (r *raft) RequestVote(addr string) (ok bool) {
 			r.node.currentTerm.Set(res.Term)
 			r.node.stepDown()
 		}
-		//Tracef("raft.RequestVote %s recv %s vote %t",r.node.address,addr,res.VoteGranted)
+		//logger.Tracef("raft.RequestVote %s recv %s vote %t",r.node.address,addr,res.VoteGranted)
 		if res.VoteGranted {
 			r.node.votes.vote <- newVote(addr, req.Term, 1)
 		} else {
@@ -81,7 +81,7 @@ func (r *raft) RequestVote(addr string) (ok bool) {
 		}
 		return true
 	case <-time.After(r.requestVoteTimeout):
-		Tracef("raft.RequestVote %s recv %s vote time out", r.node.address, addr)
+		logger.Tracef("raft.RequestVote %s recv %s vote time out", r.node.address, addr)
 		r.node.votes.vote <- newVote(addr, req.Term, 0)
 	}
 	return false
@@ -113,7 +113,7 @@ func (r *raft) AppendEntries(addr string, prevLogIndex, prevLogTerm uint64, entr
 		}
 		r.donePool.Put(done)
 		if call.Error != nil {
-			Tracef("raft.AppendEntries %s -> %s error %s", r.node.address, addr, call.Error.Error())
+			logger.Tracef("raft.AppendEntries %s -> %s error %s", r.node.address, addr, call.Error.Error())
 			*call = rpc.Call{}
 			r.callPool.Put(call)
 			return 0, 0, false, false
@@ -128,10 +128,10 @@ func (r *raft) AppendEntries(addr string, prevLogIndex, prevLogTerm uint64, entr
 				return res.NextIndex, res.Term, false, true
 			}
 		}
-		//Tracef("raft.AppendEntries %s -> %s",r.node.address,addr)
+		//logger.Tracef("raft.AppendEntries %s -> %s",r.node.address,addr)
 		return res.NextIndex, res.Term, res.Success, true
 	case <-time.After(timeout):
-		Tracef("raft.AppendEntries %s -> %s time out", r.node.address, addr)
+		logger.Tracef("raft.AppendEntries %s -> %s time out", r.node.address, addr)
 	}
 	return 0, 0, false, false
 }
@@ -159,7 +159,7 @@ func (r *raft) InstallSnapshot(addr string, LastIncludedIndex, LastIncludedTerm,
 		}
 		r.donePool.Put(done)
 		if call.Error != nil {
-			Tracef("raft.InstallSnapshot %s -> %s error %s", r.node.address, addr, call.Error.Error())
+			logger.Tracef("raft.InstallSnapshot %s -> %s error %s", r.node.address, addr, call.Error.Error())
 			*call = rpc.Call{}
 			r.callPool.Put(call)
 			return 0, 0, false
@@ -171,10 +171,10 @@ func (r *raft) InstallSnapshot(addr string, LastIncludedIndex, LastIncludedTerm,
 			r.node.currentTerm.Set(res.Term)
 			r.node.stepDown()
 		}
-		//Tracef("raft.InstallSnapshot %s -> %s offset %d",r.node.address,addr,res.Offset)
+		//logger.Tracef("raft.InstallSnapshot %s -> %s offset %d",r.node.address,addr,res.Offset)
 		return res.Offset, res.NextIndex, true
 	case <-time.After(r.installSnapshotTimeout):
-		Tracef("raft.InstallSnapshot %s -> %s time out", r.node.address, addr)
+		logger.Tracef("raft.InstallSnapshot %s -> %s time out", r.node.address, addr)
 	}
 	return 0, 0, false
 }
@@ -218,7 +218,7 @@ func (r *raft) HandleAppendEntries(req *AppendEntriesRequest, res *AppendEntries
 	if r.node.leader == "" {
 		r.node.votedFor.Set(req.LeaderId)
 		r.node.leader = req.LeaderId
-		Tracef("raft.HandleAppendEntries %s State:%s leader-%s Term:%d", r.node.address, r.node.State(), r.node.leader, r.node.currentTerm.ID())
+		logger.Tracef("raft.HandleAppendEntries %s State:%s leader-%s Term:%d", r.node.address, r.node.State(), r.node.leader, r.node.currentTerm.ID())
 	}
 	if r.node.leader != req.LeaderId {
 		res.Success = false
@@ -227,7 +227,7 @@ func (r *raft) HandleAppendEntries(req *AppendEntriesRequest, res *AppendEntries
 	}
 	if r.node.state.String() == leader || r.node.state.String() == candidate {
 		r.node.stepDown()
-		Tracef("raft.HandleAppendEntries %s State:%s Term:%d", r.node.address, r.node.State(), r.node.currentTerm.ID())
+		logger.Tracef("raft.HandleAppendEntries %s State:%s Term:%d", r.node.address, r.node.State(), r.node.currentTerm.ID())
 	}
 	r.node.election.Reset()
 	if req.PrevLogIndex == 0 && req.PrevLogTerm == 0 && len(req.Entries) == 0 {
@@ -245,10 +245,10 @@ func (r *raft) HandleAppendEntries(req *AppendEntriesRequest, res *AppendEntries
 		//var commitIndex=r.node.commitIndex
 		r.node.commitIndex = minUint64(req.LeaderCommit, r.node.lastLogIndex)
 		//if r.node.commitIndex>commitIndex{
-		//	Tracef("raft.HandleAppendEntries %s commitIndex %d==>%d",r.node.address, commitIndex,r.node.commitIndex)
+		//	logger.Tracef("raft.HandleAppendEntries %s commitIndex %d==>%d",r.node.address, commitIndex,r.node.commitIndex)
 		//}
 	}
-	//Tracef("raft.HandleAppendEntries %s len%d PrevLogIndex%d lastLogIndex%d", r.node.address, len(req.Entries), req.PrevLogIndex, r.node.lastLogIndex)
+	//logger.Tracef("raft.HandleAppendEntries %s len%d PrevLogIndex%d lastLogIndex%d", r.node.address, len(req.Entries), req.PrevLogIndex, r.node.lastLogIndex)
 	if len(req.Entries) > 0 && req.PrevLogIndex == r.node.lastLogIndex {
 		if req.PrevLogIndex+1 == req.Entries[0].Index {
 			res.Success = r.node.log.appendEntries(req.Entries)
@@ -269,7 +269,7 @@ func (r *raft) HandleInstallSnapshot(req *InstallSnapshotRequest, res *InstallSn
 		r.node.currentTerm.Set(req.Term)
 		r.node.stepDown()
 	}
-	Tracef("raft.HandleInstallSnapshot offset %d len %d done %t", req.Offset, len(req.Data), req.Done)
+	logger.Tracef("raft.HandleInstallSnapshot offset %d len %d done %t", req.Offset, len(req.Data), req.Done)
 	if req.Offset == 0 {
 		r.node.stateMachine.snapshotReadWriter.clear()
 		r.node.stateMachine.snapshotReadWriter.done = false

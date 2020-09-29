@@ -256,7 +256,7 @@ func (s *snapshotReadWriter) tar() error {
 	if s.gzip {
 		s.gz()
 	}
-	Tracef("snapshotReadWriter.tar %s lastTarIndex %d==>%d", s.node.address, lastTarIndex, s.lastTarIndex.ID())
+	logger.Tracef("snapshotReadWriter.tar %s lastTarIndex %d==>%d", s.node.address, lastTarIndex, s.lastTarIndex.ID())
 	s.done = true
 	if s.gzip {
 		s.node.storage.Rm(s.tarName)
@@ -270,7 +270,7 @@ func (s *snapshotReadWriter) untar() error {
 	if !s.done {
 		return nil
 	}
-	//Tracef("snapshotReadWriter.untar gzip %t", s.gzip)
+	//logger.Tracef("snapshotReadWriter.untar gzip %t", s.gzip)
 	if s.gzip {
 		s.ungz()
 	}

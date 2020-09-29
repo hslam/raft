@@ -17,7 +17,7 @@ type leaderState struct {
 }
 
 func newLeaderState(n *node) state {
-	//Tracef("%s newLeaderState",node.address)
+	//logger.Tracef("%s newLeaderState",node.address)
 	s := &leaderState{
 		once:            &sync.Once{},
 		node:            n,
@@ -31,11 +31,11 @@ func newLeaderState(n *node) state {
 }
 
 func (s *leaderState) Start() {
-	Debugf("%s leaderState.Start %s nextIndex:%d", s.node.address, s.node.address, s.node.nextIndex)
+	logger.Debugf("%s leaderState.Start %s nextIndex:%d", s.node.address, s.node.address, s.node.nextIndex)
 	if len(s.node.peers) > 0 {
 		for _, v := range s.node.peers {
 			v.nextIndex = 0
-			Debugf("%s leaderState.Start %s nextIndex:%d", s.node.address, v.address, v.nextIndex)
+			logger.Debugf("%s leaderState.Start %s nextIndex:%d", s.node.address, v.address, v.nextIndex)
 		}
 	}
 	s.node.pipeline.init(s.node.lastLogIndex)
@@ -43,7 +43,7 @@ func (s *leaderState) Start() {
 	s.node.lease = true
 	s.node.election.Random(false)
 	s.node.election.Reset()
-	Infof("%s leaderState.Start Term:%d", s.node.address, s.node.currentTerm.ID())
+	logger.Infof("%s leaderState.Start Term:%d", s.node.address, s.node.currentTerm.ID())
 	go func(n *node, term uint64) {
 		noOperationCommand := NewNoOperationCommand()
 		if ok, _ := n.do(noOperationCommand, time.Minute*10); ok != nil {
@@ -67,12 +67,12 @@ func (s *leaderState) FixedUpdate() {
 	if !s.node.voting() {
 		s.node.lease = false
 		s.node.stepDown()
-		Tracef("%s leaderState.FixedUpdate non-voting", s.node.address)
+		logger.Tracef("%s leaderState.FixedUpdate non-voting", s.node.address)
 		return
 	} else if s.node.election.Timeout() {
 		s.node.lease = false
 		s.node.stepDown()
-		Tracef("%s leaderState.FixedUpdate ElectionTimeout", s.node.address)
+		logger.Tracef("%s leaderState.FixedUpdate ElectionTimeout", s.node.address)
 		return
 	}
 	if s.node.AliveCount() >= s.node.Quorum() {
@@ -90,7 +90,7 @@ func (s *leaderState) StepDown() state {
 		if err := recover(); err != nil {
 		}
 	}()
-	Tracef("%s leaderState.StepDown", s.node.address)
+	logger.Tracef("%s leaderState.StepDown", s.node.address)
 	s.once.Do(func() {
 		s.stop <- true
 		if s.notice != nil {
@@ -107,7 +107,7 @@ func (s *leaderState) NextState() state {
 		if err := recover(); err != nil {
 		}
 	}()
-	Tracef("%s leaderState.NextState", s.node.address)
+	logger.Tracef("%s leaderState.NextState", s.node.address)
 	s.once.Do(func() {
 		s.stop <- true
 		if s.notice != nil {

@@ -67,10 +67,10 @@ func (p *peer) appendEntries(entries []*Entry) (nextIndex uint64, term uint64, s
 			prevLogTerm = entry.Term
 		}
 	}
-	//Tracef("Peer.run %s %d %d %d ",p.address,prevLogIndex,prevLogTerm,len(entries))
+	//logger.Tracef("Peer.run %s %d %d %d ",p.address,prevLogIndex,prevLogTerm,len(entries))
 	nextIndex, term, success, ok = p.node.raft.AppendEntries(p.address, prevLogIndex, prevLogTerm, entries)
 	if success && ok {
-		//Tracef("Peer.run %s nextIndex %d==>%d",p.address,p.nextIndex,nextIndex)
+		//logger.Tracef("Peer.run %s nextIndex %d==>%d",p.address,p.nextIndex,nextIndex)
 		p.nextIndex = nextIndex
 	} else if ok && term == p.node.currentTerm.ID() {
 		p.nextIndex = nextIndex
@@ -88,13 +88,13 @@ func (p *peer) installSnapshot(offset uint64, data []byte, Done bool) (recvOffse
 	if nextIndex > 0 {
 		p.nextIndex = nextIndex
 	}
-	//Debugf("Peer.installSnapshot %s %d %d %t",p.address,offset,len(data),Done)
+	//logger.Debugf("Peer.installSnapshot %s %d %d %t",p.address,offset,len(data),Done)
 	return
 }
 
 func (p *peer) ping() {
 	p.alive = p.node.rpcs.Ping(p.address)
-	//Debugf("Peer.ping %s %t",p.address,p.alive)
+	//logger.Debugf("Peer.ping %s %t",p.address,p.alive)
 }
 
 func (p *peer) voting() bool {
@@ -109,7 +109,7 @@ func (p *peer) check() {
 				defer func() {
 					p.install = true
 				}()
-				//Debugf("Peer.check %s %d %d", p.address, p.nextIndex, p.node.firstLogIndex)
+				//logger.Debugf("Peer.check %s %d %d", p.address, p.nextIndex, p.node.firstLogIndex)
 				if p.node.storage.IsEmpty(p.node.stateMachine.snapshotReadWriter.FileName()) && p.tarWork {
 					p.tarWork = false
 					go func() {
@@ -201,7 +201,7 @@ func (p *peer) check() {
 					}()
 					entries := p.node.log.copyAfter(p.nextIndex, defaultMaxBatch)
 					if len(entries) > 0 {
-						//Debugf("Peer.check %s send %d %d %d", p.address, p.nextIndex, p.node.firstLogIndex, len(entries))
+						//logger.Debugf("Peer.check %s send %d %d %d", p.address, p.nextIndex, p.node.firstLogIndex, len(entries))
 						p.appendEntries(entries)
 					}
 				}()

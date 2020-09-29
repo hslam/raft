@@ -55,7 +55,7 @@ func (p *proxy) QueryLeader(addr string) (term uint64, leaderID string, ok bool)
 		}
 		p.donePool.Put(done)
 		if call.Error != nil {
-			Tracef("raft.QueryLeader %s -> %s error %s", p.node.address, addr, call.Error.Error())
+			logger.Tracef("raft.QueryLeader %s -> %s error %s", p.node.address, addr, call.Error.Error())
 			*call = rpc.Call{}
 			p.callPool.Put(call)
 			return 0, "", false
@@ -63,10 +63,10 @@ func (p *proxy) QueryLeader(addr string) (term uint64, leaderID string, ok bool)
 		res := call.Reply.(*QueryLeaderResponse)
 		*call = rpc.Call{}
 		p.callPool.Put(call)
-		Tracef("raft.QueryLeader %s -> %s LeaderId %s", p.node.address, addr, res.LeaderId)
+		logger.Tracef("raft.QueryLeader %s -> %s LeaderId %s", p.node.address, addr, res.LeaderId)
 		return res.Term, res.LeaderId, true
 	case <-time.After(p.addPeerTimeout):
-		Tracef("raft.QueryLeader %s -> %s time out", p.node.address, addr)
+		logger.Tracef("raft.QueryLeader %s -> %s time out", p.node.address, addr)
 	}
 	return 0, "", false
 }
@@ -87,7 +87,7 @@ func (p *proxy) AddPeer(addr string, info *NodeInfo) (success bool, ok bool) {
 		}
 		p.donePool.Put(done)
 		if call.Error != nil {
-			Tracef("raft.AddPeer %s -> %s error %s", p.node.address, addr, call.Error.Error())
+			logger.Tracef("raft.AddPeer %s -> %s error %s", p.node.address, addr, call.Error.Error())
 			*call = rpc.Call{}
 			p.callPool.Put(call)
 			return false, false
@@ -95,10 +95,10 @@ func (p *proxy) AddPeer(addr string, info *NodeInfo) (success bool, ok bool) {
 		res := call.Reply.(*AddPeerResponse)
 		*call = rpc.Call{}
 		p.callPool.Put(call)
-		Tracef("raft.AddPeer %s -> %s Success %t", p.node.address, addr, res.Success)
+		logger.Tracef("raft.AddPeer %s -> %s Success %t", p.node.address, addr, res.Success)
 		return res.Success, true
 	case <-time.After(p.addPeerTimeout):
-		Tracef("raft.AddPeer %s -> %s time out", p.node.address, addr)
+		logger.Tracef("raft.AddPeer %s -> %s time out", p.node.address, addr)
 	}
 	return false, false
 }
@@ -119,7 +119,7 @@ func (p *proxy) RemovePeer(addr string, Address string) (success bool, ok bool) 
 		}
 		p.donePool.Put(done)
 		if call.Error != nil {
-			Tracef("raft.RemovePeer %s -> %s error %s", p.node.address, addr, call.Error.Error())
+			logger.Tracef("raft.RemovePeer %s -> %s error %s", p.node.address, addr, call.Error.Error())
 			*call = rpc.Call{}
 			p.callPool.Put(call)
 			return false, false
@@ -127,10 +127,10 @@ func (p *proxy) RemovePeer(addr string, Address string) (success bool, ok bool) 
 		res := call.Reply.(*RemovePeerResponse)
 		*call = rpc.Call{}
 		p.callPool.Put(call)
-		Tracef("raft.RemovePeer %s -> %s Success %t", p.node.address, addr, res.Success)
+		logger.Tracef("raft.RemovePeer %s -> %s Success %t", p.node.address, addr, res.Success)
 		return res.Success, true
 	case <-time.After(p.removePeerTimeout):
-		Tracef("raft.RemovePeer %s -> %s time out", p.node.address, addr)
+		logger.Tracef("raft.RemovePeer %s -> %s time out", p.node.address, addr)
 	}
 	return false, false
 }

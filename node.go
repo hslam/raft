@@ -795,7 +795,7 @@ func (n *node) load() {
 }
 
 func (n *node) recover() error {
-	Tracef("node.recover %s start", n.address)
+	logger.Tracef("node.recover %s start", n.address)
 	//if n.storage.IsEmpty(DefaultIndex) {
 	//	if !n.storage.IsEmpty(n.stateMachine.snapshotReadWriter.FileName()) {
 	//		n.stateMachine.snapshotReadWriter.untar()
@@ -824,7 +824,7 @@ func (n *node) recover() error {
 	n.log.applyCommited()
 	n.print()
 	recoverApplyStop <- true
-	Tracef("node.recover %s finish", n.address)
+	logger.Tracef("node.recover %s finish", n.address)
 	return nil
 }
 func (n *node) checkLog() error {
@@ -894,7 +894,7 @@ func (n *node) printPeers() {
 	defer n.nodesMut.RUnlock()
 	for _, v := range n.peers {
 		if v.nextIndex > v.lastPrintNextIndex {
-			Tracef("node.printPeers %s nextIndex %d==>%d", v.address, v.lastPrintNextIndex, v.nextIndex)
+			logger.Tracef("node.printPeers %s nextIndex %d==>%d", v.address, v.lastPrintNextIndex, v.nextIndex)
 			v.lastPrintNextIndex = v.nextIndex
 		}
 	}
@@ -902,23 +902,23 @@ func (n *node) printPeers() {
 
 func (n *node) print() {
 	if n.firstLogIndex > n.lastPrintFirstLogIndex {
-		Infof("node.print %s firstLogIndex %d==>%d", n.address, n.lastPrintFirstLogIndex, n.firstLogIndex)
+		logger.Infof("node.print %s firstLogIndex %d==>%d", n.address, n.lastPrintFirstLogIndex, n.firstLogIndex)
 		n.lastPrintFirstLogIndex = n.firstLogIndex
 	}
 	if n.lastLogIndex > n.lastPrintLastLogIndex {
-		Infof("node.print %s lastLogIndex %d==>%d", n.address, n.lastPrintLastLogIndex, n.lastLogIndex)
+		logger.Infof("node.print %s lastLogIndex %d==>%d", n.address, n.lastPrintLastLogIndex, n.lastLogIndex)
 		n.lastPrintLastLogIndex = n.lastLogIndex
 	}
 	if n.commitIndex > n.lastPrintCommitIndex {
-		Infof("node.print %s commitIndex %d==>%d", n.address, n.lastPrintCommitIndex, n.commitIndex)
+		logger.Infof("node.print %s commitIndex %d==>%d", n.address, n.lastPrintCommitIndex, n.commitIndex)
 		n.lastPrintCommitIndex = n.commitIndex
 	}
 	if n.stateMachine.lastApplied > n.lastPrintLastApplied {
-		Infof("node.print %s lastApplied %d==>%d", n.address, n.lastPrintLastApplied, n.stateMachine.lastApplied)
+		logger.Infof("node.print %s lastApplied %d==>%d", n.address, n.lastPrintLastApplied, n.stateMachine.lastApplied)
 		n.lastPrintLastApplied = n.stateMachine.lastApplied
 	}
 	if n.nextIndex > n.lastPrintNextIndex {
-		Infof("node.print %s nextIndex %d==>%d", n.address, n.lastPrintNextIndex, n.nextIndex)
+		logger.Infof("node.print %s nextIndex %d==>%d", n.address, n.lastPrintNextIndex, n.nextIndex)
 		n.lastPrintNextIndex = n.nextIndex
 	}
 	n.printPeers()
