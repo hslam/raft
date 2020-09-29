@@ -6,6 +6,7 @@ package raft
 import (
 	"math"
 	"sync"
+	"sync/atomic"
 )
 
 type peer struct {
@@ -15,9 +16,10 @@ type peer struct {
 	alive              bool
 	nextIndex          uint64
 	lastPrintNextIndex uint64
-	send               bool
-	tarWork            bool
-	install            bool
+	checking           int32
+	sending            int32
+	packing            int32
+	installing         int32
 	nonVoting          bool
 	majorities         bool
 	size               uint64
@@ -31,9 +33,6 @@ func newPeer(n *node, address string) *peer {
 		node:      n,
 		address:   address,
 		nextIndex: 0,
-		send:      true,
-		tarWork:   true,
-		install:   true,
 	}
 	return p
 }
@@ -102,32 +101,29 @@ func (p *peer) voting() bool {
 }
 
 func (p *peer) check() {
+	if !atomic.CompareAndSwapInt32(&p.checking, 0, 1) {
+		return
+	}
+	defer atomic.StoreInt32(&p.checking, 0)
 	if p.node.lastLogIndex > p.nextIndex-1 && p.nextIndex > 0 {
 		if ((p.nextIndex == 1 || (p.nextIndex > 1 && p.nextIndex-1 < p.node.firstLogIndex)) && p.node.commitIndex > 1) || p.node.lastLogIndex-(p.nextIndex-1) > defaultNumInstallSnapshot {
-			if p.install {
-				p.install = false
-				defer func() {
-					p.install = true
-				}()
+			if atomic.CompareAndSwapInt32(&p.installing, 0, 1) {
+				defer atomic.StoreInt32(&p.installing, 0)
 				//logger.Debugf("Peer.check %s %d %d", p.address, p.nextIndex, p.node.firstLogIndex)
-				if p.node.storage.IsEmpty(p.node.stateMachine.snapshotReadWriter.FileName()) && p.tarWork {
-					p.tarWork = false
-					go func() {
-						defer func() {
-							p.tarWork = true
-						}()
-						err := p.node.stateMachine.snapshotReadWriter.Tar()
-						if err != nil {
-							return
-						}
-					}()
-				} else {
-					if p.send {
-						p.send = false
+				if p.node.storage.IsEmpty(p.node.stateMachine.snapshotReadWriter.FileName()) {
+					if atomic.CompareAndSwapInt32(&p.packing, 0, 1) {
 						go func() {
-							defer func() {
-								p.send = true
-							}()
+							defer atomic.StoreInt32(&p.packing, 0)
+							err := p.node.stateMachine.snapshotReadWriter.Tar()
+							if err != nil {
+								return
+							}
+						}()
+					}
+				} else {
+					if atomic.CompareAndSwapInt32(&p.sending, 0, 1) {
+						go func() {
+							defer atomic.StoreInt32(&p.sending, 0)
 							if p.chunk == 0 {
 								size, err := p.node.storage.Size(p.node.stateMachine.snapshotReadWriter.FileName())
 								if err != nil {
@@ -193,16 +189,14 @@ func (p *peer) check() {
 			}
 
 		} else {
-			if p.send {
-				p.send = false
+			if atomic.CompareAndSwapInt32(&p.sending, 0, 1) {
 				go func() {
-					defer func() {
-						p.send = true
-					}()
+					defer atomic.StoreInt32(&p.sending, 0)
 					entries := p.node.log.copyAfter(p.nextIndex, defaultMaxBatch)
 					if len(entries) > 0 {
 						//logger.Debugf("Peer.check %s send %d %d %d", p.address, p.nextIndex, p.node.firstLogIndex, len(entries))
 						p.appendEntries(entries)
+						go p.node.commit()
 					}
 				}()
 			}

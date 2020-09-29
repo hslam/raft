@@ -30,6 +30,7 @@ type pipeline struct {
 	max            int
 	min            int64
 	lastTime       time.Time
+	applying       int32
 	trigger        chan bool
 }
 
@@ -140,6 +141,7 @@ func (p *pipeline) write(i *invoker) {
 		p.node.log.ticker(p.readyEntries)
 		p.readyEntries = p.readyEntries[:0]
 		p.updateLatency(time.Now().UnixNano() - start)
+		go p.node.check()
 	}
 	p.bMutex.Unlock()
 	select {
@@ -153,6 +155,7 @@ func (p *pipeline) run() {
 		if len(p.readyEntries) > 0 {
 			p.node.log.ticker(p.readyEntries)
 			p.readyEntries = p.readyEntries[:0]
+			go p.node.check()
 		}
 		p.bMutex.Unlock()
 		var d time.Duration
@@ -178,37 +181,46 @@ func (p *pipeline) read() {
 	var err error
 	for err == nil {
 		if p.node.isLeader() {
-			if p.applyIndex-1 > p.node.stateMachine.lastApplied && p.node.commitIndex > p.node.stateMachine.lastApplied {
-				//logger.Tracef("pipeline.read commitIndex-%d", p.node.commitIndex)
-				p.node.log.applyCommitedEnd(p.applyIndex - 1)
-			}
-			for p.applyIndex <= p.node.commitIndex {
-				p.mutex.Lock()
-				var i *invoker
-				if in, ok := p.pending[p.applyIndex]; ok {
-					i = in
-				} else {
-					p.mutex.Unlock()
-					//Traceln("pipeline.read sleep")
-					time.Sleep(time.Microsecond * 100)
-					continue
-				}
-				delete(p.pending, p.applyIndex)
-				p.mutex.Unlock()
-				i.Reply, i.Error, err = p.node.stateMachine.Apply(i.index, i.Command)
-				if err != nil {
-					continue
-				}
-				i.done()
-				p.mutex.Lock()
-				p.applyIndex++
-				p.mutex.Unlock()
-			}
+			p.apply()
 			d := p.sleepTime() / 50
 			time.Sleep(d)
 			//logger.Tracef("pipeline.read sleepTime-%v", d)
 		} else {
 			time.Sleep(p.sleepTime())
 		}
+	}
+}
+
+func (p *pipeline) apply() {
+	if !atomic.CompareAndSwapInt32(&p.applying, 0, 1) {
+		return
+	}
+	defer atomic.StoreInt32(&p.applying, 0)
+	if p.applyIndex-1 > p.node.stateMachine.lastApplied && p.node.commitIndex > p.node.stateMachine.lastApplied {
+		//logger.Tracef("pipeline.read commitIndex-%d", p.node.commitIndex)
+		p.node.log.applyCommitedEnd(p.applyIndex - 1)
+	}
+	var err error
+	for p.applyIndex <= p.node.commitIndex {
+		p.mutex.Lock()
+		var i *invoker
+		if in, ok := p.pending[p.applyIndex]; ok {
+			i = in
+		} else {
+			p.mutex.Unlock()
+			//Traceln("pipeline.read sleep")
+			time.Sleep(time.Microsecond * 10)
+			continue
+		}
+		delete(p.pending, p.applyIndex)
+		p.mutex.Unlock()
+		i.Reply, i.Error, err = p.node.stateMachine.Apply(i.index, i.Command)
+		if err != nil {
+			continue
+		}
+		i.done()
+		p.mutex.Lock()
+		p.applyIndex++
+		p.mutex.Unlock()
 	}
 }

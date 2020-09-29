@@ -4,19 +4,19 @@
 package raft
 
 import (
+	"sync/atomic"
 	"time"
 )
 
 type followerState struct {
-	node *node
-	work bool
+	node     *node
+	applying int32
 }
 
 func newFollowerState(n *node) state {
 	//logger.Tracef("%s newFollowerState",node.address)
 	s := &followerState{
 		node: n,
-		work: true,
 	}
 	s.node.votedFor.Reset()
 	s.Start()
@@ -31,33 +31,31 @@ func (s *followerState) Start() {
 }
 
 func (s *followerState) Update() bool {
-	if s.work {
-		if s.node.commitIndex > 0 && s.node.commitIndex > s.node.stateMachine.lastApplied {
-			s.work = false
-			func() {
-				defer func() { s.work = true }()
-				var ch = make(chan bool, 1)
-				go func(ch chan bool) {
-					defer func() {
-						if err := recover(); err != nil {
-						}
-					}()
-					//var lastApplied=state.node.stateMachine.lastApplied
-					s.node.log.applyCommited()
-					//logger.Tracef("followerState.Update %s lastApplied %d==>%d",state.node.address, lastApplied,state.node.stateMachine.lastApplied)
-					ch <- true
-				}(ch)
-				timer := time.NewTimer(defaultCommandTimeout)
-				select {
-				case <-ch:
-					timer.Stop()
-					close(ch)
-				case <-timer.C:
-					logger.Tracef("%s followerState.Update applyCommited time out", s.node.address)
-				}
-			}()
+	if s.node.commitIndex > 0 && s.node.commitIndex > s.node.stateMachine.lastApplied {
+		if !atomic.CompareAndSwapInt32(&s.applying, 0, 1) {
 			return true
 		}
+		defer atomic.StoreInt32(&s.applying, 0)
+		var ch = make(chan bool, 1)
+		go func(ch chan bool) {
+			defer func() {
+				if err := recover(); err != nil {
+				}
+			}()
+			//var lastApplied=state.node.stateMachine.lastApplied
+			s.node.log.applyCommited()
+			//logger.Tracef("followerState.Update %s lastApplied %d==>%d",state.node.address, lastApplied,state.node.stateMachine.lastApplied)
+			ch <- true
+		}(ch)
+		timer := time.NewTimer(defaultCommandTimeout)
+		select {
+		case <-ch:
+			timer.Stop()
+			close(ch)
+		case <-timer.C:
+			logger.Tracef("%s followerState.Update applyCommited time out", s.node.address)
+		}
+		return true
 	}
 	return false
 }

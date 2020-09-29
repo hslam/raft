@@ -55,6 +55,7 @@ func quickSort(a []uint64, left, right int) {
 		quickSort(a, partitonIndex+1, right)
 	}
 }
+
 func partition(a []uint64, left, right int) int {
 	pivot := left
 	index := pivot + 1

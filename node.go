@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"github.com/hslam/timer"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -115,7 +116,8 @@ type node struct {
 	pipeline     *pipeline
 	pipelineChan chan bool
 
-	commitWork bool
+	commiting int32
+
 	join       bool
 	nonVoting  bool
 	majorities bool
@@ -149,7 +151,6 @@ func NewNode(host string, port int, dataDir string, context interface{}, join bo
 		commands:        &commands{types: make(map[int32]*sync.Pool)},
 		nextIndex:       1,
 		join:            join,
-		commitWork:      true,
 	}
 	n.storage = newStorage(dataDir)
 	n.votes = newVotes(n)
@@ -744,7 +745,7 @@ func (n *node) install() bool {
 	n.nodesMut.RLock()
 	defer n.nodesMut.RUnlock()
 	for _, v := range n.peers {
-		if !v.install {
+		if atomic.LoadInt32(&v.installing) > 0 {
 			return false
 		}
 	}
@@ -755,8 +756,11 @@ func (n *node) check() error {
 	defer n.nodesMut.RUnlock()
 	for _, v := range n.peers {
 		if v.alive == true {
-			v.check()
+			go v.check()
 		}
+	}
+	if len(n.peers) == 0 {
+		go n.commit()
 	}
 	return nil
 }
@@ -926,6 +930,10 @@ func (n *node) print() {
 	n.printPeers()
 }
 func (n *node) commit() bool {
+	if !atomic.CompareAndSwapInt32(&n.commiting, 0, 1) {
+		return true
+	}
+	defer atomic.StoreInt32(&n.commiting, 0)
 	n.nodesMut.RLock()
 	defer n.nodesMut.RUnlock()
 	if n.votingsCount() == 1 {
@@ -935,11 +943,12 @@ func (n *node) commit() bool {
 			//n.storage.Sync(n.log.indexs.name)
 			n.commitIndex = index
 			//n.pipeline.commitIndex <- index
+			go n.pipeline.apply()
 			return true
 		}
 		return false
 	}
-	var lastLogIndexs = make([]uint64, 1)
+	var lastLogIndexs = make([]uint64, 1, n.votingsCount())
 	lastLogIndexs[0] = n.lastLogIndex
 	for _, v := range n.peers {
 		if !v.voting() {
@@ -954,10 +963,12 @@ func (n *node) commit() bool {
 	quickSort(lastLogIndexs, -999, -999)
 	index := lastLogIndexs[len(lastLogIndexs)/2]
 	if index > n.commitIndex {
+		//logger.Tracef("node.commit %s sort after %v %d", n.address, lastLogIndexs, index)
 		//n.storage.Sync(n.log.name)
 		//n.storage.Sync(n.log.indexs.name)
 		n.commitIndex = index
 		//n.pipeline.commitIndex <- index
+		go n.pipeline.apply()
 		return true
 	}
 	return false

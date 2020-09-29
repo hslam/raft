@@ -5,6 +5,7 @@ package raft
 
 import (
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -14,7 +15,7 @@ type readIndex struct {
 	readChan chan chan bool
 	m        map[uint64][]chan bool
 	id       uint64
-	work     bool
+	working  int32
 }
 
 func newReadIndex(n *node) *readIndex {
@@ -22,7 +23,6 @@ func newReadIndex(n *node) *readIndex {
 		node:     n,
 		readChan: make(chan chan bool, defaultMaxConcurrencyRead),
 		m:        make(map[uint64][]chan bool),
-		work:     true,
 	}
 	go r.run()
 	return r
@@ -58,13 +58,12 @@ func (r *readIndex) reply(id uint64, success bool) {
 	delete(r.m, id)
 }
 func (r *readIndex) Update() bool {
-	if r.work {
-		r.work = false
+	if atomic.CompareAndSwapInt32(&r.working, 0, 1) {
+		defer atomic.StoreInt32(&r.working, 0)
 		defer func() {
 			if err := recover(); err != nil {
 			}
 		}()
-		defer func() { r.work = true }()
 		defer func() {
 			if r.node.isLeader() {
 				r.id++
