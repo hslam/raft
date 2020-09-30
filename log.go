@@ -157,7 +157,7 @@ func (l *waLog) deleteBefore(index uint64) {
 	defer l.pause(false)
 	l.wal.Clean(index)
 	l.node.firstLogIndex, _ = l.wal.FirstIndex()
-	logger.Tracef("l.deleteBefore %s deleteBefore %d", l.node.address, index)
+	logger.Tracef("log.clean %s index %d", l.node.address, index)
 }
 func (l *waLog) startIndex(index uint64) uint64 {
 	return maxUint64(l.node.firstLogIndex, index)

@@ -140,8 +140,11 @@ func (p *pipeline) write(i *invoker) {
 		start := time.Now().UnixNano()
 		p.node.log.ticker(p.readyEntries)
 		p.readyEntries = p.readyEntries[:0]
-		p.updateLatency(time.Now().UnixNano() - start)
-		go p.node.check()
+		go func(d int64) {
+			p.updateLatency(d)
+			p.lastTime = time.Now()
+			p.node.check()
+		}(time.Now().UnixNano() - start)
 	}
 	p.bMutex.Unlock()
 	select {
@@ -158,19 +161,16 @@ func (p *pipeline) run() {
 			go p.node.check()
 		}
 		p.bMutex.Unlock()
-		var d time.Duration
-		if p.lastTime.Add(time.Millisecond * 10).Before(time.Now()) {
+		if p.lastTime.Add(defaultCommandTimeout).Before(time.Now()) {
 			p.lastTime = time.Now()
 			p.mutex.Lock()
 			p.max = 0
 			p.mutex.Unlock()
 		}
-		d = p.sleepTime()
 		select {
-		case <-time.After(d):
+		case <-time.After(p.sleepTime() * 20):
 		case <-p.trigger:
-			d = p.sleepTime()
-			time.Sleep(time.Duration(d))
+			time.Sleep(p.sleepTime() * 10)
 		case <-p.done:
 			return
 		}
