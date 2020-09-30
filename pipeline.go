@@ -182,7 +182,7 @@ func (p *pipeline) read() {
 	for err == nil {
 		if p.node.isLeader() {
 			p.apply()
-			d := p.sleepTime() / 50
+			d := p.sleepTime() / 10
 			time.Sleep(d)
 			//logger.Tracef("pipeline.read sleepTime-%v", d)
 		} else {
@@ -209,7 +209,7 @@ func (p *pipeline) apply() {
 		} else {
 			p.mutex.Unlock()
 			//Traceln("pipeline.read sleep")
-			time.Sleep(time.Microsecond * 10)
+			time.Sleep(time.Microsecond * 100)
 			continue
 		}
 		delete(p.pending, p.applyIndex)
