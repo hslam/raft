@@ -34,23 +34,25 @@ import "github.com/hslam/raft"
 package main
 
 import (
-	"github.com/hslam/raft"
-	"fmt"
-	"time"
 	"flag"
+	"fmt"
+	"github.com/hslam/raft"
 	"strings"
+	"time"
 )
-var(
-	host string
-	port int
-	path string
-	join bool
+
+var (
+	host  string
+	port  int
+	path  string
+	join  bool
 	peers string
 )
+
 func init() {
 	flag.StringVar(&host, "h", "localhost", "hostname")
 	flag.IntVar(&port, "p", 9001, "port")
-	flag.StringVar(&path, "path", "node.1", "data dir")
+	flag.StringVar(&path, "path", "raft.helloworld/node.1", "data dir")
 	flag.BoolVar(&join, "join", false, "")
 	flag.StringVar(&peers, "peers", "localhost:9001,false;", "host:port,nonVoting;host:port,nonVoting;")
 }
@@ -61,27 +63,29 @@ func main() {
 	var infos []*raft.NodeInfo
 	if peers != "" {
 		nodes = strings.Split(peers, ";")
-		for _,v:=range nodes{
+		for _, v := range nodes {
+			if v == "" {
+				continue
+			}
 			info := strings.Split(v, ",")
 			var NonVoting bool
-			if len(info)>1{
-				if info[1]=="true"{
-					NonVoting=true
+			if len(info) > 1 {
+				if info[1] == "true" {
+					NonVoting = true
 				}
 			}
-			infos=append(infos,&raft.NodeInfo{Address:info[0],NonVoting:NonVoting,Data:nil})
+			infos = append(infos, &raft.NodeInfo{Address: info[0], NonVoting: NonVoting, Data: nil})
 		}
 	}
-	node,err:=raft.NewNode(host,port,path,nil,join,infos)
-	if err!=nil{
+	node, err := raft.NewNode(host, port, path, nil, join, infos)
+	if err != nil {
 		panic(err)
 	}
 	node.Start()
-	for{
-		fmt.Printf("%d State:%s - Term:%d - Leader:%s\n",time.Now().Unix(),node.State(),node.Term(),node.Leader())
-		time.Sleep(time.Second*3)
+	for {
+		fmt.Printf("%d State:%s - Leader:%s\n", time.Now().Unix(), node.State(), node.Leader())
+		time.Sleep(time.Second * 3)
 	}
-	select {}
 }
 ```
 **one node**
@@ -170,8 +174,8 @@ Singleton  Write     RPC       138411     28.92ms 6.09ms  24.64ms 103.57ms 121.6
 ThreeNodes ReadIndex RPC       285650     13.40ms 4.27ms  12.49ms 29.01ms  32.91ms
 ThreeNodes Write     RPC       118325     33.74ms 9.76ms  33.40ms 71.38ms  81.32ms
 ```
-## Licence
-This package is licenced under a MIT licence (Copyright (c) 2019 Meng Huang)
+## License
+This package is licensed under a MIT license (Copyright (c) 2019 Meng Huang)
 
 ## Author
 raft was written by Meng Huang.

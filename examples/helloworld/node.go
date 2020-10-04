@@ -53,5 +53,4 @@ func main() {
 		fmt.Printf("%d State:%s - Leader:%s\n", time.Now().Unix(), node.State(), node.Leader())
 		time.Sleep(time.Second * 3)
 	}
-	select {}
 }
