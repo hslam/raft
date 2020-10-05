@@ -281,6 +281,11 @@ func (r *raft) HandleInstallSnapshot(req *InstallSnapshotRequest, res *InstallSn
 		r.node.stateMachine.snapshotReadWriter.done = false
 	}
 	r.node.stateMachine.append(req.Offset, req.Data)
+	offset, err := r.node.storage.Size(r.node.stateMachine.snapshotReadWriter.FileName())
+	if err != nil {
+		return nil
+	}
+	res.Offset = uint64(offset)
 	if req.Done {
 		if r.node.leader != req.LeaderId {
 			r.node.leader = req.LeaderId
@@ -291,11 +296,6 @@ func (r *raft) HandleInstallSnapshot(req *InstallSnapshotRequest, res *InstallSn
 		r.node.stateMachine.snapshotReadWriter.untar()
 		r.node.recover()
 	}
-	offset, err := r.node.storage.Size(r.node.stateMachine.snapshotReadWriter.FileName())
-	if err != nil {
-		return nil
-	}
-	res.Offset = uint64(offset)
 	res.NextIndex = r.node.nextIndex
 	return nil
 }
