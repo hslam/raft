@@ -20,6 +20,7 @@ type peer struct {
 	sending            int32
 	packing            int32
 	installing         int32
+	install            int32
 	nonVoting          bool
 	majorities         bool
 	size               uint64
@@ -108,83 +109,86 @@ func (p *peer) check() {
 	if p.node.lastLogIndex > p.nextIndex-1 && p.nextIndex > 0 {
 		if ((p.nextIndex == 1 || (p.nextIndex > 1 && p.nextIndex-1 < p.node.firstLogIndex)) && p.node.commitIndex > 1) || p.node.lastLogIndex-(p.nextIndex-1) > defaultNumInstallSnapshot {
 			if atomic.CompareAndSwapInt32(&p.installing, 0, 1) {
-				defer atomic.StoreInt32(&p.installing, 0)
+				atomic.StoreInt32(&p.install, 1)
 				//logger.Debugf("Peer.check %s %d %d", p.address, p.nextIndex, p.node.firstLogIndex)
 				if p.node.storage.IsEmpty(p.node.stateMachine.snapshotReadWriter.FileName()) {
-					if atomic.CompareAndSwapInt32(&p.packing, 0, 1) {
-						go func() {
-							defer atomic.StoreInt32(&p.packing, 0)
-							err := p.node.stateMachine.snapshotReadWriter.Tar()
+					if !atomic.CompareAndSwapInt32(&p.packing, 0, 1) {
+						atomic.StoreInt32(&p.installing, 0)
+						return
+					}
+					go func() {
+						defer atomic.StoreInt32(&p.installing, 0)
+						defer atomic.StoreInt32(&p.packing, 0)
+						err := p.node.stateMachine.snapshotReadWriter.Tar()
+						if err != nil {
+							return
+						}
+					}()
+				} else {
+					if !atomic.CompareAndSwapInt32(&p.sending, 0, 1) {
+						atomic.StoreInt32(&p.installing, 0)
+						return
+					}
+					go func() {
+						defer atomic.StoreInt32(&p.installing, 0)
+						defer atomic.StoreInt32(&p.sending, 0)
+						if p.chunk == 0 {
+							size, err := p.node.storage.Size(p.node.stateMachine.snapshotReadWriter.FileName())
 							if err != nil {
 								return
 							}
-						}()
-					}
-				} else {
-					if atomic.CompareAndSwapInt32(&p.sending, 0, 1) {
-						go func() {
-							defer atomic.StoreInt32(&p.sending, 0)
-							if p.chunk == 0 {
-								size, err := p.node.storage.Size(p.node.stateMachine.snapshotReadWriter.FileName())
-								if err != nil {
-									return
-								}
-								p.size = uint64(size)
-								p.chunkNum = int(math.Ceil(float64(size) / float64(defaultChunkSize)))
-							}
-							if p.chunkNum > 1 {
-								if p.chunk < p.chunkNum-1 {
-									b := make([]byte, defaultChunkSize)
-									n, err := p.node.storage.SeekRead(p.node.stateMachine.snapshotReadWriter.FileName(), p.offset, b)
-									if err != nil {
-										return
-									}
-									if int64(n) == defaultChunkSize {
-										offset := p.installSnapshot(p.offset, b[:n], false)
-										if offset == p.offset+uint64(n) {
-											p.offset += uint64(n)
-											p.chunk++
-										}
-									}
-								} else {
-									b := make([]byte, p.size-p.offset)
-									n, err := p.node.storage.SeekRead(p.node.stateMachine.snapshotReadWriter.FileName(), p.offset, b)
-									if err != nil {
-										return
-									}
-									if uint64(n) == p.size-p.offset {
-										offset := p.installSnapshot(p.offset, b[:n], true)
-										if offset == p.offset+uint64(n) {
-											p.offset += uint64(n)
-											p.chunk++
-										}
-									}
-									if p.offset == p.size && p.chunk == p.chunkNum {
-										p.chunk = 0
-										p.offset = 0
-									}
-								}
-							} else {
-								b := make([]byte, p.size)
+							p.size = uint64(size)
+							p.chunkNum = int(math.Ceil(float64(size) / float64(defaultChunkSize)))
+						}
+						if p.chunk < p.chunkNum-1 {
+							b := make([]byte, defaultChunkSize)
+							n, err := p.node.storage.SeekRead(p.node.stateMachine.snapshotReadWriter.FileName(), p.offset, b)
+							if err != nil {
+								p.chunk = 0
 								p.offset = 0
-								n, err := p.node.storage.SeekRead(p.node.stateMachine.snapshotReadWriter.FileName(), p.offset, b)
-								if err != nil {
-									return
-								}
-								if uint64(n) == p.size {
-									offset := p.installSnapshot(p.offset, b[:n], true)
-									if offset == p.offset+uint64(n) {
-										p.offset += uint64(n)
-										p.chunk++
-									}
-								}
-								if p.offset == p.size && p.chunk == p.chunkNum {
+								atomic.StoreInt32(&p.install, 0)
+								return
+							}
+							if int64(n) == defaultChunkSize {
+								offset := p.installSnapshot(p.offset, b[:n], false)
+								if offset == p.offset+uint64(n) {
+									p.offset += uint64(n)
+									p.chunk++
+								} else {
 									p.chunk = 0
 									p.offset = 0
+									atomic.StoreInt32(&p.install, 0)
 								}
 							}
-						}()
-					}
+						} else {
+							b := make([]byte, p.size-p.offset)
+							n, err := p.node.storage.SeekRead(p.node.stateMachine.snapshotReadWriter.FileName(), p.offset, b)
+							if err != nil {
+								p.chunk = 0
+								p.offset = 0
+								atomic.StoreInt32(&p.install, 0)
+								return
+							}
+							if uint64(n) == p.size-p.offset {
+								offset := p.installSnapshot(p.offset, b[:n], true)
+								if offset == p.offset+uint64(n) {
+									p.offset += uint64(n)
+									p.chunk++
+								} else {
+									p.chunk = 0
+									p.offset = 0
+									atomic.StoreInt32(&p.install, 0)
+								}
+								//logger.Debugf("Peer.check %s send n-%d offset-%d p.offset-%d", p.address, n, offset, p.offset)
+							}
+							//logger.Debugf("Peer.check %s send n-%d offset-%d size-%d chunk-%d chunkNum-%d", p.address, n, p.offset, p.size, p.chunk, p.chunkNum)
+							if p.offset == p.size && p.chunk == p.chunkNum {
+								p.chunk = 0
+								p.offset = 0
+								atomic.StoreInt32(&p.install, 0)
+							}
+						}
+					}()
 				}
 			}
 

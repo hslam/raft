@@ -162,7 +162,7 @@ func NewNode(host string, port int, dataDir string, context interface{}, join bo
 	n.raft = newRaft(n)
 	n.proxy = newProxy(n)
 	n.server = newServer(n, fmt.Sprintf(":%d", port))
-	n.currentTerm = newPersistentUint64(n, defaultTerm, 0)
+	n.currentTerm = newPersistentUint64(n, defaultTerm, 0, 0)
 	n.commitIndex = 0
 	n.votedFor = newPersistentString(n, defaultVoteFor)
 	n.state = newFollowerState(n)
@@ -745,7 +745,7 @@ func (n *node) install() bool {
 	n.nodesMut.RLock()
 	defer n.nodesMut.RUnlock()
 	for _, v := range n.peers {
-		if atomic.LoadInt32(&v.installing) > 0 {
+		if atomic.LoadInt32(&v.install) > 0 {
 			return false
 		}
 	}
@@ -911,22 +911,22 @@ func (n *node) print() {
 		logger.Tracef("node.print %s firstLogIndex %d==>%d", n.address, n.lastPrintFirstLogIndex, n.firstLogIndex)
 		n.lastPrintFirstLogIndex = n.firstLogIndex
 	}
-	if n.lastLogIndex > n.lastPrintLastLogIndex {
-		logger.Tracef("node.print %s lastLogIndex %d==>%d", n.address, n.lastPrintLastLogIndex, n.lastLogIndex)
-		n.lastPrintLastLogIndex = n.lastLogIndex
-	}
-	if n.commitIndex > n.lastPrintCommitIndex {
-		logger.Tracef("node.print %s commitIndex %d==>%d", n.address, n.lastPrintCommitIndex, n.commitIndex)
-		n.lastPrintCommitIndex = n.commitIndex
-	}
+	//if n.lastLogIndex > n.lastPrintLastLogIndex {
+	//	logger.Tracef("node.print %s lastLogIndex %d==>%d", n.address, n.lastPrintLastLogIndex, n.lastLogIndex)
+	//	n.lastPrintLastLogIndex = n.lastLogIndex
+	//}
+	//if n.commitIndex > n.lastPrintCommitIndex {
+	//	logger.Tracef("node.print %s commitIndex %d==>%d", n.address, n.lastPrintCommitIndex, n.commitIndex)
+	//	n.lastPrintCommitIndex = n.commitIndex
+	//}
 	if n.stateMachine.lastApplied > n.lastPrintLastApplied {
 		logger.Tracef("node.print %s lastApplied %d==>%d", n.address, n.lastPrintLastApplied, n.stateMachine.lastApplied)
 		n.lastPrintLastApplied = n.stateMachine.lastApplied
 	}
-	if n.nextIndex > n.lastPrintNextIndex {
-		logger.Tracef("node.print %s nextIndex %d==>%d", n.address, n.lastPrintNextIndex, n.nextIndex)
-		n.lastPrintNextIndex = n.nextIndex
-	}
+	//if n.nextIndex > n.lastPrintNextIndex {
+	//	logger.Tracef("node.print %s nextIndex %d==>%d", n.address, n.lastPrintNextIndex, n.nextIndex)
+	//	n.lastPrintNextIndex = n.nextIndex
+	//}
 	n.printPeers()
 }
 func (n *node) commit() bool {

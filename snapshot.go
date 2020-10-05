@@ -52,9 +52,9 @@ func newSnapshotReadWriter(n *node, name string, gzip bool) *snapshotReadWriter 
 		ret:               0,
 		readRet:           0,
 		ticker:            time.NewTicker(defaultTarTick),
-		lastIncludedIndex: newPersistentUint64(n, defaultLastIncludedIndex, 0),
-		lastIncludedTerm:  newPersistentUint64(n, defaultLastIncludedTerm, 0),
-		lastTarIndex:      newPersistentUint64(n, defaultLastTarIndex, 0),
+		lastIncludedIndex: newPersistentUint64(n, defaultLastIncludedIndex, 0, 0),
+		lastIncludedTerm:  newPersistentUint64(n, defaultLastIncludedTerm, 0, 0),
+		lastTarIndex:      newPersistentUint64(n, defaultLastTarIndex, 0, 0),
 		tarWork:           true,
 		gzip:              gzip,
 	}
@@ -120,6 +120,9 @@ func (s *snapshotReadWriter) load() error {
 	s.lastIncludedIndex.load()
 	s.lastIncludedTerm.load()
 	if !s.node.storage.Exists(s.name) {
+		if s.node.storage.Exists(s.tmpName) {
+			return s.node.storage.Rename(s.tmpName, s.name)
+		}
 		return errors.New(s.name + " file is not existed")
 	}
 	return nil
@@ -350,10 +353,10 @@ func (s *snapshotReadWriter) ungz() error {
 	}
 	defer source.Close()
 	reader, err := gzip.NewReader(source)
-	defer reader.Close()
 	if err != nil {
 		return err
 	}
+	defer reader.Close()
 	_, err = io.Copy(dest, reader)
 	if err != nil && err != io.ErrUnexpectedEOF {
 		return err

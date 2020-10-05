@@ -16,15 +16,17 @@ type persistentUint64 struct {
 	node          *node
 	value         uint64
 	name          string
+	offset        uint64
 	ticker        *time.Ticker
 	lastSaveValue uint64
 	deferSave     bool
 }
 
-func newPersistentUint64(n *node, name string, tick time.Duration) *persistentUint64 {
+func newPersistentUint64(n *node, name string, offset uint64, tick time.Duration) *persistentUint64 {
 	p := &persistentUint64{
-		node: n,
-		name: name,
+		node:   n,
+		name:   name,
+		offset: offset,
 	}
 	if tick > 0 {
 		p.deferSave = true
@@ -60,7 +62,7 @@ func (p *persistentUint64) ID() uint64 {
 func (p *persistentUint64) save() {
 	buf := make([]byte, 8)
 	code.EncodeUint64(buf, p.value)
-	p.node.storage.OverWrite(p.name, buf)
+	p.node.storage.SeekWrite(p.name, p.offset, buf)
 }
 
 func (p *persistentUint64) load() error {
@@ -68,14 +70,16 @@ func (p *persistentUint64) load() error {
 		p.value = 0
 		return errors.New(p.name + " file is not existed")
 	}
-	b, err := p.node.storage.Load(p.name)
+	buf := make([]byte, 8)
+
+	n, err := p.node.storage.SeekRead(p.name, p.offset, buf)
 	if err != nil {
 		return err
 	}
-	if len(b) != 8 {
-		return fmt.Errorf("length %d", len(b))
+	if n != 8 {
+		return fmt.Errorf("length %d", n)
 	}
-	code.DecodeUint64(b, &p.value)
+	code.DecodeUint64(buf, &p.value)
 	return nil
 }
 
