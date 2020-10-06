@@ -151,7 +151,7 @@ func (s *stateMachine) saveSnapshot() error {
 			s.snapshotReadWriter.lastIncludedIndex.Set(0)
 		}
 		if s.lastApplied > s.snapshotReadWriter.lastIncludedIndex.ID() && s.snapshotReadWriter.work {
-			logger.Tracef("stateMachine.SaveSnapshot %s Start", s.node.address)
+			logger.Tracef("stateMachine.saveSnapshot %s Start", s.node.address)
 			s.snapshotReadWriter.work = false
 			defer func() {
 				s.snapshotReadWriter.work = true
@@ -184,7 +184,7 @@ func (s *stateMachine) saveSnapshot() error {
 				}
 			}()
 			duration := (time.Now().UnixNano() - startTime) / 1000000
-			logger.Tracef("stateMachine.SaveSnapshot %s lastIncludedIndex %d==>%d duration:%dms", s.node.address, lastPrintLastIncludedIndex, s.snapshotReadWriter.lastIncludedIndex.ID(), duration)
+			logger.Tracef("stateMachine.saveSnapshot %s Finish lastIncludedIndex %d==>%d duration:%dms", s.node.address, lastPrintLastIncludedIndex, s.snapshotReadWriter.lastIncludedIndex.ID(), duration)
 			return err
 		}
 		return nil
