@@ -6,9 +6,9 @@ package raft
 
 import (
 	"fmt"
+	"github.com/hslam/atomic"
 	"github.com/hslam/timer"
 	"sync"
-	"sync/atomic"
 	"time"
 )
 
@@ -82,7 +82,7 @@ type node struct {
 	workTicker      *timer.Ticker
 	deferTime       time.Time
 	//persistent state on all servers
-	currentTerm *persistentUint64
+	currentTerm *atomic.Uint64
 	votedFor    *persistentString
 
 	//volatile state on all servers
@@ -162,7 +162,8 @@ func NewNode(host string, port int, dataDir string, context interface{}, join bo
 	n.raft = newRaft(n)
 	n.proxy = newProxy(n)
 	n.server = newServer(n, fmt.Sprintf(":%d", port))
-	n.currentTerm = newPersistentUint64(n, defaultTerm, 0, 0)
+	//n.currentTerm = newPersistentUint64(n, defaultTerm, 0, 0)
+	n.currentTerm = atomic.NewUint64(0)
 	n.commitIndex = 0
 	n.votedFor = newPersistentString(n, defaultVoteFor)
 	n.state = newFollowerState(n)
@@ -385,7 +386,7 @@ func (n *node) term() uint64 {
 	if !n.running {
 		return 0
 	}
-	return n.currentTerm.ID()
+	return n.currentTerm.Load()
 }
 func (n *node) Leader() string {
 	n.mu.RLock()
@@ -705,7 +706,7 @@ func (n *node) requestVotes() error {
 	n.nodesMut.RLock()
 	defer n.nodesMut.RUnlock()
 	n.votes.Clear()
-	n.votes.vote <- newVote(n.address, n.currentTerm.ID(), 1)
+	n.votes.vote <- newVote(n.address, n.currentTerm.Load(), 1)
 	for _, v := range n.peers {
 		if v.alive == true && v.voting() {
 			go v.requestVote()
@@ -843,9 +844,9 @@ func (n *node) checkLog() error {
 	if n.storage.IsEmpty(defaultLastTarIndex) {
 		n.stateMachine.snapshotReadWriter.lastTarIndex.save()
 	}
-	if n.storage.IsEmpty(defaultTerm) {
-		n.currentTerm.save()
-	}
+	//if n.storage.IsEmpty(defaultTerm) {
+	//	n.currentTerm.save()
+	//}
 	if n.storage.IsEmpty(defaultConfig) {
 		n.stateMachine.configuration.save()
 	}

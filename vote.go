@@ -56,7 +56,7 @@ func (vs *votes) AddVote(v *vote) {
 		return
 	}
 	vs.voteDic[v.Key()] = v.vote
-	if v.term == vs.node.currentTerm.ID() {
+	if v.term == vs.node.currentTerm.Load() {
 		vs.voteTotal++
 		vs.voteCount += v.vote
 	}

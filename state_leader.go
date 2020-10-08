@@ -43,20 +43,20 @@ func (s *leaderState) Start() {
 	s.node.lease = true
 	s.node.election.Random(false)
 	s.node.election.Reset()
-	logger.Tracef("%s leaderState.Start Term:%d", s.node.address, s.node.currentTerm.ID())
+	logger.Tracef("%s leaderState.Start Term:%d", s.node.address, s.node.currentTerm.Load())
 	go func(n *node, term uint64) {
 		noOperationCommand := NewNoOperationCommand()
 		if ok, _ := n.do(noOperationCommand, defaultCommandTimeout*10); ok != nil {
-			if n.currentTerm.ID() == term {
+			if n.currentTerm.Load() == term {
 				n.ready = true
 				return
 			}
 		}
-		if n.currentTerm.ID() == term {
+		if n.currentTerm.Load() == term {
 			s.node.lease = false
 			s.node.stepDown()
 		}
-	}(s.node, s.node.currentTerm.ID())
+	}(s.node, s.node.currentTerm.Load())
 }
 
 func (s *leaderState) Update() bool {

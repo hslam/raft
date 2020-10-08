@@ -131,7 +131,7 @@ func (p *pipeline) write(i *invoker) {
 	}
 	entry := p.node.log.getEmtyEntry()
 	entry.Index = i.index
-	entry.Term = p.node.currentTerm.ID()
+	entry.Term = p.node.currentTerm.Load()
 	entry.Command = data
 	entry.CommandType = i.Command.Type()
 	p.bMutex.Lock()

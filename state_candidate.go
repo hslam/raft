@@ -19,11 +19,11 @@ func newCandidateState(n *node) state {
 func (s *candidateState) Start() {
 	s.node.election.Random(true)
 	s.node.election.Reset()
-	s.node.currentTerm.Incre()
+	s.node.currentTerm.Add(1)
 	s.node.votedFor.Set(s.node.address)
 	s.node.leader = ""
 	s.node.requestVotes()
-	logger.Tracef("%s candidateState.Start Term :%d", s.node.address, s.node.currentTerm.ID())
+	logger.Tracef("%s candidateState.Start Term :%d", s.node.address, s.node.currentTerm.Load())
 }
 func (s *candidateState) Update() bool {
 	return false
@@ -39,7 +39,7 @@ func (s *candidateState) FixedUpdate() {
 		s.node.stay()
 		return
 	} else if s.node.votes.Count() >= s.node.Quorum() {
-		logger.Tracef("%s candidateState.FixedUpdate request Enough Votes %d Quorum %d Term %d", s.node.address, s.node.votes.Count(), s.node.Quorum(), s.node.currentTerm.ID())
+		logger.Tracef("%s candidateState.FixedUpdate request Enough Votes %d Quorum %d Term %d", s.node.address, s.node.votes.Count(), s.node.Quorum(), s.node.currentTerm.Load())
 		s.node.nextState()
 		return
 	}

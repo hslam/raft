@@ -27,7 +27,7 @@ func (s *followerState) Start() {
 	s.node.leader = ""
 	s.node.election.Random(true)
 	s.node.election.Reset()
-	logger.Tracef("%s followerState.Start Term :%d", s.node.address, s.node.currentTerm.ID())
+	logger.Tracef("%s followerState.Start Term :%d", s.node.address, s.node.currentTerm.Load())
 }
 
 func (s *followerState) Update() bool {

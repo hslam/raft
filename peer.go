@@ -72,7 +72,7 @@ func (p *peer) appendEntries(entries []*Entry) (nextIndex uint64, term uint64, s
 	if success && ok {
 		//logger.Tracef("Peer.run %s nextIndex %d==>%d",p.address,p.nextIndex,nextIndex)
 		p.nextIndex = nextIndex
-	} else if ok && term == p.node.currentTerm.ID() {
+	} else if ok && term == p.node.currentTerm.Load() {
 		p.nextIndex = nextIndex
 	} else if !ok {
 		p.alive = false
