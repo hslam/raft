@@ -18,7 +18,7 @@ func newFollowerState(n *node) state {
 	s := &followerState{
 		node: n,
 	}
-	s.node.votedFor.Reset()
+	s.node.votedFor.Store("")
 	s.Start()
 	return s
 }
@@ -63,7 +63,7 @@ func (s *followerState) Update() bool {
 func (s *followerState) FixedUpdate() {
 	if s.node.election.Timeout() {
 		s.node.leader = ""
-		s.node.votedFor.Set("")
+		s.node.votedFor.Store("")
 		if !s.node.voting() {
 			return
 		}

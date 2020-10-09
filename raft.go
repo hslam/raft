@@ -192,15 +192,15 @@ func (r *raft) HandleRequestVote(req *RequestVoteRequest, res *RequestVoteRespon
 		return nil
 	} else if req.Term > r.node.currentTerm.Load() && req.LastLogIndex >= r.node.lastLogIndex && req.LastLogTerm >= r.node.lastLogTerm {
 		r.node.currentTerm.Store(req.Term)
-		r.node.votedFor.Reset()
+		r.node.votedFor.Store("")
 		r.node.stepDown()
 	}
 	if r.node.state.String() == leader || r.node.state.String() == candidate || r.node.leader != "" {
 		res.VoteGranted = false
 		return nil
-	} else if (r.node.votedFor.String() == "" || r.node.votedFor.String() == req.CandidateId) && req.LastLogIndex >= r.node.lastLogIndex && req.LastLogTerm >= r.node.lastLogTerm {
+	} else if (r.node.votedFor.Load() == "" || r.node.votedFor.Load() == req.CandidateId) && req.LastLogIndex >= r.node.lastLogIndex && req.LastLogTerm >= r.node.lastLogTerm {
 		res.VoteGranted = true
-		r.node.votedFor.Set(req.CandidateId)
+		r.node.votedFor.Store(req.CandidateId)
 		r.node.stepDown()
 	}
 	return nil
@@ -222,7 +222,7 @@ func (r *raft) HandleAppendEntries(req *AppendEntriesRequest, res *AppendEntries
 		}
 	}
 	if r.node.leader == "" {
-		r.node.votedFor.Set(req.LeaderId)
+		r.node.votedFor.Store(req.LeaderId)
 		r.node.leader = req.LeaderId
 		logger.Tracef("raft.HandleAppendEntries %s State:%s leader-%s Term:%d", r.node.address, r.node.State(), r.node.leader, r.node.currentTerm.Load())
 	}

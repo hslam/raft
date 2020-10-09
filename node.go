@@ -83,7 +83,7 @@ type node struct {
 	deferTime       time.Time
 	//persistent state on all servers
 	currentTerm *atomic.Uint64
-	votedFor    *persistentString
+	votedFor    *atomic.String
 
 	//volatile state on all servers
 	commitIndex   uint64
@@ -165,7 +165,8 @@ func NewNode(host string, port int, dataDir string, context interface{}, join bo
 	//n.currentTerm = newPersistentUint64(n, defaultTerm, 0, 0)
 	n.currentTerm = atomic.NewUint64(0)
 	n.commitIndex = 0
-	n.votedFor = newPersistentString(n, defaultVoteFor)
+	//n.votedFor = newPersistentString(n, defaultVoteFor)
+	n.votedFor = atomic.NewString("")
 	n.state = newFollowerState(n)
 	n.pipeline = newPipeline(n)
 	n.pipelineChan = make(chan bool, defaultMaxConcurrency)
@@ -850,9 +851,9 @@ func (n *node) checkLog() error {
 	if n.storage.IsEmpty(defaultConfig) {
 		n.stateMachine.configuration.save()
 	}
-	if n.storage.IsEmpty(defaultVoteFor) {
-		n.votedFor.save()
-	}
+	//if n.storage.IsEmpty(defaultVoteFor) {
+	//	n.votedFor.save()
+	//}
 	//if n.storage.IsEmpty(DefaultSnapshot) && n.stateMachine.snapshot != nil && !n.storage.IsEmpty(DefaultIndex) && !n.storage.IsEmpty(DefaultLog) {
 	//	n.stateMachine.SaveSnapshot()
 	//} else if n.stateMachine.snapshot == nil {
