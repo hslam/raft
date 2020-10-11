@@ -66,7 +66,7 @@ func main() {
 	}
 	node.RegisterCommand(&context.Command{})
 	node.SetCodec(&raft.JSONCodec{})
-	node.SetSnapshot(&context.Snapshot{})
+	node.SetSnapshot(context.NewSnapshot(ctx))
 	node.SetSyncTypes([]*raft.SyncType{
 		{Seconds: 900, Changes: 1},
 		{Seconds: 300, Changes: 10},

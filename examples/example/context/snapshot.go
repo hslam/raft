@@ -5,19 +5,23 @@ import (
 	"io/ioutil"
 )
 
-type Snapshot struct{}
-
-func (s *Snapshot) Save(context interface{}, w io.Writer) (int, error) {
-	ctx := context.(*Context)
-	return w.Write([]byte(ctx.Get()))
+type Snapshot struct {
+	context *Context
 }
 
-func (s *Snapshot) Recover(context interface{}, r io.Reader) (int, error) {
-	ctx := context.(*Context)
+func NewSnapshot(context *Context) *Snapshot {
+	return &Snapshot{context: context}
+}
+
+func (s *Snapshot) Save(w io.Writer) (int, error) {
+	return w.Write([]byte(s.context.Get()))
+}
+
+func (s *Snapshot) Recover(r io.Reader) (int, error) {
 	raw, err := ioutil.ReadAll(r)
 	if err != nil {
 		return 0, err
 	}
-	ctx.Set(string(raw))
+	s.context.Set(string(raw))
 	return len(raw), err
 }

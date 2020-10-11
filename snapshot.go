@@ -15,8 +15,14 @@ import (
 
 // Snapshot saves a snapshot and recovers from a snapshot.
 type Snapshot interface {
-	Save(context interface{}, w io.Writer) (int, error)
-	Recover(context interface{}, r io.Reader) (int, error)
+	// Save writes snapshot data to w until there's no more data to write or
+	// when an error occurs. The return value n is the number of bytes
+	// written. Any error encountered during the write is also returned.
+	Save(w io.Writer) (n int, err error)
+	// Recover reads snapshot data from r until EOF or error.
+	// The return value n is the number of bytes read.
+	// Any error except io.EOF encountered during the read is also returned.
+	Recover(r io.Reader) (n int, err error)
 }
 
 type snapshotReadWriter struct {

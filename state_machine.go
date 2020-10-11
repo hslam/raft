@@ -170,7 +170,7 @@ func (s *stateMachine) saveSnapshot() error {
 				lastIncludedTerm = entry.Term
 			}
 			s.snapshotReadWriter.Reset(lastIncludedIndex, lastIncludedTerm)
-			_, err := s.snapshot.Save(s.node.context, s.snapshotReadWriter)
+			_, err := s.snapshot.Save(s.snapshotReadWriter)
 			s.snapshotReadWriter.Rename()
 			startTime := time.Now().UnixNano()
 			if s.node.isLeader() {
@@ -194,7 +194,7 @@ func (s *stateMachine) saveSnapshot() error {
 func (s *stateMachine) RecoverSnapshot() error {
 	if s.snapshot != nil {
 		s.snapshotReadWriter.load()
-		_, err := s.snapshot.Recover(s.node.context, s.snapshotReadWriter)
+		_, err := s.snapshot.Recover(s.snapshotReadWriter)
 		return err
 	}
 	return ErrSnapshotCodecNil
