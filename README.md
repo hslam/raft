@@ -1,5 +1,5 @@
-# RAFT
-A Golang implementation of the Raft distributed consensus protocol.
+# raft
+Package raft implements the Raft distributed consensus protocol.
 
 ## Features
 
