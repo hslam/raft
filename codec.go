@@ -77,8 +77,8 @@ func (c *BYTESCodec) Unmarshal(data []byte, v interface{}) error {
 	return nil
 }
 
-// gogoprotobuf defines the interface for gogo's protobuf.
-type gogoprotobuf interface {
+// GoGoProtobuf defines the interface for gogo's protobuf.
+type GoGoProtobuf interface {
 	Size() (n int)
 	Marshal() (data []byte, err error)
 	MarshalTo(buf []byte) (int, error)
@@ -89,12 +89,12 @@ type gogoprotobuf interface {
 type GOGOPBCodec struct {
 }
 
-//ErrorGOGOPB is the error that v is not gogoprotobuf
-var ErrorGOGOPB = errors.New("is not gogoprotobuf")
+//ErrorGOGOPB is the error that v is not GoGoProtobuf
+var ErrorGOGOPB = errors.New("is not GoGoProtobuf")
 
 // Marshal returns the GOGOPB encoding of v.
 func (c *GOGOPBCodec) Marshal(buf []byte, v interface{}) ([]byte, error) {
-	if p, ok := v.(gogoprotobuf); ok {
+	if p, ok := v.(GoGoProtobuf); ok {
 		size := p.Size()
 		if cap(buf) >= size {
 			buf = buf[:size]
@@ -108,7 +108,7 @@ func (c *GOGOPBCodec) Marshal(buf []byte, v interface{}) ([]byte, error) {
 
 // Unmarshal parses the GOGOPB-encoded data and stores the result in the value pointed to by v.
 func (c *GOGOPBCodec) Unmarshal(data []byte, v interface{}) error {
-	if p, ok := v.(gogoprotobuf); ok {
+	if p, ok := v.(GoGoProtobuf); ok {
 		return p.Unmarshal(data)
 	}
 	return ErrorGOGOPB
@@ -120,26 +120,38 @@ type Code interface {
 	Unmarshal(buf []byte) (uint64, error)
 }
 
+//ErrorCODE is the error that v is not Code
+var ErrorCODE = errors.New("is not Code")
+
 // CODECodec struct
 type CODECodec struct {
 }
 
 // Marshal returns the CODE encoding of v.
 func (c *CODECodec) Marshal(buf []byte, v interface{}) ([]byte, error) {
-	return v.(Code).Marshal(buf)
+	if p, ok := v.(Code); ok {
+		return p.Marshal(buf)
+	}
+	return nil, ErrorCODE
 }
 
 // Unmarshal parses the CODE-encoded data and stores the result in the value pointed to by v.
 func (c *CODECodec) Unmarshal(data []byte, v interface{}) error {
-	_, err := v.(Code).Unmarshal(data)
-	return err
+	if p, ok := v.(Code); ok {
+		_, err := p.Unmarshal(data)
+		return err
+	}
+	return ErrorCODE
 }
 
-// msgpack defines the interface for msgp.
-type msgpack interface {
+// MsgPack defines the interface for msgp.
+type MsgPack interface {
 	MarshalMsg(buf []byte) ([]byte, error)
 	UnmarshalMsg(bts []byte) (o []byte, err error)
 }
+
+//ErrorMSGP is the error that v is not MSGP
+var ErrorMSGP = errors.New("is not MSGP")
 
 // MSGPCodec struct
 type MSGPCodec struct {
@@ -147,11 +159,17 @@ type MSGPCodec struct {
 
 // Marshal returns the MSGP encoding of v.
 func (c *MSGPCodec) Marshal(buf []byte, v interface{}) ([]byte, error) {
-	return v.(msgpack).MarshalMsg(buf[:0])
+	if p, ok := v.(MsgPack); ok {
+		return p.MarshalMsg(buf)
+	}
+	return nil, ErrorMSGP
 }
 
 // Unmarshal parses the MSGP-encoded data and stores the result in the value pointed to by v.
 func (c *MSGPCodec) Unmarshal(data []byte, v interface{}) error {
-	_, err := v.(msgpack).UnmarshalMsg(data)
-	return err
+	if p, ok := v.(MsgPack); ok {
+		_, err := p.UnmarshalMsg(data)
+		return err
+	}
+	return ErrorMSGP
 }
