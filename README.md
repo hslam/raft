@@ -8,6 +8,7 @@ Package raft implements the Raft distributed consensus protocol.
 * Membership Changes
 * Log Compaction (Snapshotting)
 * [RPC](https://github.com/hslam/rpc "rpc") transport
+* [WAL](https://github.com/hslam/wal "wal")
 * ReadIndex/Lease Read
 * Non-Voting Members (The leader only replicates log entries to them)
 * Snapshot Policies (Never/EverySecond/CustomSync/Always)
