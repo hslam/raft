@@ -1,9 +1,5 @@
 package context
 
-type Command struct {
-	Data string
-}
-
 func (c *Command) Type() int32 {
 	return 1
 }

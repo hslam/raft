@@ -1,0 +1,6 @@
+syntax = "proto3";
+package context;
+
+message Command {
+    string Data = 1;
+}

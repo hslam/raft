@@ -33,7 +33,7 @@ func init() {
 	flag.BoolVar(&benchmark, "b", true, "benchmark")
 	flag.StringVar(&operation, "o", "set", "set|lease|readindex")
 	flag.IntVar(&parallel, "parallel", 1024, "parallel: -total=10000")
-	flag.IntVar(&total_calls, "total", 100000, "total_calls: -total=10000")
+	flag.IntVar(&total_calls, "total", 1000000, "total_calls: -total=10000")
 }
 
 func main() {
@@ -65,7 +65,7 @@ func main() {
 		panic(err)
 	}
 	node.RegisterCommand(&context.Command{})
-	node.SetCodec(&raft.JSONCodec{})
+	node.SetCodec(&raft.GOGOPBCodec{})
 	node.SetSnapshot(context.NewSnapshot(ctx))
 	node.SetSyncTypes([]*raft.SyncType{
 		{Seconds: 900, Changes: 1},
