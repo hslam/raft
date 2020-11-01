@@ -26,7 +26,7 @@ func listenAndServe(address string, n *node) {
 	service.node = n
 	server := rpc.NewServer()
 	server.RegisterName(serviceName, service)
-	rpc.SetLogLevel(rpc.OffLevel)
+	rpc.SetLogLevel(rpc.OffLogLevel)
 	logger.Infoln(server.Listen(network, address, codec))
 }
 
