@@ -161,16 +161,16 @@ func (p *pipeline) run() {
 			go p.node.check()
 		}
 		p.bMutex.Unlock()
-		if p.lastTime.Add(defaultCommandTimeout).Before(time.Now()) {
+		if p.lastTime.Add(time.Duration(minLatency * 10)).Before(time.Now()) {
 			p.lastTime = time.Now()
 			p.mutex.Lock()
-			p.max = 0
+			p.max /= 2
 			p.mutex.Unlock()
 		}
 		select {
-		case <-time.After(p.sleepTime() * 20):
+		case <-time.After(p.sleepTime()):
 		case <-p.trigger:
-			time.Sleep(p.sleepTime() * 10)
+			time.Sleep(p.sleepTime())
 		case <-p.done:
 			return
 		}
