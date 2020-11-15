@@ -9,8 +9,6 @@ import (
 	"time"
 )
 
-var noOperationCommand = NewNoOperationCommand()
-
 type readIndex struct {
 	mu      sync.Mutex
 	node    *node

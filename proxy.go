@@ -159,9 +159,9 @@ func (p *proxy) HandleQueryLeader(req *QueryLeaderRequest, res *QueryLeaderRespo
 }
 func (p *proxy) HandleAddPeer(req *AddPeerRequest, res *AddPeerResponse) error {
 	if p.node.IsLeader() {
-		_, err := p.node.do(NewAddPeerCommand(req.Node), defaultCommandTimeout)
+		_, err := p.node.do(newAddPeerCommand(req.Node), defaultCommandTimeout)
 		if err == nil {
-			_, err = p.node.do(NewReconfigurationCommand(), defaultCommandTimeout)
+			_, err = p.node.do(newReconfigurationCommand(), defaultCommandTimeout)
 			if err == nil {
 				res.Success = true
 				return nil
@@ -186,9 +186,9 @@ func (p *proxy) HandleAddPeer(req *AddPeerRequest, res *AddPeerResponse) error {
 
 func (p *proxy) HandleRemovePeer(req *RemovePeerRequest, res *RemovePeerResponse) error {
 	if p.node.IsLeader() {
-		_, err := p.node.do(NewRemovePeerCommand(req.Address), defaultCommandTimeout)
+		_, err := p.node.do(newRemovePeerCommand(req.Address), defaultCommandTimeout)
 		if err == nil {
-			_, err = p.node.do(NewReconfigurationCommand(), defaultCommandTimeout)
+			_, err = p.node.do(newReconfigurationCommand(), defaultCommandTimeout)
 			if err == nil {
 				res.Success = true
 				return nil

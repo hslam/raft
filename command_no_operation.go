@@ -3,8 +3,10 @@
 
 package raft
 
+var noOperationCommand = newNoOperationCommand()
+
 // NewNoOperationCommand returns a new NoOperationCommand.
-func NewNoOperationCommand() Command {
+func newNoOperationCommand() Command {
 	return &NoOperationCommand{}
 }
 

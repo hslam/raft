@@ -45,7 +45,6 @@ func (s *leaderState) Start() {
 	s.node.election.Reset()
 	logger.Tracef("%s leaderState.Start Term:%d", s.node.address, s.node.currentTerm.Load())
 	go func(n *node, term uint64) {
-		noOperationCommand := NewNoOperationCommand()
 		if ok, _ := n.do(noOperationCommand, defaultCommandTimeout*10); ok != nil {
 			if n.currentTerm.Load() == term {
 				n.ready = true

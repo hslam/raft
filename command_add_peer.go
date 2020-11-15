@@ -4,7 +4,7 @@
 package raft
 
 // NewAddPeerCommand returns a new AddPeerCommand.
-func NewAddPeerCommand(nodeInfo *NodeInfo) Command {
+func newAddPeerCommand(nodeInfo *NodeInfo) Command {
 	return &AddPeerCommand{
 		NodeInfo: nodeInfo,
 	}

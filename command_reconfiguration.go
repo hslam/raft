@@ -4,7 +4,7 @@
 package raft
 
 // NewReconfigurationCommand returns a new ReconfigurationCommand.
-func NewReconfigurationCommand() Command {
+func newReconfigurationCommand() Command {
 	return &ReconfigurationCommand{}
 }
 

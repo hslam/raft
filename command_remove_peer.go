@@ -4,7 +4,7 @@
 package raft
 
 // NewRemovePeerCommand returns a new RemovePeerCommand.
-func NewRemovePeerCommand(address string) Command {
+func newRemovePeerCommand(address string) Command {
 	return &RemovePeerCommand{
 		Address: address,
 	}
