@@ -138,7 +138,7 @@ func (p *pipeline) write(i *invoker) {
 	p.readyEntries = append(p.readyEntries, entry)
 	if len(p.readyEntries) >= concurrency {
 		start := time.Now().UnixNano()
-		p.node.log.ticker(p.readyEntries)
+		p.node.log.appendEntries(p.readyEntries)
 		p.readyEntries = p.readyEntries[:0]
 		go func(d int64) {
 			p.updateLatency(d)
@@ -156,7 +156,7 @@ func (p *pipeline) run() {
 	for {
 		p.bMutex.Lock()
 		if len(p.readyEntries) > 0 {
-			p.node.log.ticker(p.readyEntries)
+			p.node.log.appendEntries(p.readyEntries)
 			p.readyEntries = p.readyEntries[:0]
 			go p.node.check()
 		}
