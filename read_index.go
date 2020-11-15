@@ -40,8 +40,6 @@ func (r *readIndex) Read() (ok bool) {
 		return true
 	}
 	var ch = make(chan bool, 1)
-	var applied bool
-	var done chan struct{}
 	r.mu.Lock()
 	if chs, ok := r.m[r.id]; !ok {
 		r.m[r.id] = []chan bool{ch}
@@ -54,46 +52,24 @@ func (r *readIndex) Read() (ok bool) {
 	default:
 	}
 	timer := time.NewTimer(defaultCommandTimeout)
-	if atomic.LoadUint64(&r.node.stateMachine.lastApplied) >= commitIndex {
-		applied = true
-	}
-	if !applied {
-		done = make(chan struct{}, 1)
-		go r.waitApply(commitIndex, done)
-	}
-	var timeout bool
 	select {
 	case ok = <-ch:
-	case <-timer.C:
-		ok = false
-		timeout = true
-	}
-	if !timeout {
-		if !applied {
-			select {
-			case <-done:
-				timer.Stop()
-			case <-timer.C:
-				ok = false
-			}
-		} else {
-			timer.Stop()
-		}
-	}
-	return
-}
-
-func (r *readIndex) waitApply(commitIndex uint64, done chan struct{}) {
-	for {
 		if atomic.LoadUint64(&r.node.stateMachine.lastApplied) >= commitIndex {
-			select {
-			case done <- struct{}{}:
-			default:
-			}
+			timer.Stop()
 			return
 		}
-		time.Sleep(time.Duration(minLatency) / 10)
+		var done = make(chan struct{}, 1)
+		go r.node.waitApply(commitIndex, done)
+		select {
+		case <-done:
+			timer.Stop()
+		case <-timer.C:
+			ok = false
+		}
+	case <-timer.C:
+		ok = false
 	}
+	return
 }
 
 func (r *readIndex) reply(id uint64, success bool) {

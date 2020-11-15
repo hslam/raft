@@ -558,6 +558,19 @@ func (n *node) ReadIndex() bool {
 	return n.readIndex.Read()
 }
 
+func (n *node) waitApply(commitIndex uint64, done chan struct{}) {
+	for {
+		if atomic.LoadUint64(&n.stateMachine.lastApplied) >= commitIndex {
+			select {
+			case done <- struct{}{}:
+			default:
+			}
+			return
+		}
+		time.Sleep(time.Duration(minLatency) / 10)
+	}
+}
+
 func (n *node) Peers() []string {
 	n.nodesMut.Lock()
 	defer n.nodesMut.Unlock()
