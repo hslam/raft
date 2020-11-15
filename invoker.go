@@ -27,6 +27,25 @@ func init() {
 	donePool.Put(donePool.Get())
 }
 
+func newInvoker() *invoker {
+	var i = invokerPool.Get().(*invoker)
+	i.Done = donePool.Get().(chan *invoker)
+	return i
+}
+
+func freeInvoker(i *invoker) {
+	done := i.Done
+	for len(done) > 0 {
+		select {
+		case <-done:
+		default:
+		}
+	}
+	donePool.Put(done)
+	*i = invoker{}
+	invokerPool.Put(i)
+}
+
 type invoker struct {
 	index   uint64
 	Command Command

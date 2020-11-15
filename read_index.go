@@ -9,20 +9,25 @@ import (
 	"time"
 )
 
+var noOperationCommand = NewNoOperationCommand()
+
 type readIndex struct {
-	mu       sync.Mutex
-	node     *node
-	readChan chan chan bool
-	m        map[uint64][]chan bool
-	id       uint64
-	working  int32
+	mu      sync.Mutex
+	node    *node
+	trigger chan struct{}
+	m       map[uint64][]chan bool
+	done    chan struct{}
+	closed  int32
+	id      uint64
+	working int32
 }
 
 func newReadIndex(n *node) *readIndex {
 	r := &readIndex{
-		node:     n,
-		readChan: make(chan chan bool, defaultMaxConcurrencyRead),
-		m:        make(map[uint64][]chan bool),
+		node:    n,
+		trigger: make(chan struct{}, 1),
+		done:    make(chan struct{}, 1),
+		m:       make(map[uint64][]chan bool),
 	}
 	go r.run()
 	return r
@@ -30,7 +35,17 @@ func newReadIndex(n *node) *readIndex {
 
 func (r *readIndex) Read() (ok bool) {
 	var ch = make(chan bool, 1)
-	r.readChan <- ch
+	r.mu.Lock()
+	if chs, ok := r.m[r.id]; !ok {
+		r.m[r.id] = []chan bool{ch}
+	} else {
+		r.m[r.id] = append(chs, ch)
+	}
+	r.mu.Unlock()
+	select {
+	case r.trigger <- struct{}{}:
+	default:
+	}
 	timer := time.NewTimer(defaultCommandTimeout)
 	select {
 	case ok = <-ch:
@@ -42,68 +57,93 @@ func (r *readIndex) Read() (ok bool) {
 }
 
 func (r *readIndex) reply(id uint64, success bool) {
-	defer func() {
-		if err := recover(); err != nil {
-		}
-	}()
 	r.mu.Lock()
-	defer r.mu.Unlock()
-	if _, ok := r.m[id]; ok {
-		if len(r.m[id]) > 0 {
-			for _, ch := range r.m[id] {
+	chs, ok := r.m[id]
+	delete(r.m, id)
+	r.mu.Unlock()
+	if ok {
+		if len(chs) > 0 {
+			for _, ch := range chs {
 				ch <- success
 			}
 		}
 	}
-	delete(r.m, id)
 }
-func (r *readIndex) Update() bool {
+
+func (r *readIndex) send() {
 	if atomic.CompareAndSwapInt32(&r.working, 0, 1) {
 		defer atomic.StoreInt32(&r.working, 0)
 		defer func() {
 			if err := recover(); err != nil {
 			}
 		}()
-		defer func() {
-			if r.node.isLeader() {
-				r.id++
-			}
-		}()
 		r.mu.Lock()
-		defer r.mu.Unlock()
-		if _, ok := r.m[r.id]; ok {
-			if len(r.m[r.id]) > 0 {
-				go func(n *node, id uint64) {
-					noOperationCommand := NewNoOperationCommand()
-					if ok, _ := n.do(noOperationCommand, defaultCommandTimeout); ok != nil {
-						r.reply(id, true)
+		id := r.id
+		if chs, ok := r.m[id]; ok {
+			if len(chs) > 0 {
+				if r.node.isLeader() {
+					r.id++
+				}
+				r.mu.Unlock()
+				if !r.node.running {
+					r.reply(id, false)
+					return
+				}
+				if r.node.IsLeader() {
+					i := r.node.put(noOperationCommand)
+					if i.Error == nil {
+						go func(id uint64, i *invoker) {
+							timer := time.NewTimer(defaultCommandTimeout)
+							select {
+							case <-i.Done:
+								timer.Stop()
+								var reply = i.Reply
+								var err = i.Error
+								freeInvoker(i)
+								if err == nil && reply != nil {
+									r.reply(id, true)
+									return
+								}
+							case <-timer.C:
+							}
+							r.reply(id, false)
+						}(id, i)
 						return
 					}
-					r.reply(id, false)
-				}(r.node, r.id)
-				return true
+				}
+				r.reply(id, false)
+				return
 			}
 		}
+		r.mu.Unlock()
 	}
-	return false
+	return
 }
 
 func (r *readIndex) run() {
-	for ch := range r.readChan {
-		func() {
-			r.mu.Lock()
-			defer r.mu.Unlock()
-			if _, ok := r.m[r.id]; !ok {
-				r.m[r.id] = []chan bool{}
-			}
-			r.m[r.id] = append(r.m[r.id], ch)
-		}()
+	for {
+	loop:
+		time.Sleep(time.Duration(minLatency) / 10)
+		r.send()
+		r.mu.Lock()
+		length := len(r.m)
+		r.mu.Unlock()
+		if length > 0 {
+			goto loop
+		}
+		select {
+		case <-r.trigger:
+			goto loop
+		case <-r.done:
+			return
+		}
 	}
 }
 
 func (r *readIndex) Stop() {
-	if r.readChan != nil {
-		close(r.readChan)
-		r.readChan = nil
+	if !atomic.CompareAndSwapInt32(&r.closed, 0, 1) {
+		return
 	}
+	close(r.done)
+	close(r.trigger)
 }

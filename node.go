@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"github.com/hslam/atomic"
 	"github.com/hslam/timer"
+	"runtime"
 	"sync"
 	"time"
 )
@@ -195,6 +196,7 @@ func NewNode(host string, port int, dataDir string, context interface{}, join bo
 	}
 	return n, nil
 }
+
 func (n *node) Start() {
 	n.onceStart.Do(func() {
 		n.recover()
@@ -205,6 +207,7 @@ func (n *node) Start() {
 	n.election.Reset()
 	n.running = true
 }
+
 func (n *node) run() {
 	go func(updateTicker *time.Ticker, done chan struct{}) {
 		for {
@@ -328,6 +331,7 @@ func (n *node) Running() bool {
 	defer n.mu.RUnlock()
 	return n.running
 }
+
 func (n *node) Stop() {
 	n.onceStop.Do(func() {
 		close(n.done)
@@ -335,11 +339,13 @@ func (n *node) Stop() {
 		n.running = false
 	})
 }
+
 func (n *node) Stoped() bool {
 	n.mu.RLock()
 	defer n.mu.RUnlock()
 	return n.stoped
 }
+
 func (n *node) voting() bool {
 	return !n.nonVoting && n.majorities
 }
@@ -351,6 +357,7 @@ func (n *node) setState(s state) {
 func (n *node) stepDown() {
 	n.changeState(-1)
 }
+
 func (n *node) nextState() {
 	n.changeState(1)
 }
@@ -380,32 +387,38 @@ func (n *node) Term() uint64 {
 	defer n.mu.RUnlock()
 	return n.term()
 }
+
 func (n *node) term() uint64 {
 	if !n.running {
 		return 0
 	}
 	return n.currentTerm.Load()
 }
+
 func (n *node) Leader() string {
 	n.mu.RLock()
 	defer n.mu.RUnlock()
 	return n.leader
 }
+
 func (n *node) Ready() bool {
 	n.mu.RLock()
 	defer n.mu.RUnlock()
 	return n.ready
 }
+
 func (n *node) Lease() bool {
 	n.mu.RLock()
 	defer n.mu.RUnlock()
 	return n.lease
 }
+
 func (n *node) IsLeader() bool {
 	n.mu.RLock()
 	defer n.mu.RUnlock()
 	return n.isLeader()
 }
+
 func (n *node) isLeader() bool {
 	if !n.running {
 		return false
@@ -415,16 +428,19 @@ func (n *node) isLeader() bool {
 	}
 	return false
 }
+
 func (n *node) Address() string {
 	n.mu.RLock()
 	defer n.mu.RUnlock()
 	return n.address
 }
+
 func (n *node) SetCodec(codec Codec) {
 	n.mu.RLock()
 	defer n.mu.RUnlock()
 	n.codec = codec
 }
+
 func (n *node) SetContext(context interface{}) {
 	n.mu.Lock()
 	defer n.mu.Unlock()
@@ -471,12 +487,14 @@ func (n *node) RegisterCommand(command Command) error {
 	defer n.mu.Unlock()
 	return n.commands.register(command)
 }
+
 func (n *node) registerCommand(command Command) error {
 	if command == nil {
 		return ErrCommandNil
 	}
 	return n.commands.register(command)
 }
+
 func (n *node) Do(command Command) (interface{}, error) {
 	if command.Type() < 0 {
 		return nil, ErrCommandTypeMinus
@@ -485,43 +503,47 @@ func (n *node) Do(command Command) (interface{}, error) {
 }
 
 func (n *node) do(command Command, timeout time.Duration) (reply interface{}, err error) {
+	i := n.put(command)
+	runtime.Gosched()
+	if i.Error == nil {
+		timer := time.NewTimer(timeout)
+		select {
+		case <-i.Done:
+			timer.Stop()
+			reply = i.Reply
+			err = i.Error
+		case <-timer.C:
+			err = ErrCommandTimeout
+		}
+	}
+	freeInvoker(i)
+	return
+}
+
+func (n *node) put(command Command) *invoker {
+	var i = newInvoker()
+	i.Command = command
 	if !n.running {
-		return nil, ErrNotRunning
+		i.Error = ErrNotRunning
+		i.done()
+		return i
 	}
 	if command == nil {
-		return nil, ErrCommandNil
+		i.Error = ErrCommandNil
+		i.done()
+		return i
 	}
 	if n.IsLeader() {
 		if n.commands.exists(command) {
-			var i = invokerPool.Get().(*invoker)
-			var done = donePool.Get().(chan *invoker)
-			i.Command = command
-			i.Reply = reply
-			i.Error = err
-			i.Done = done
 			n.pipeline.write(i)
-			timer := time.NewTimer(timeout)
-			select {
-			case <-done:
-				timer.Stop()
-				for len(done) > 0 {
-					<-done
-				}
-				donePool.Put(done)
-				reply = i.Reply
-				err = i.Error
-				*i = invoker{}
-				invokerPool.Put(i)
-			case <-timer.C:
-				err = ErrCommandTimeout
-			}
-		} else {
-			err = ErrCommandNotRegistered
+			return i
 		}
+		i.Error = ErrCommandNotRegistered
 	} else {
-		err = ErrNotLeader
+		i.Error = ErrNotLeader
 	}
-	return reply, err
+	i.done()
+	return i
 }
 
 func (n *node) ReadIndex() bool {
@@ -546,6 +568,7 @@ func (n *node) Peers() []string {
 	}
 	return peers
 }
+
 func (n *node) membership() []string {
 	n.nodesMut.Lock()
 	defer n.nodesMut.Unlock()
@@ -558,6 +581,7 @@ func (n *node) membership() []string {
 	}
 	return ms
 }
+
 func (n *node) Join(info *NodeInfo) (success bool) {
 	leader := n.Leader()
 	if leader != "" {
@@ -578,6 +602,7 @@ func (n *node) Join(info *NodeInfo) (success bool) {
 	}
 	return false
 }
+
 func (n *node) Leave(Address string) (success bool, ok bool) {
 	leader := n.Leader()
 	if leader != "" {
@@ -592,6 +617,7 @@ func (n *node) Leave(Address string) (success bool, ok bool) {
 	}
 	return
 }
+
 func (n *node) setNodes(nodes []*NodeInfo) {
 	n.stateMachine.configuration.SetNodes(nodes)
 	n.stateMachine.configuration.load()
@@ -600,6 +626,7 @@ func (n *node) setNodes(nodes []*NodeInfo) {
 	}
 	n.resetVotes()
 }
+
 func (n *node) addNode(info *NodeInfo) {
 	n.nodesMut.Lock()
 	defer n.nodesMut.Unlock()
@@ -617,6 +644,7 @@ func (n *node) addNode(info *NodeInfo) {
 	n.resetVotes()
 	return
 }
+
 func (n *node) resetVotes() {
 	if n.votingsCount() == 0 {
 		n.votes.Reset(1)
@@ -624,6 +652,7 @@ func (n *node) resetVotes() {
 	n.votes.Reset(n.votingsCount())
 	return
 }
+
 func (n *node) consideredForMajorities() {
 	n.nodesMut.Lock()
 	defer n.nodesMut.Unlock()
@@ -636,6 +665,7 @@ func (n *node) consideredForMajorities() {
 		v.majorities = true
 	}
 }
+
 func (n *node) deleteNotPeers(peers []string) {
 	if len(peers) == 0 {
 		n.clearPeers()
@@ -653,29 +683,35 @@ func (n *node) deleteNotPeers(peers []string) {
 		}
 	}
 }
+
 func (n *node) clearPeers() {
 	n.nodesMut.Lock()
 	defer n.nodesMut.Unlock()
 	n.peers = make(map[string]*peer)
 }
+
 func (n *node) LookupPeer(addr string) *NodeInfo {
 	n.nodesMut.Lock()
 	defer n.nodesMut.Unlock()
 	return n.stateMachine.configuration.LookupPeer(addr)
 }
+
 func (n *node) NodesCount() int {
 	n.nodesMut.RLock()
 	defer n.nodesMut.RUnlock()
 	return len(n.peers) + 1
 }
+
 func (n *node) Quorum() int {
 	n.nodesMut.RLock()
 	defer n.nodesMut.RUnlock()
 	return n.quorum()
 }
+
 func (n *node) quorum() int {
 	return n.votingsCount()/2 + 1
 }
+
 func (n *node) votingsCount() int {
 	cnt := 0
 	for _, v := range n.peers {
@@ -688,11 +724,13 @@ func (n *node) votingsCount() int {
 	}
 	return cnt
 }
+
 func (n *node) AliveCount() int {
 	n.nodesMut.RLock()
 	defer n.nodesMut.RUnlock()
 	return n.aliveCount()
 }
+
 func (n *node) aliveCount() int {
 	cnt := 1
 	for _, v := range n.peers {
@@ -702,6 +740,7 @@ func (n *node) aliveCount() int {
 	}
 	return cnt
 }
+
 func (n *node) requestVotes() error {
 	n.nodesMut.RLock()
 	defer n.nodesMut.RUnlock()
@@ -714,6 +753,7 @@ func (n *node) requestVotes() error {
 	}
 	return nil
 }
+
 func (n *node) detectNodes() error {
 	n.nodesMut.RLock()
 	defer n.nodesMut.RUnlock()
@@ -724,6 +764,7 @@ func (n *node) detectNodes() error {
 	}
 	return nil
 }
+
 func (n *node) keepAliveNodes() error {
 	n.nodesMut.RLock()
 	defer n.nodesMut.RUnlock()
@@ -732,6 +773,7 @@ func (n *node) keepAliveNodes() error {
 	}
 	return nil
 }
+
 func (n *node) heartbeats() error {
 	n.nodesMut.RLock()
 	defer n.nodesMut.RUnlock()
@@ -742,6 +784,7 @@ func (n *node) heartbeats() error {
 	}
 	return nil
 }
+
 func (n *node) install() bool {
 	n.nodesMut.RLock()
 	defer n.nodesMut.RUnlock()
@@ -752,6 +795,7 @@ func (n *node) install() bool {
 	}
 	return true
 }
+
 func (n *node) check() error {
 	n.nodesMut.RLock()
 	defer n.nodesMut.RUnlock()
@@ -765,6 +809,7 @@ func (n *node) check() error {
 	}
 	return nil
 }
+
 func (n *node) minNextIndex() uint64 {
 	n.nodesMut.RLock()
 	defer n.nodesMut.RUnlock()
@@ -780,6 +825,7 @@ func (n *node) minNextIndex() uint64 {
 	}
 	return min
 }
+
 func (n *node) reset() {
 	n.recoverLogIndex = 0
 	n.lastPrintNextIndex = 1
@@ -834,6 +880,7 @@ func (n *node) recover() error {
 	logger.Tracef("node.recover %s finish", n.address)
 	return nil
 }
+
 func (n *node) checkLog() error {
 	if n.storage.IsEmpty(defaultLastIncludedIndex) {
 		n.stateMachine.snapshotReadWriter.lastIncludedIndex.save()
@@ -930,6 +977,7 @@ func (n *node) print() {
 	//}
 	n.printPeers()
 }
+
 func (n *node) commit() bool {
 	if !atomic.CompareAndSwapInt32(&n.commiting, 0, 1) {
 		return true
