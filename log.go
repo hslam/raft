@@ -4,36 +4,25 @@
 package raft
 
 import (
-	"errors"
 	"github.com/hslam/wal"
 	"sync"
 	"time"
 )
 
-//
 type waLog struct {
-	mu               sync.Mutex
-	batchMu          sync.Mutex
-	pauseMu          sync.Mutex
-	node             *node
-	wal              *wal.Log
-	compactionTicker *time.Ticker
-	buf              []byte
-	entryPool        *sync.Pool
-	stop             chan bool
-	finish           chan bool
-	work             bool
-	paused           bool
+	mu        sync.Mutex
+	pauseMu   sync.Mutex
+	node      *node
+	wal       *wal.Log
+	buf       []byte
+	entryPool *sync.Pool
+	paused    bool
 }
 
 func newLog(n *node) *waLog {
 	l := &waLog{
-		node:             n,
-		compactionTicker: time.NewTicker(defaultCompactionTick),
-		buf:              make([]byte, 1024*64),
-		stop:             make(chan bool, 1),
-		finish:           make(chan bool, 1),
-		work:             true,
+		node: n,
+		buf:  make([]byte, 1024*64),
 	}
 	l.wal, _ = wal.Open(n.storage.dataDir, nil)
 	l.entryPool = &sync.Pool{
@@ -41,12 +30,13 @@ func newLog(n *node) *waLog {
 			return &Entry{}
 		},
 	}
-	go l.run()
 	return l
 }
+
 func (l *waLog) getEmtyEntry() *Entry {
 	return l.entryPool.Get().(*Entry)
 }
+
 func (l *waLog) putEmtyEntry(entry *Entry) {
 	entry.Index = 0
 	entry.Term = 0
@@ -54,6 +44,7 @@ func (l *waLog) putEmtyEntry(entry *Entry) {
 	entry.CommandType = 0
 	l.entryPool.Put(entry)
 }
+
 func (l *waLog) putEmtyEntries(entries []*Entry) {
 	for _, entry := range entries {
 		l.putEmtyEntry(entry)
@@ -65,17 +56,19 @@ func (l *waLog) pause(p bool) {
 	defer l.pauseMu.Unlock()
 	l.paused = p
 }
+
 func (l *waLog) isPaused() bool {
 	l.pauseMu.Lock()
 	defer l.pauseMu.Unlock()
 	return l.paused
 }
+
 func (l *waLog) checkPaused() {
 	for {
 		if !l.isPaused() {
 			break
 		}
-		time.Sleep(time.Millisecond * 100)
+		time.Sleep(time.Duration(minLatency))
 	}
 }
 func (l *waLog) checkIndex(index uint64) bool {
@@ -116,6 +109,7 @@ func (l *waLog) consistencyCheck(index uint64, term uint64) (ok bool) {
 	}
 	return true
 }
+
 func (l *waLog) check(entries []*Entry) bool {
 	lastIndex := entries[0].Index
 	for i := 1; i < len(entries); i++ {
@@ -159,12 +153,15 @@ func (l *waLog) deleteBefore(index uint64) {
 	l.node.firstLogIndex, _ = l.wal.FirstIndex()
 	logger.Tracef("log.clean %s index %d", l.node.address, index)
 }
+
 func (l *waLog) startIndex(index uint64) uint64 {
 	return maxUint64(l.node.firstLogIndex, index)
 }
+
 func (l *waLog) endIndex(index uint64) uint64 {
 	return minUint64(index, l.node.lastLogIndex)
 }
+
 func (l *waLog) copyAfter(index uint64, max int) (entries []*Entry) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -173,6 +170,7 @@ func (l *waLog) copyAfter(index uint64, max int) (entries []*Entry) {
 	endIndex := l.endIndex(startIndex + uint64(max))
 	return l.copyRange(startIndex, endIndex)
 }
+
 func (l *waLog) copyRange(startIndex uint64, endIndex uint64) []*Entry {
 	//logger.Tracef("l.copyRange %s startIndex %d endIndex %d",l.node.address,metas[0].Index,metas[len(metas)-1].Index)
 	return l.batchRead(startIndex, endIndex)
@@ -291,6 +289,7 @@ func (l *waLog) appendEntries(entries []*Entry) bool {
 	//logger.Tracef("l.appendEntries %s entries %d", l.node.address, len(entries))
 	return true
 }
+
 func (l *waLog) read(index uint64) *Entry {
 	b, err := l.wal.Read(index)
 	if err != nil {
@@ -353,99 +352,4 @@ func (l *waLog) Write(entries []*Entry) (err error) {
 	}
 	//logger.Tracef("l.Write %d", len(entries))
 	return l.wal.FlushAndSync()
-}
-
-func (l *waLog) compaction() error {
-	//l.mu.Lock()
-	//defer l.mu.Unlock()
-	//md5, err:=l.loadMd5()
-	//if err==nil&&md5!=""{
-	//	if md5==l.node.storage.MD5(DefaultLog){
-	//		return nil
-	//	}
-	//}
-	//var compactionEntries =make(map[string]*Entry)
-	//var entries	=make([]*Entry,0)
-	//for i:=len(l.entries)-1;i>=0;i--{
-	//	entry:= l.entries[i]
-	//	key:=string(int32ToBytes(entry.CommandType))+entry.CommandId
-	//	if _,ok:=compactionEntries[key];!ok{
-	//		entries=append(entries,entry)
-	//		compactionEntries[key]=entry
-	//	}
-	//}
-	//for i,j:= 0,len(entries)-1;i<j;i,j=i+1,j-1{
-	//	entries[i], entries[j] = entries[j], entries[i]
-	//}
-	//l.entries=entries
-	//
-	//b,metas,_:=l.Encode(l.entries,0)
-	//var lastLogSize ,_= l.node.storage.Size(DefaultLog)
-	//l.node.storage.SafeOverWrite(DefaultLog,b)
-	//l.indexs.metas=metas
-	//l.indexs.save()
-	//l.ret=uint64(len(b))
-	//if len(l.entries)>0{
-	//	l.node.lastLogIndex=l.entries[len(l.entries)-1].Index
-	//	l.node.lastLogTerm=l.entries[len(l.entries)-1].Term
-	//}
-	//var logSize ,_= l.node.storage.Size(DefaultLog)
-	//logger.Tracef("l.compaction %s LogSize %d==>%d",l.node.address,lastLogSize,logSize)
-	//l.saveMd5()
-	//logger.Tracef("l.compaction %s md5 %s==>%s",l.node.address,md5,l.node.storage.MD5(DefaultLog))
-	return nil
-}
-func (l *waLog) saveMd5() {
-	//md5 := l.node.storage.MD5(DefaultLog)
-	//if len(md5) > 0 {
-	//	l.node.storage.OverWrite(DefaultMd5, []byte(md5))
-	//}
-}
-
-func (l *waLog) loadMd5() (string, error) {
-	if !l.node.storage.Exists(defaultMd5) {
-		return "", errors.New("md5 file is not existed")
-	}
-	b, err := l.node.storage.Load(defaultMd5)
-	if err != nil {
-		return "", err
-	}
-	return string(b), nil
-}
-
-func (l *waLog) run() {
-	for {
-		select {
-		case <-l.compactionTicker.C:
-			func() {
-				defer func() {
-					if err := recover(); err != nil {
-					}
-				}()
-				//l.compaction()
-			}()
-		case <-l.stop:
-			close(l.stop)
-			l.stop = nil
-			goto endfor
-		}
-	}
-endfor:
-	l.compactionTicker.Stop()
-	l.compactionTicker = nil
-	l.finish <- true
-}
-func (l *waLog) ticker(entries []*Entry) {
-	l.appendEntries(entries)
-}
-func (l *waLog) Stop() {
-	if l.stop == nil {
-		return
-	}
-	l.stop <- true
-	select {
-	case <-l.finish:
-		close(l.finish)
-		l.finish = nil
-	}
 }
