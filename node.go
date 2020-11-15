@@ -784,6 +784,51 @@ func (n *node) heartbeats() error {
 	return nil
 }
 
+func (n *node) checkLeader() bool {
+	n.nodesMut.RLock()
+	peers := n.peers
+	quorum := uint32(n.quorum())
+	n.nodesMut.RUnlock()
+	done := make(chan struct{}, 1)
+	count := uint32(1)
+	send := uint32(1)
+	for _, v := range peers {
+		if !v.voting() {
+			continue
+		}
+		if v.alive {
+			atomic.AddUint32(&send, 1)
+			go func() {
+				ok := v.heartbeat()
+				//logger.Tracef("node.checkLeader %s %v", n.address, ok)
+				if ok {
+					new := atomic.AddUint32(&count, 1)
+					if new >= quorum {
+						select {
+						case done <- struct{}{}:
+						default:
+						}
+					}
+				}
+			}()
+		}
+	}
+	if send < quorum {
+		return false
+	}
+	//logger.Tracef("node.checkLeader %s quorum-%v", n.address, quorum)
+	timer := time.NewTimer(defaultCommandTimeout)
+	select {
+	case <-done:
+		timer.Stop()
+		//logger.Tracef("node.checkLeader %s count-%v quorum-%v", n.address, count, quorum)
+		return true
+	case <-timer.C:
+		//logger.Tracef("node.checkLeader %s timeout count-%v quorum-%v", n.address, count, quorum)
+	}
+	return false
+}
+
 func (n *node) install() bool {
 	n.nodesMut.RLock()
 	defer n.nodesMut.RUnlock()

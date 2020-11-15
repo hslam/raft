@@ -32,7 +32,16 @@ func newReadIndex(n *node) *readIndex {
 }
 
 func (r *readIndex) Read() (ok bool) {
+	commitIndex := atomic.LoadUint64(&r.node.commitIndex)
+	r.node.nodesMut.Lock()
+	votingsCount := r.node.votingsCount()
+	r.node.nodesMut.Unlock()
+	if votingsCount == 1 {
+		return true
+	}
 	var ch = make(chan bool, 1)
+	var applied bool
+	var done chan struct{}
 	r.mu.Lock()
 	if chs, ok := r.m[r.id]; !ok {
 		r.m[r.id] = []chan bool{ch}
@@ -45,13 +54,46 @@ func (r *readIndex) Read() (ok bool) {
 	default:
 	}
 	timer := time.NewTimer(defaultCommandTimeout)
+	if atomic.LoadUint64(&r.node.stateMachine.lastApplied) >= commitIndex {
+		applied = true
+	}
+	if !applied {
+		done = make(chan struct{}, 1)
+		go r.waitApply(commitIndex, done)
+	}
+	var timeout bool
 	select {
 	case ok = <-ch:
-		timer.Stop()
 	case <-timer.C:
 		ok = false
+		timeout = true
+	}
+	if !timeout {
+		if !applied {
+			select {
+			case <-done:
+				timer.Stop()
+			case <-timer.C:
+				ok = false
+			}
+		} else {
+			timer.Stop()
+		}
 	}
 	return
+}
+
+func (r *readIndex) waitApply(commitIndex uint64, done chan struct{}) {
+	for {
+		if atomic.LoadUint64(&r.node.stateMachine.lastApplied) >= commitIndex {
+			select {
+			case done <- struct{}{}:
+			default:
+			}
+			return
+		}
+		time.Sleep(time.Duration(minLatency) / 10)
+	}
 }
 
 func (r *readIndex) reply(id uint64, success bool) {
@@ -88,26 +130,10 @@ func (r *readIndex) send() {
 					return
 				}
 				if r.node.IsLeader() {
-					i := r.node.put(noOperationCommand)
-					if i.Error == nil {
-						go func(id uint64, i *invoker) {
-							timer := time.NewTimer(defaultCommandTimeout)
-							select {
-							case <-i.Done:
-								timer.Stop()
-								var reply = i.Reply
-								var err = i.Error
-								freeInvoker(i)
-								if err == nil && reply != nil {
-									r.reply(id, true)
-									return
-								}
-							case <-timer.C:
-							}
-							r.reply(id, false)
-						}(id, i)
-						return
-					}
+					go func(id uint64) {
+						r.reply(id, r.node.checkLeader())
+					}(id)
+					return
 				}
 				r.reply(id, false)
 				return
