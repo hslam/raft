@@ -4,6 +4,7 @@
 package raft
 
 import (
+	"math/rand"
 	"sync"
 	"time"
 )
@@ -51,4 +52,10 @@ func (e *election) Timeout() bool {
 		return true
 	}
 	return false
+}
+
+var random = rand.New(rand.NewSource(time.Now().UnixNano()))
+
+func randomDurationTime(maxRange time.Duration) time.Duration {
+	return maxRange * time.Duration((random.Intn(500) + 500)) / time.Duration(1000)
 }
