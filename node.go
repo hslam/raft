@@ -51,7 +51,7 @@ type node struct {
 	onceStop  sync.Once
 
 	running bool
-	stop    chan bool
+	done    chan struct{}
 	stoped  bool
 
 	host    string
@@ -142,7 +142,7 @@ func NewNode(host string, port int, dataDir string, context interface{}, join bo
 		checkLogTicker:  time.NewTicker(defaultCheckLogTick),
 		ticker:          time.NewTicker(defaultNodeTick),
 		updateTicker:    time.NewTicker(defaultUpdateTick),
-		stop:            make(chan bool, 1),
+		done:            make(chan struct{}, 1),
 		changeStateChan: make(chan int, 1),
 		heartbeatTick:   defaultHeartbeatTick,
 		raftCodec:       new(GOGOPBCodec),
@@ -206,11 +206,10 @@ func (n *node) Start() {
 	n.running = true
 }
 func (n *node) run() {
-	updateStop := make(chan bool, 1)
-	go func(updateTicker *time.Ticker, updateStop chan bool) {
+	go func(updateTicker *time.Ticker, done chan struct{}) {
 		for {
 			select {
-			case <-updateStop:
+			case <-done:
 				goto endfor
 			case <-n.updateTicker.C:
 				func() {
@@ -225,7 +224,7 @@ func (n *node) run() {
 						n.workTicker.Stop()
 						n.workTicker = nil
 					}
-					if n.state.Update() || n.pipeline.Update() || n.readIndex.Update() {
+					if n.state.Update() || n.pipeline.Update() {
 						if n.workTicker == nil {
 							n.deferTime = time.Now()
 							n.workTicker = timer.TickFunc(defaultMaxDelay, func() {
@@ -235,7 +234,6 @@ func (n *node) run() {
 								}()
 								n.state.Update()
 								n.pipeline.Update()
-								n.readIndex.Update()
 							})
 						}
 					}
@@ -243,7 +241,7 @@ func (n *node) run() {
 			}
 		}
 	endfor:
-	}(n.updateTicker, updateStop)
+	}(n.updateTicker, n.done)
 	for {
 		select {
 		case <-n.ticker.C:
@@ -308,13 +306,11 @@ func (n *node) run() {
 				}()
 				n.votes.AddVote(v)
 			}()
-		case <-n.stop:
-			updateStop <- true
+		case <-n.done:
 			goto endfor
 		}
 	}
 endfor:
-	close(n.stop)
 	n.printTicker.Stop()
 	n.printTicker = nil
 	n.keepAliveTicker.Stop()
@@ -334,8 +330,9 @@ func (n *node) Running() bool {
 }
 func (n *node) Stop() {
 	n.onceStop.Do(func() {
-		n.stop <- true
+		close(n.done)
 		n.stoped = true
+		n.running = false
 	})
 }
 func (n *node) Stoped() bool {
