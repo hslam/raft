@@ -23,6 +23,7 @@ type Node interface {
 	Leader() string
 	Ready() bool
 	Lease() bool
+	LeaseRead() bool
 	IsLeader() bool
 	Address() string
 	SetCodec(codec Codec)
@@ -410,6 +411,23 @@ func (n *node) Lease() bool {
 	n.mu.RLock()
 	defer n.mu.RUnlock()
 	return n.lease
+}
+
+func (n *node) LeaseRead() (ok bool) {
+	commitIndex := atomic.LoadUint64(&n.commitIndex)
+	if atomic.LoadUint64(&n.stateMachine.lastApplied) < commitIndex {
+		timer := time.NewTimer(defaultCommandTimeout)
+		var done = make(chan struct{}, 1)
+		go n.waitApply(commitIndex, done)
+		select {
+		case <-done:
+			timer.Stop()
+		case <-timer.C:
+			ok = false
+			return
+		}
+	}
+	return n.Lease()
 }
 
 func (n *node) IsLeader() bool {
