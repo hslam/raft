@@ -38,8 +38,13 @@ func newPeer(n *node, address string) *peer {
 	return p
 }
 
-func (p *peer) heartbeat() {
-	p.appendEntries([]*Entry{})
+func (p *peer) heartbeat() bool {
+	_, term, success, ok := p.appendEntries([]*Entry{})
+	//logger.Tracef("Peer.heartbeat %s %v term-%v success-%v ok-%v ", p.address, p.node.currentTerm.Load(), term, success, ok)
+	if ok && success && term == p.node.currentTerm.Load() {
+		return true
+	}
+	return false
 }
 
 func (p *peer) requestVote() {

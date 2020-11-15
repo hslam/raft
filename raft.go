@@ -236,10 +236,8 @@ func (r *raft) HandleAppendEntries(req *AppendEntriesRequest, res *AppendEntries
 		logger.Tracef("raft.HandleAppendEntries %s State:%s Term:%d", r.node.address, r.node.State(), r.node.currentTerm.Load())
 	}
 	r.node.election.Reset()
-	if req.PrevLogIndex == 0 && req.PrevLogTerm == 0 && len(req.Entries) == 0 {
-		res.Success = true
-		return nil
-	} else if req.PrevLogIndex > 0 {
+
+	if req.PrevLogIndex > 0 {
 		if ok := r.node.log.consistencyCheck(req.PrevLogIndex, req.PrevLogTerm); !ok {
 			res.NextIndex = r.node.nextIndex
 			res.Success = false
@@ -255,6 +253,10 @@ func (r *raft) HandleAppendEntries(req *AppendEntriesRequest, res *AppendEntries
 		//}
 	}
 	//logger.Tracef("raft.HandleAppendEntries %s len%d PrevLogIndex%d lastLogIndex%d", r.node.address, len(req.Entries), req.PrevLogIndex, r.node.lastLogIndex)
+	if len(req.Entries) == 0 {
+		res.Success = true
+		return nil
+	}
 	if len(req.Entries) > 0 && req.PrevLogIndex == r.node.lastLogIndex {
 		if req.PrevLogIndex+1 == req.Entries[0].Index {
 			res.Success = r.node.log.appendEntries(req.Entries)
