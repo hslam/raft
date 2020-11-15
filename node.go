@@ -221,7 +221,7 @@ func (n *node) run() {
 					if !n.running {
 						return
 					}
-					if n.workTicker != nil && n.deferTime.Add(defaultCommandTimeout).Before(time.Now()) {
+					if n.workTicker != nil && n.deferTime.Add(time.Duration(minLatency*10)).Before(time.Now()) {
 						n.workTicker.Stop()
 						n.workTicker = nil
 					}
@@ -486,6 +486,7 @@ func (n *node) Do(command Command) (interface{}, error) {
 	}
 	return n.do(command, defaultCommandTimeout)
 }
+
 func (n *node) do(command Command, timeout time.Duration) (reply interface{}, err error) {
 	if !n.running {
 		return nil, ErrNotRunning
@@ -525,6 +526,7 @@ func (n *node) do(command Command, timeout time.Duration) (reply interface{}, er
 	}
 	return reply, err
 }
+
 func (n *node) ReadIndex() bool {
 	if !n.running {
 		return false
