@@ -32,17 +32,19 @@ type pipeline struct {
 	lastTime       time.Time
 	applying       int32
 	trigger        chan bool
+	readTrigger    chan bool
 }
 
 func newPipeline(n *node) *pipeline {
 	p := &pipeline{
-		node:     n,
-		buffer:   make([]byte, 1024*64),
-		pending:  make(map[uint64]*invoker),
-		lastTime: time.Now(),
-		trigger:  make(chan bool, 1024),
-		done:     make(chan bool, 1),
-		min:      minLatency,
+		node:        n,
+		buffer:      make([]byte, 1024*64),
+		pending:     make(map[uint64]*invoker),
+		lastTime:    time.Now(),
+		trigger:     make(chan bool, 1),
+		readTrigger: make(chan bool, 1),
+		done:        make(chan bool, 1),
+		min:         minLatency,
 	}
 	go p.run()
 	go p.read()
@@ -53,6 +55,7 @@ func (p *pipeline) init(lastLogIndex uint64) {
 	//logger.Tracef("pipeline.init %d", lastLogIndex)
 	p.applyIndex = lastLogIndex + 1
 }
+
 func (p *pipeline) concurrency() (n int) {
 	p.lastsCursor++
 	p.mutex.Lock()
@@ -70,6 +73,14 @@ func (p *pipeline) concurrency() (n int) {
 	}
 	return p.max
 }
+
+func (p *pipeline) batch() int {
+	p.mutex.Lock()
+	max := p.max
+	p.mutex.Unlock()
+	return max
+}
+
 func (p *pipeline) updateLatency(d int64) (n int64) {
 	p.latencysCursor++
 	p.mutex.Lock()
@@ -85,28 +96,22 @@ func (p *pipeline) updateLatency(d int64) (n int64) {
 	p.min = min
 	return p.min
 }
-func (p *pipeline) minLatency() int64 {
+
+func (p *pipeline) minLatency() time.Duration {
 	p.mutex.Lock()
 	min := p.min
 	p.mutex.Unlock()
 	//logger.Tracef("pipeline.minLatency%d", min)
-	return min
+	return time.Duration(min)
 }
 
 func (p *pipeline) sleepTime() (d time.Duration) {
-	if p.concurrency() < 1 {
+	if p.batch() < 1 {
 		d = time.Second
 	} else {
-		d = time.Duration(p.minLatency())
+		d = p.minLatency()
 	}
 	return
-}
-
-func (p *pipeline) Update() bool {
-	if p.concurrency() > 0 {
-		return true
-	}
-	return false
 }
 
 func (p *pipeline) write(i *invoker) {
@@ -151,7 +156,12 @@ func (p *pipeline) write(i *invoker) {
 	case p.trigger <- true:
 	default:
 	}
+	select {
+	case p.readTrigger <- true:
+	default:
+	}
 }
+
 func (p *pipeline) run() {
 	for {
 		p.bMutex.Lock()
@@ -161,7 +171,7 @@ func (p *pipeline) run() {
 			go p.node.check()
 		}
 		p.bMutex.Unlock()
-		if p.lastTime.Add(time.Duration(minLatency * 10)).Before(time.Now()) {
+		if p.lastTime.Add(p.minLatency() * 10).Before(time.Now()) {
 			p.lastTime = time.Now()
 			p.mutex.Lock()
 			p.max /= 2
@@ -178,15 +188,18 @@ func (p *pipeline) run() {
 }
 
 func (p *pipeline) read() {
-	var err error
-	for err == nil {
-		if p.node.isLeader() {
-			p.apply()
-			d := p.sleepTime() / 10
-			time.Sleep(d)
-			//logger.Tracef("pipeline.read sleepTime-%v", d)
-		} else {
-			time.Sleep(p.sleepTime())
+	for {
+	loop:
+		time.Sleep(p.minLatency() / 10)
+		p.apply()
+		if atomic.LoadUint64(&p.node.nextIndex)-1 > p.node.stateMachine.lastApplied {
+			goto loop
+		}
+		select {
+		case <-p.readTrigger:
+			goto loop
+		case <-p.done:
+			return
 		}
 	}
 }
@@ -209,7 +222,7 @@ func (p *pipeline) apply() {
 		} else {
 			p.mutex.Unlock()
 			//Traceln("pipeline.read sleep")
-			time.Sleep(time.Microsecond * 100)
+			time.Sleep(p.minLatency() / 100)
 			continue
 		}
 		delete(p.pending, p.applyIndex)

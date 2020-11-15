@@ -227,7 +227,7 @@ func (n *node) run() {
 						n.workTicker.Stop()
 						n.workTicker = nil
 					}
-					if n.state.Update() || n.pipeline.Update() {
+					if n.state.Update() {
 						if n.workTicker == nil {
 							n.deferTime = time.Now()
 							n.workTicker = timer.TickFunc(defaultMaxDelay, func() {
@@ -236,7 +236,6 @@ func (n *node) run() {
 									}
 								}()
 								n.state.Update()
-								n.pipeline.Update()
 							})
 						}
 					}
