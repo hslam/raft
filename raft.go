@@ -190,7 +190,7 @@ func (r *raft) HandleRequestVote(req *RequestVoteRequest, res *RequestVoteRespon
 	if req.Term < r.node.currentTerm.Load() {
 		res.VoteGranted = false
 		return nil
-	} else if req.Term > r.node.currentTerm.Load() && req.LastLogIndex >= r.node.lastLogIndex && req.LastLogTerm >= r.node.lastLogTerm {
+	} else if req.Term > r.node.currentTerm.Load() && req.LastLogIndex >= r.node.lastLogIndex && req.LastLogTerm >= r.node.lastLogTerm && r.node.state.String() != leader {
 		r.node.currentTerm.Store(req.Term)
 		r.node.votedFor.Store("")
 		r.node.stepDown()
