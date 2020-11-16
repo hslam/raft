@@ -98,7 +98,11 @@ func (p *peer) installSnapshot(offset uint64, data []byte, Done bool) (recvOffse
 }
 
 func (p *peer) ping() {
-	p.alive = p.node.rpcs.Ping(p.address)
+	if err := p.node.rpcs.Ping(p.address); err != nil {
+		p.alive = false
+	} else {
+		p.alive = true
+	}
 	//logger.Debugf("Peer.ping %s %t",p.address,p.alive)
 }
 

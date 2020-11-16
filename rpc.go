@@ -32,46 +32,51 @@ func listenAndServe(address string, n *node) {
 
 type rpcs struct {
 	*rpc.Transport
+	appendEntriesServiceName   string
+	requestVoteServiceName     string
+	installSnapshotServiceName string
+	queryLeaderServiceName     string
+	addPeerServiceName         string
+	removePeerServiceName      string
 }
 
 func newRPCs() *rpcs {
 	r := &rpcs{
-		&rpc.Transport{
+		Transport: &rpc.Transport{
 			MaxConnsPerHost:     maxConnsPerHost,
 			MaxIdleConnsPerHost: maxIdleConnsPerHost,
 			Options:             &rpc.Options{Network: network, Codec: codec},
 		},
+		appendEntriesServiceName:   serviceName + "." + appendEntriesName,
+		requestVoteServiceName:     serviceName + "." + requestVoteName,
+		installSnapshotServiceName: serviceName + "." + installSnapshotName,
+		queryLeaderServiceName:     serviceName + "." + queryLeaderName,
+		addPeerServiceName:         serviceName + "." + addPeerName,
+		removePeerServiceName:      serviceName + "." + removePeerName,
 	}
 	return r
 }
 
 func (r *rpcs) AppendEntriesServiceName() string {
-	return serviceName + "." + appendEntriesName
+	return r.appendEntriesServiceName
 }
 
 func (r *rpcs) RequestVoteServiceName() string {
-	return serviceName + "." + requestVoteName
+	return r.requestVoteServiceName
 }
 
 func (r *rpcs) InstallSnapshotServiceName() string {
-	return serviceName + "." + installSnapshotName
+	return r.installSnapshotServiceName
 }
 
 func (r *rpcs) QueryLeaderServiceName() string {
-	return serviceName + "." + queryLeaderName
+	return r.queryLeaderServiceName
 }
 
 func (r *rpcs) AddPeerServiceName() string {
-	return serviceName + "." + addPeerName
+	return r.addPeerServiceName
 }
 
 func (r *rpcs) RemovePeerServiceName() string {
-	return serviceName + "." + removePeerName
-}
-
-func (r *rpcs) Ping(addr string) bool {
-	if err := r.Transport.Ping(addr); err != nil {
-		return false
-	}
-	return true
+	return r.removePeerServiceName
 }
