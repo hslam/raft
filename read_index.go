@@ -39,9 +39,9 @@ func newReadIndex(n *node) *readIndex {
 }
 
 func (r *readIndex) updateLatency(d int64) (n int64) {
-	r.latencysCursor++
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
+	r.latencysCursor++
 	r.latencys[r.latencysCursor%lastsSize] = d
 	var min int64 = minReadIndexLatency
 	for i := 0; i < lastsSize; i++ {

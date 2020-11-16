@@ -57,11 +57,11 @@ func (p *pipeline) init(lastLogIndex uint64) {
 }
 
 func (p *pipeline) concurrency() (n int) {
-	p.lastsCursor++
 	p.mutex.Lock()
+	defer p.mutex.Unlock()
+	p.lastsCursor++
 	concurrency := len(p.pending)
 	p.lasts[p.lastsCursor%lastsSize] = concurrency
-	p.mutex.Unlock()
 	var max int
 	for i := 0; i < lastsSize; i++ {
 		if p.lasts[i] > max {
@@ -82,10 +82,10 @@ func (p *pipeline) batch() int {
 }
 
 func (p *pipeline) updateLatency(d int64) (n int64) {
-	p.latencysCursor++
 	p.mutex.Lock()
+	defer p.mutex.Unlock()
+	p.latencysCursor++
 	p.latencys[p.latencysCursor%lastsSize] = d
-	p.mutex.Unlock()
 	var min int64 = minLatency
 	for i := 0; i < lastsSize; i++ {
 		if p.latencys[i] > 0 && p.latencys[i] < min {
