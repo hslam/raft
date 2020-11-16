@@ -585,7 +585,7 @@ func (n *node) waitApply(commitIndex uint64, done chan struct{}) {
 			}
 			return
 		}
-		time.Sleep(time.Duration(minLatency) / 10)
+		time.Sleep(n.readIndex.minLatency() / 10)
 	}
 }
 

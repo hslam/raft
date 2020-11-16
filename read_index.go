@@ -9,15 +9,21 @@ import (
 	"time"
 )
 
+const minReadIndexLatency = int64(time.Microsecond * 100)
+
 type readIndex struct {
-	mu      sync.Mutex
-	node    *node
-	trigger chan struct{}
-	m       map[uint64][]chan bool
-	done    chan struct{}
-	closed  int32
-	id      uint64
-	working int32
+	mu             sync.Mutex
+	node           *node
+	trigger        chan struct{}
+	m              map[uint64][]chan bool
+	mutex          sync.Mutex
+	latencys       [lastsSize]int64
+	latencysCursor int
+	min            int64
+	done           chan struct{}
+	closed         int32
+	id             uint64
+	working        int32
 }
 
 func newReadIndex(n *node) *readIndex {
@@ -26,9 +32,34 @@ func newReadIndex(n *node) *readIndex {
 		trigger: make(chan struct{}, 1),
 		done:    make(chan struct{}, 1),
 		m:       make(map[uint64][]chan bool),
+		min:     minReadIndexLatency,
 	}
 	go r.run()
 	return r
+}
+
+func (r *readIndex) updateLatency(d int64) (n int64) {
+	r.latencysCursor++
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+	r.latencys[r.latencysCursor%lastsSize] = d
+	var min int64 = minReadIndexLatency
+	for i := 0; i < lastsSize; i++ {
+		if r.latencys[i] > 0 && r.latencys[i] < min {
+			min = r.latencys[i]
+		}
+	}
+	//logger.Tracef("readIndex.updateLatency %v,%d", r.latencys, min)
+	r.min = min
+	return r.min
+}
+
+func (r *readIndex) minLatency() time.Duration {
+	r.mutex.Lock()
+	min := r.min
+	r.mutex.Unlock()
+	//logger.Tracef("readIndex.minLatency%d", min)
+	return time.Duration(min)
 }
 
 func (r *readIndex) Read() (ok bool) {
@@ -107,7 +138,10 @@ func (r *readIndex) send() {
 				}
 				if r.node.IsLeader() {
 					go func(id uint64) {
-						r.reply(id, r.node.checkLeader())
+						start := time.Now().UnixNano()
+						ok := r.node.checkLeader()
+						go r.updateLatency(time.Now().UnixNano() - start)
+						r.reply(id, ok)
 					}(id)
 					return
 				}
@@ -123,7 +157,7 @@ func (r *readIndex) send() {
 func (r *readIndex) run() {
 	for {
 	loop:
-		time.Sleep(time.Duration(minLatency) / 10)
+		time.Sleep(r.minLatency() / 10)
 		r.send()
 		r.mu.Lock()
 		length := len(r.m)
