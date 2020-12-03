@@ -159,22 +159,16 @@ func main() {
 ### [RaftDB](https://github.com/hslam/raftdb "raftdb")
 The [raftdb](https://github.com/hslam/raftdb  "raftdb") is an example usage of raft library.
 
-#### Linux Environment
-* **CPU** 12 Cores 3.1 GHz
-* **Memory** 24 GiB
+#### Benchmark
+Running on three nodes cluster.
+##### Write
 
-**Benchmark**
-```
-cluster    operation transport requests/s average fastest median  p99      slowest
-Singleton  ReadIndex HTTP      73348      6.77ms  2.59ms  6.29ms  14.23ms  116.32ms
-Singleton  Write     HTTP      60671      8.27ms  2.47ms  7.34ms  23.08ms  134.83ms
-ThreeNodes ReadIndex HTTP      54642      9.31ms  2.97ms  7.85ms  69.98ms  106.80ms
-ThreeNodes Write     HTTP      37647      13.39ms 4.62ms  9.61ms  77.57ms  142.90ms
-Singleton  ReadIndex RPC       310222     12.51ms 4.36ms  12.07ms 29.79ms  34.28ms
-Singleton  Write     RPC       138411     28.92ms 6.09ms  24.64ms 103.57ms 121.66ms
-ThreeNodes ReadIndex RPC       285650     13.40ms 4.27ms  12.49ms 29.01ms  32.91ms
-ThreeNodes Write     RPC       118325     33.74ms 9.76ms  33.40ms 71.38ms  81.32ms
-```
+<img src="https://raw.githubusercontent.com/hslam/raft-benchmark/master/raft-write-qps.png" width = "400" height = "300" alt="write-qps" align=center><img src="https://raw.githubusercontent.com/hslam/raft-benchmark/master/raft-write-p99.png" width = "400" height = "300" alt="write-p99" align=center>
+
+##### Read Index
+
+<img src="https://raw.githubusercontent.com/hslam/raft-benchmark/master/raft-read-qps.png" width = "400" height = "300" alt="read-qps" align=center><img src="https://raw.githubusercontent.com/hslam/raft-benchmark/master/raft-read-p99.png" width = "400" height = "300" alt="read-p99" align=center>
+
 ## License
 This package is licensed under a MIT license (Copyright (c) 2019 Meng Huang)
 
