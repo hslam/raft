@@ -11,12 +11,12 @@ import (
 
 // Proxy represents the proxy service.
 type Proxy interface {
-	QueryLeader(addr string) (term uint64, leaderID string, ok bool)
-	AddPeer(addr string, info *NodeInfo) (success bool, ok bool)
-	RemovePeer(addr string, Address string) (success bool, ok bool)
-	HandleQueryLeader(req *QueryLeaderRequest, res *QueryLeaderResponse) error
-	HandleAddPeer(req *AddPeerRequest, res *AddPeerResponse) error
-	HandleRemovePeer(req *RemovePeerRequest, res *RemovePeerResponse) error
+	CallQueryLeader(addr string) (term uint64, leaderID string, ok bool)
+	CallAddPeer(addr string, info *NodeInfo) (success bool, ok bool)
+	CallRemovePeer(addr string, Address string) (success bool, ok bool)
+	QueryLeader(req *QueryLeaderRequest, res *QueryLeaderResponse) error
+	AddPeer(req *AddPeerRequest, res *AddPeerResponse) error
+	RemovePeer(req *RemovePeerRequest, res *RemovePeerResponse) error
 }
 
 type proxy struct {
@@ -39,7 +39,7 @@ func newProxy(n *node) Proxy {
 	}
 }
 
-func (p *proxy) QueryLeader(addr string) (term uint64, leaderID string, ok bool) {
+func (p *proxy) CallQueryLeader(addr string) (term uint64, leaderID string, ok bool) {
 	var req = &QueryLeaderRequest{}
 	done := p.donePool.Get().(chan *rpc.Call)
 	call := p.callPool.Get().(*rpc.Call)
@@ -72,7 +72,7 @@ func (p *proxy) QueryLeader(addr string) (term uint64, leaderID string, ok bool)
 	}
 	return 0, "", false
 }
-func (p *proxy) AddPeer(addr string, info *NodeInfo) (success bool, ok bool) {
+func (p *proxy) CallAddPeer(addr string, info *NodeInfo) (success bool, ok bool) {
 	var req = &AddPeerRequest{}
 	req.Node = info
 	done := p.donePool.Get().(chan *rpc.Call)
@@ -106,7 +106,7 @@ func (p *proxy) AddPeer(addr string, info *NodeInfo) (success bool, ok bool) {
 	}
 	return false, false
 }
-func (p *proxy) RemovePeer(addr string, Address string) (success bool, ok bool) {
+func (p *proxy) CallRemovePeer(addr string, Address string) (success bool, ok bool) {
 	var req = &RemovePeerRequest{}
 	req.Address = Address
 	done := p.donePool.Get().(chan *rpc.Call)
@@ -140,7 +140,7 @@ func (p *proxy) RemovePeer(addr string, Address string) (success bool, ok bool) 
 	}
 	return false, false
 }
-func (p *proxy) HandleQueryLeader(req *QueryLeaderRequest, res *QueryLeaderResponse) error {
+func (p *proxy) QueryLeader(req *QueryLeaderRequest, res *QueryLeaderResponse) error {
 	if p.node.leader != "" {
 		res.LeaderId = p.node.leader
 		res.Term = p.node.term()
@@ -148,7 +148,7 @@ func (p *proxy) HandleQueryLeader(req *QueryLeaderRequest, res *QueryLeaderRespo
 	}
 	peers := p.node.Peers()
 	for i := 0; i < len(peers); i++ {
-		term, leaderID, ok := p.QueryLeader(peers[i])
+		term, leaderID, ok := p.CallQueryLeader(peers[i])
 		if ok {
 			res.LeaderId = leaderID
 			res.Term = term
@@ -157,7 +157,7 @@ func (p *proxy) HandleQueryLeader(req *QueryLeaderRequest, res *QueryLeaderRespo
 	}
 	return ErrNotLeader
 }
-func (p *proxy) HandleAddPeer(req *AddPeerRequest, res *AddPeerResponse) error {
+func (p *proxy) AddPeer(req *AddPeerRequest, res *AddPeerResponse) error {
 	if p.node.IsLeader() {
 		_, err := p.node.do(newAddPeerCommand(req.Node), defaultCommandTimeout)
 		if err == nil {
@@ -176,7 +176,7 @@ func (p *proxy) HandleAddPeer(req *AddPeerRequest, res *AddPeerResponse) error {
 	}
 	peers := p.node.Peers()
 	for i := 0; i < len(peers); i++ {
-		_, leaderID, ok := p.QueryLeader(peers[i])
+		_, leaderID, ok := p.CallQueryLeader(peers[i])
 		if leaderID != "" && ok {
 			return p.node.rpcs.Call(leaderID, p.node.rpcs.AddPeerServiceName(), req, res)
 		}
@@ -184,7 +184,7 @@ func (p *proxy) HandleAddPeer(req *AddPeerRequest, res *AddPeerResponse) error {
 	return ErrNotLeader
 }
 
-func (p *proxy) HandleRemovePeer(req *RemovePeerRequest, res *RemovePeerResponse) error {
+func (p *proxy) RemovePeer(req *RemovePeerRequest, res *RemovePeerResponse) error {
 	if p.node.IsLeader() {
 		_, err := p.node.do(newRemovePeerCommand(req.Address), defaultCommandTimeout)
 		if err == nil {
@@ -203,7 +203,7 @@ func (p *proxy) HandleRemovePeer(req *RemovePeerRequest, res *RemovePeerResponse
 	}
 	peers := p.node.Peers()
 	for i := 0; i < len(peers); i++ {
-		_, leaderID, ok := p.QueryLeader(peers[i])
+		_, leaderID, ok := p.CallQueryLeader(peers[i])
 		if leaderID != "" && ok {
 			return p.node.rpcs.Call(leaderID, p.node.rpcs.RemovePeerServiceName(), req, res)
 		}

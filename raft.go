@@ -11,12 +11,12 @@ import (
 
 // Raft represents the raft service.
 type Raft interface {
-	RequestVote(addr string) (ok bool)
-	AppendEntries(addr string, prevLogIndex, prevLogTerm uint64, entries []*Entry) (nextIndex, term uint64, success, ok bool)
-	InstallSnapshot(addr string, LastIncludedIndex, LastIncludedTerm, Offset uint64, Data []byte, Done bool) (offset, nextIndex uint64, ok bool)
-	HandleRequestVote(req *RequestVoteRequest, res *RequestVoteResponse) error
-	HandleAppendEntries(req *AppendEntriesRequest, res *AppendEntriesResponse) error
-	HandleInstallSnapshot(req *InstallSnapshotRequest, res *InstallSnapshotResponse) error
+	CallRequestVote(addr string) (ok bool)
+	CallAppendEntries(addr string, prevLogIndex, prevLogTerm uint64, entries []*Entry) (nextIndex, term uint64, success, ok bool)
+	CallInstallSnapshot(addr string, LastIncludedIndex, LastIncludedTerm, Offset uint64, Data []byte, Done bool) (offset, nextIndex uint64, ok bool)
+	RequestVote(req *RequestVoteRequest, res *RequestVoteResponse) error
+	AppendEntries(req *AppendEntriesRequest, res *AppendEntriesResponse) error
+	InstallSnapshot(req *InstallSnapshotRequest, res *InstallSnapshotResponse) error
 }
 
 type raft struct {
@@ -41,7 +41,7 @@ func newRaft(n *node) Raft {
 	}
 }
 
-func (r *raft) RequestVote(addr string) (ok bool) {
+func (r *raft) CallRequestVote(addr string) (ok bool) {
 	var req = &RequestVoteRequest{}
 	req.Term = r.node.currentTerm.Load()
 	req.CandidateId = r.node.address
@@ -89,7 +89,7 @@ func (r *raft) RequestVote(addr string) (ok bool) {
 	return false
 }
 
-func (r *raft) AppendEntries(addr string, prevLogIndex, prevLogTerm uint64, entries []*Entry) (nextIndex uint64, term uint64, success bool, ok bool) {
+func (r *raft) CallAppendEntries(addr string, prevLogIndex, prevLogTerm uint64, entries []*Entry) (nextIndex uint64, term uint64, success bool, ok bool) {
 	var req = &AppendEntriesRequest{}
 	req.Term = r.node.currentTerm.Load()
 	req.LeaderId = r.node.leader
@@ -140,7 +140,7 @@ func (r *raft) AppendEntries(addr string, prevLogIndex, prevLogTerm uint64, entr
 	return 0, 0, false, false
 }
 
-func (r *raft) InstallSnapshot(addr string, LastIncludedIndex, LastIncludedTerm, Offset uint64, Data []byte, Done bool) (offset uint64, nextIndex uint64, ok bool) {
+func (r *raft) CallInstallSnapshot(addr string, LastIncludedIndex, LastIncludedTerm, Offset uint64, Data []byte, Done bool) (offset uint64, nextIndex uint64, ok bool) {
 	var req = &InstallSnapshotRequest{}
 	req.Term = r.node.currentTerm.Load()
 	req.LeaderId = r.node.leader
@@ -185,7 +185,7 @@ func (r *raft) InstallSnapshot(addr string, LastIncludedIndex, LastIncludedTerm,
 	return 0, 0, false
 }
 
-func (r *raft) HandleRequestVote(req *RequestVoteRequest, res *RequestVoteResponse) error {
+func (r *raft) RequestVote(req *RequestVoteRequest, res *RequestVoteResponse) error {
 	res.Term = r.node.currentTerm.Load()
 	if req.Term < r.node.currentTerm.Load() {
 		res.VoteGranted = false
@@ -207,7 +207,7 @@ func (r *raft) HandleRequestVote(req *RequestVoteRequest, res *RequestVoteRespon
 
 }
 
-func (r *raft) HandleAppendEntries(req *AppendEntriesRequest, res *AppendEntriesResponse) error {
+func (r *raft) AppendEntries(req *AppendEntriesRequest, res *AppendEntriesResponse) error {
 	res.Term = r.node.currentTerm.Load()
 	res.NextIndex = r.node.nextIndex
 	if req.Term < r.node.currentTerm.Load() {
@@ -269,7 +269,7 @@ func (r *raft) HandleAppendEntries(req *AppendEntriesRequest, res *AppendEntries
 	return nil
 }
 
-func (r *raft) HandleInstallSnapshot(req *InstallSnapshotRequest, res *InstallSnapshotResponse) error {
+func (r *raft) InstallSnapshot(req *InstallSnapshotRequest, res *InstallSnapshotResponse) error {
 	res.Term = r.node.currentTerm.Load()
 	if req.Term < r.node.currentTerm.Load() {
 		return nil

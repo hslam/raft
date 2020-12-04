@@ -615,16 +615,16 @@ func (n *node) membership() []string {
 func (n *node) Join(info *NodeInfo) (success bool) {
 	leader := n.Leader()
 	if leader != "" {
-		success, ok := n.proxy.AddPeer(leader, info)
+		success, ok := n.proxy.CallAddPeer(leader, info)
 		if success && ok {
 			return true
 		}
 	}
 	peers := n.Peers()
 	for i := 0; i < len(peers); i++ {
-		_, leaderID, ok := n.proxy.QueryLeader(peers[i])
+		_, leaderID, ok := n.proxy.CallQueryLeader(peers[i])
 		if leaderID != "" && ok {
-			success, ok := n.proxy.AddPeer(leaderID, info)
+			success, ok := n.proxy.CallAddPeer(leaderID, info)
 			if success && ok {
 				return true
 			}
@@ -636,13 +636,13 @@ func (n *node) Join(info *NodeInfo) (success bool) {
 func (n *node) Leave(Address string) (success bool, ok bool) {
 	leader := n.Leader()
 	if leader != "" {
-		return n.proxy.RemovePeer(leader, Address)
+		return n.proxy.CallRemovePeer(leader, Address)
 	}
 	peers := n.Peers()
 	for i := 0; i < len(peers); i++ {
-		_, leaderID, ok := n.proxy.QueryLeader(peers[i])
+		_, leaderID, ok := n.proxy.CallQueryLeader(peers[i])
 		if leaderID != "" && ok {
-			n.proxy.RemovePeer(leaderID, Address)
+			n.proxy.CallRemovePeer(leaderID, Address)
 		}
 	}
 	return

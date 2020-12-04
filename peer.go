@@ -51,7 +51,7 @@ func (p *peer) requestVote() {
 	if !p.alive {
 		return
 	}
-	p.alive = p.node.raft.RequestVote(p.address)
+	p.alive = p.node.raft.CallRequestVote(p.address)
 }
 
 func (p *peer) appendEntries(entries []*Entry) (nextIndex uint64, term uint64, success bool, ok bool) {
@@ -73,7 +73,7 @@ func (p *peer) appendEntries(entries []*Entry) (nextIndex uint64, term uint64, s
 		}
 	}
 	//logger.Tracef("Peer.run %s %d %d %d ",p.address,prevLogIndex,prevLogTerm,len(entries))
-	nextIndex, term, success, ok = p.node.raft.AppendEntries(p.address, prevLogIndex, prevLogTerm, entries)
+	nextIndex, term, success, ok = p.node.raft.CallAppendEntries(p.address, prevLogIndex, prevLogTerm, entries)
 	if success && ok {
 		//logger.Tracef("Peer.run %s nextIndex %d==>%d",p.address,p.nextIndex,nextIndex)
 		p.nextIndex = nextIndex
@@ -89,7 +89,7 @@ func (p *peer) installSnapshot(offset uint64, data []byte, Done bool) (recvOffse
 		return
 	}
 	var nextIndex uint64
-	recvOffset, nextIndex, p.alive = p.node.raft.InstallSnapshot(p.address, p.node.stateMachine.snapshotReadWriter.lastIncludedIndex.ID(), p.node.stateMachine.snapshotReadWriter.lastIncludedTerm.ID(), offset, data, Done)
+	recvOffset, nextIndex, p.alive = p.node.raft.CallInstallSnapshot(p.address, p.node.stateMachine.snapshotReadWriter.lastIncludedIndex.ID(), p.node.stateMachine.snapshotReadWriter.lastIncludedTerm.ID(), offset, data, Done)
 	if nextIndex > 0 {
 		p.nextIndex = nextIndex
 	}

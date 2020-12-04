@@ -9,22 +9,22 @@ type service struct {
 
 //RPCMethodName
 func (s *service) RequestVote(req *RequestVoteRequest, res *RequestVoteResponse) error {
-	return s.node.raft.HandleRequestVote(req, res)
+	return s.node.raft.RequestVote(req, res)
 }
 func (s *service) AppendEntries(req *AppendEntriesRequest, res *AppendEntriesResponse) error {
-	return s.node.raft.HandleAppendEntries(req, res)
+	return s.node.raft.AppendEntries(req, res)
 }
 func (s *service) InstallSnapshot(req *InstallSnapshotRequest, res *InstallSnapshotResponse) error {
-	return s.node.raft.HandleInstallSnapshot(req, res)
+	return s.node.raft.InstallSnapshot(req, res)
 }
 func (s *service) QueryLeader(req *QueryLeaderRequest, res *QueryLeaderResponse) error {
-	return s.node.proxy.HandleQueryLeader(req, res)
+	return s.node.proxy.QueryLeader(req, res)
 }
 func (s *service) AddPeer(req *AddPeerRequest, res *AddPeerResponse) error {
-	return s.node.proxy.HandleAddPeer(req, res)
+	return s.node.proxy.AddPeer(req, res)
 }
 func (s *service) RemovePeer(req *RemovePeerRequest, res *RemovePeerResponse) error {
-	return s.node.proxy.HandleRemovePeer(req, res)
+	return s.node.proxy.RemovePeer(req, res)
 }
 
 //RPCShortMethodName
