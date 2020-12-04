@@ -22,6 +22,7 @@ func newVote(id string, term uint64, v int) *vote {
 		vote: v,
 	}
 }
+
 func (v *vote) Key() string {
 	return v.id + strconv.FormatUint(v.term, 10)
 }
@@ -79,6 +80,7 @@ func (vs *votes) Clear() {
 	vs.voteCount = 0
 	vs.voteTotal = 0
 }
+
 func (vs *votes) Reset(count int) {
 	if vs.vote != nil {
 		close(vs.vote)
@@ -92,22 +94,28 @@ func (vs *votes) Reset(count int) {
 func (vs *votes) Count() int {
 	return vs.voteCount
 }
+
 func (vs *votes) Total() int {
 	return vs.voteTotal
 }
+
 func (vs *votes) SetQuorum(quorum int) {
 	vs.quorum = quorum
 }
+
 func (vs *votes) SetTotal(total int) {
 	vs.total = total
 }
+
 func (vs *votes) GetNotice() chan bool {
 	return vs.notice
 }
+
 func (vs *votes) SetTimeout(timeout time.Duration) {
 	vs.timeout = timeout
 	go vs.run()
 }
+
 func (vs *votes) run() {
 	select {
 	case <-time.After(vs.timeout):
