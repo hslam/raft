@@ -157,7 +157,7 @@ func main() {
 ./example -h=localhost -p=9003 -path="raft.example/node.tn.3" -join=false -peers="localhost:9001;localhost:9002;localhost:9003" -log=true -b=true    -o=lease -parallel=4096 -total=100000
 ```
 ### [RaftDB](https://github.com/hslam/raftdb "raftdb")
-The [raftdb](https://github.com/hslam/raftdb  "raftdb") is an example usage of raft library.
+The [raftdb](https://github.com/hslam/raftdb  "raftdb") implements a simple distributed key-value datastore, using the raft distributed consensus protocol.
 
 #### Benchmark
 Running on three nodes cluster.
