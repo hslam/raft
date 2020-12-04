@@ -924,15 +924,6 @@ func (n *node) load() {
 
 func (n *node) recover() error {
 	logger.Tracef("node.recover %s start", n.address)
-	//if n.storage.IsEmpty(DefaultIndex) {
-	//	if !n.storage.IsEmpty(n.stateMachine.snapshotReadWriter.FileName()) {
-	//		n.stateMachine.snapshotReadWriter.untar()
-	//	}
-	//} else if n.storage.IsEmpty(DefaultLog) {
-	//	if !n.storage.IsEmpty(n.stateMachine.snapshotReadWriter.FileName()) {
-	//		n.stateMachine.snapshotReadWriter.untar()
-	//	}
-	//}
 	n.load()
 	recoverApplyTicker := time.NewTicker(time.Second)
 	recoverApplyStop := make(chan bool, 1)
@@ -974,32 +965,6 @@ func (n *node) checkLog() error {
 	}
 	//if n.storage.IsEmpty(defaultVoteFor) {
 	//	n.votedFor.save()
-	//}
-	//if n.storage.IsEmpty(DefaultSnapshot) && n.stateMachine.snapshot != nil && !n.storage.IsEmpty(DefaultIndex) && !n.storage.IsEmpty(DefaultLog) {
-	//	n.stateMachine.SaveSnapshot()
-	//} else if n.stateMachine.snapshot == nil {
-	//	if !n.storage.Exists(DefaultSnapshot) {
-	//		n.storage.Truncate(DefaultSnapshot, 1)
-	//	}
-	//}
-	//if n.isLeader() && n.storage.IsEmpty(n.stateMachine.snapshotReadWriter.FileName()) && !n.storage.IsEmpty(DefaultIndex) && !n.storage.IsEmpty(DefaultLog) && !n.storage.IsEmpty(DefaultSnapshot) && !n.storage.IsEmpty(DefaultLastIncludedIndex) && !n.storage.IsEmpty(DefaultLastIncludedTerm) {
-	//	n.stateMachine.snapshotReadWriter.lastTarIndex.Set(0)
-	//	n.stateMachine.snapshotReadWriter.Tar()
-	//}
-	//if n.storage.IsEmpty(DefaultIndex) {
-	//	if !n.storage.IsEmpty(n.stateMachine.snapshotReadWriter.FileName()) {
-	//		n.stateMachine.snapshotReadWriter.untar()
-	//		n.load()
-	//	} else {
-	//		n.nextIndex = 1
-	//	}
-	//} else if n.storage.IsEmpty(DefaultLog) {
-	//	if !n.storage.IsEmpty(n.stateMachine.snapshotReadWriter.FileName()) {
-	//		n.stateMachine.snapshotReadWriter.untar()
-	//		n.load()
-	//	} else {
-	//		n.nextIndex = 1
-	//	}
 	//}
 	if n.storage.IsEmpty(defaultSnapshot) && n.stateMachine.snapshot != nil {
 		n.stateMachine.SaveSnapshot()
