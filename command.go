@@ -59,3 +59,76 @@ func (c *commands) exists(cmd Command) bool {
 	_, ok := c.types[cmd.Type()]
 	return ok
 }
+
+// NewAddPeerCommand returns a new AddPeerCommand.
+func newAddPeerCommand(nodeInfo *NodeInfo) Command {
+	return &AddPeerCommand{
+		NodeInfo: nodeInfo,
+	}
+}
+
+// Type implements the Command Type method.
+func (c *AddPeerCommand) Type() int32 {
+	return commandTypeAddPeer
+}
+
+// Do implements the Command Do method.
+func (c *AddPeerCommand) Do(context interface{}) (interface{}, error) {
+	n := context.(*node)
+	n.stateMachine.configuration.AddPeer(c.NodeInfo)
+	n.stateMachine.configuration.load()
+	return nil, nil
+}
+
+var noOperationCommand = newNoOperationCommand()
+
+// NewNoOperationCommand returns a new NoOperationCommand.
+func newNoOperationCommand() Command {
+	return &NoOperationCommand{}
+}
+
+// Type implements the Command Type method.
+func (c *NoOperationCommand) Type() int32 {
+	return commandTypeNoOperation
+}
+
+// Do implements the Command Do method.
+func (c *NoOperationCommand) Do(context interface{}) (interface{}, error) {
+	return true, nil
+}
+
+// NewReconfigurationCommand returns a new ReconfigurationCommand.
+func newReconfigurationCommand() Command {
+	return &ReconfigurationCommand{}
+}
+
+// Type implements the Command Type method.
+func (c *ReconfigurationCommand) Type() int32 {
+	return commandTypeReconfiguration
+}
+
+// Do implements the Command Do method.
+func (c *ReconfigurationCommand) Do(context interface{}) (interface{}, error) {
+	n := context.(*node)
+	n.stateMachine.configuration.reconfiguration()
+	return nil, nil
+}
+
+// NewRemovePeerCommand returns a new RemovePeerCommand.
+func newRemovePeerCommand(address string) Command {
+	return &RemovePeerCommand{
+		Address: address,
+	}
+}
+
+// Type implements the Command Type method.
+func (c *RemovePeerCommand) Type() int32 {
+	return commandTypeRemovePeer
+}
+
+// Do implements the Command Do method.
+func (c *RemovePeerCommand) Do(context interface{}) (interface{}, error) {
+	n := context.(*node)
+	n.stateMachine.configuration.RemovePeer(c.Address)
+	return nil, nil
+}
