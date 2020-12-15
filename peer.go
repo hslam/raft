@@ -84,6 +84,7 @@ func (p *peer) appendEntries(entries []*Entry) (nextIndex uint64, term uint64, s
 	}
 	return
 }
+
 func (p *peer) installSnapshot(offset uint64, data []byte, Done bool) (recvOffset uint64) {
 	if !p.alive {
 		return
