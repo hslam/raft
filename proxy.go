@@ -72,6 +72,7 @@ func (p *proxy) CallQueryLeader(addr string) (term uint64, leaderID string, ok b
 	}
 	return 0, "", false
 }
+
 func (p *proxy) CallAddPeer(addr string, info *NodeInfo) (success bool, ok bool) {
 	var req = &AddPeerRequest{}
 	req.Node = info
@@ -106,6 +107,7 @@ func (p *proxy) CallAddPeer(addr string, info *NodeInfo) (success bool, ok bool)
 	}
 	return false, false
 }
+
 func (p *proxy) CallRemovePeer(addr string, Address string) (success bool, ok bool) {
 	var req = &RemovePeerRequest{}
 	req.Address = Address
@@ -140,6 +142,7 @@ func (p *proxy) CallRemovePeer(addr string, Address string) (success bool, ok bo
 	}
 	return false, false
 }
+
 func (p *proxy) QueryLeader(req *QueryLeaderRequest, res *QueryLeaderResponse) error {
 	if p.node.leader != "" {
 		res.LeaderId = p.node.leader
@@ -157,6 +160,7 @@ func (p *proxy) QueryLeader(req *QueryLeaderRequest, res *QueryLeaderResponse) e
 	}
 	return ErrNotLeader
 }
+
 func (p *proxy) AddPeer(req *AddPeerRequest, res *AddPeerResponse) error {
 	if p.node.IsLeader() {
 		_, err := p.node.do(newAddPeerCommand(req.Node), defaultCommandTimeout)
