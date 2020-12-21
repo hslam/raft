@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"github.com/hslam/code"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -20,6 +21,9 @@ type persistentUint64 struct {
 	ticker        *time.Ticker
 	lastSaveValue uint64
 	deferSave     bool
+	buf           []byte
+	done          chan struct{}
+	closed        uint32
 }
 
 func newPersistentUint64(n *node, name string, offset uint64, tick time.Duration) *persistentUint64 {
@@ -27,6 +31,8 @@ func newPersistentUint64(n *node, name string, offset uint64, tick time.Duration
 		node:   n,
 		name:   name,
 		offset: offset,
+		buf:    make([]byte, 8),
+		done:   make(chan struct{}, 1),
 	}
 	if tick > 0 {
 		p.deferSave = true
@@ -37,32 +43,31 @@ func newPersistentUint64(n *node, name string, offset uint64, tick time.Duration
 	return p
 }
 func (p *persistentUint64) Incre() uint64 {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	p.value++
+	value := atomic.AddUint64(&p.value, 1)
 	if !p.deferSave {
 		p.save()
 	}
-	return p.value
+	return value
 }
 func (p *persistentUint64) Set(t uint64) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	p.value = t
+	atomic.StoreUint64(&p.value, t)
 	if !p.deferSave {
 		p.save()
 	}
 }
 func (p *persistentUint64) ID() uint64 {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
-	return p.value
+	return atomic.LoadUint64(&p.value)
 }
 
 func (p *persistentUint64) save() {
-	buf := make([]byte, 8)
-	code.EncodeUint64(buf, p.value)
-	p.node.storage.SeekWrite(p.name, p.offset, buf)
+	p.mu.Lock()
+	code.EncodeUint64(p.buf, atomic.LoadUint64(&p.value))
+	if p.deferSave {
+		p.node.storage.SeekWriteNoSync(p.name, p.offset, p.buf)
+	} else {
+		p.node.storage.SeekWrite(p.name, p.offset, p.buf)
+	}
+	p.mu.Unlock()
 }
 
 func (p *persistentUint64) load() error {
@@ -70,32 +75,35 @@ func (p *persistentUint64) load() error {
 		p.value = 0
 		return errors.New(p.name + " file is not existed")
 	}
-	buf := make([]byte, 8)
-
-	n, err := p.node.storage.SeekRead(p.name, p.offset, buf)
+	n, err := p.node.storage.SeekRead(p.name, p.offset, p.buf)
 	if err != nil {
 		return err
 	}
 	if n != 8 {
 		return fmt.Errorf("length %d", n)
 	}
-	code.DecodeUint64(buf, &p.value)
+	code.DecodeUint64(p.buf, &p.value)
 	return nil
 }
 
 func (p *persistentUint64) run() {
-	for range p.ticker.C {
-		if p.lastSaveValue != p.value {
-			func() {
-				p.mu.Lock()
-				defer p.mu.Unlock()
+	for {
+		select {
+		case <-p.ticker.C:
+			value := atomic.LoadUint64(&p.value)
+			if p.lastSaveValue != value {
 				p.save()
-			}()
-			p.lastSaveValue = p.value
+				p.lastSaveValue = value
+			}
+		case <-p.done:
+			return
 		}
 	}
 }
 func (p *persistentUint64) Stop() {
+	if !atomic.CompareAndSwapUint32(&p.closed, 0, 1) {
+		return
+	}
 	p.ticker.Stop()
-	p.ticker = nil
+	close(p.done)
 }

@@ -4,12 +4,13 @@
 package raft
 
 import (
+	"runtime"
 	"sync"
 	"sync/atomic"
 	"time"
 )
 
-const minReadIndexLatency = int64(time.Microsecond * 100)
+const minReadIndexLatency = int64(time.Millisecond * 5)
 
 type readIndex struct {
 	mu             sync.Mutex
@@ -40,7 +41,6 @@ func newReadIndex(n *node) *readIndex {
 
 func (r *readIndex) updateLatency(d int64) (n int64) {
 	r.mutex.Lock()
-	defer r.mutex.Unlock()
 	r.latencysCursor++
 	r.latencys[r.latencysCursor%lastsSize] = d
 	var min int64 = minReadIndexLatency
@@ -51,7 +51,8 @@ func (r *readIndex) updateLatency(d int64) (n int64) {
 	}
 	//logger.Tracef("readIndex.updateLatency %v,%d", r.latencys, min)
 	r.min = min
-	return r.min
+	r.mutex.Unlock()
+	return min
 }
 
 func (r *readIndex) minLatency() time.Duration {
@@ -63,7 +64,7 @@ func (r *readIndex) minLatency() time.Duration {
 }
 
 func (r *readIndex) Read() (ok bool) {
-	commitIndex := atomic.LoadUint64(&r.node.commitIndex)
+	commitIndex := r.node.commitIndex.ID()
 	r.node.nodesMut.Lock()
 	votingsCount := r.node.votingsCount()
 	r.node.nodesMut.Unlock()
@@ -83,6 +84,7 @@ func (r *readIndex) Read() (ok bool) {
 	default:
 	}
 	timer := time.NewTimer(defaultCommandTimeout)
+	runtime.Gosched()
 	select {
 	case ok = <-ch:
 		if atomic.LoadUint64(&r.node.stateMachine.lastApplied) >= commitIndex {
@@ -91,6 +93,7 @@ func (r *readIndex) Read() (ok bool) {
 		}
 		var done = make(chan struct{}, 1)
 		go r.node.waitApply(commitIndex, done)
+		runtime.Gosched()
 		select {
 		case <-done:
 			timer.Stop()

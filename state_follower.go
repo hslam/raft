@@ -31,7 +31,7 @@ func (s *followerState) Start() {
 }
 
 func (s *followerState) Update() bool {
-	if s.node.commitIndex > 0 && s.node.commitIndex > s.node.stateMachine.lastApplied {
+	if s.node.commitIndex.ID() > 0 && s.node.commitIndex.ID() > s.node.stateMachine.lastApplied {
 		if !atomic.CompareAndSwapInt32(&s.applying, 0, 1) {
 			return true
 		}

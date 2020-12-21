@@ -117,7 +117,7 @@ func (p *peer) check() {
 	}
 	defer atomic.StoreInt32(&p.checking, 0)
 	if p.node.lastLogIndex > p.nextIndex-1 && p.nextIndex > 0 {
-		if ((p.nextIndex == 1 || (p.nextIndex > 1 && p.nextIndex-1 < p.node.firstLogIndex)) && p.node.commitIndex > 1) || p.node.lastLogIndex-(p.nextIndex-1) > defaultNumInstallSnapshot {
+		if ((p.nextIndex == 1 || (p.nextIndex > 1 && p.nextIndex-1 < p.node.firstLogIndex)) && p.node.commitIndex.ID() > 1) || p.node.lastLogIndex-(p.nextIndex-1) > defaultNumInstallSnapshot {
 			if atomic.CompareAndSwapInt32(&p.installing, 0, 1) {
 				atomic.StoreInt32(&p.install, 1)
 				//logger.Debugf("Peer.check %s %d %d", p.address, p.nextIndex, p.node.firstLogIndex)
@@ -205,13 +205,13 @@ func (p *peer) check() {
 		} else {
 			if atomic.CompareAndSwapInt32(&p.sending, 0, 1) {
 				go func() {
-					defer atomic.StoreInt32(&p.sending, 0)
 					entries := p.node.log.copyAfter(p.nextIndex, defaultMaxBatch)
 					if len(entries) > 0 {
 						//logger.Debugf("Peer.check %s send %d %d %d", p.address, p.nextIndex, p.node.firstLogIndex, len(entries))
 						p.appendEntries(entries)
 						go p.node.commit()
 					}
+					atomic.StoreInt32(&p.sending, 0)
 				}()
 			}
 		}

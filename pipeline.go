@@ -10,17 +10,16 @@ import (
 )
 
 const lastsSize = 4
-const minLatency = int64(time.Millisecond * 10)
+const minLatency = int64(time.Millisecond * 50)
 
 type pipeline struct {
 	node           *node
-	wMutex         sync.Mutex
+	lock           sync.Mutex
 	buffer         []byte
 	applyIndex     uint64
 	mutex          sync.Mutex
 	pending        map[uint64]*invoker
 	readyEntries   []*Entry
-	bMutex         sync.Mutex
 	count          uint64
 	done           chan bool
 	lasts          [lastsSize]int
@@ -58,7 +57,6 @@ func (p *pipeline) init(lastLogIndex uint64) {
 
 func (p *pipeline) concurrency() (n int) {
 	p.mutex.Lock()
-	defer p.mutex.Unlock()
 	p.lastsCursor++
 	concurrency := len(p.pending)
 	p.lasts[p.lastsCursor%lastsSize] = concurrency
@@ -71,7 +69,8 @@ func (p *pipeline) concurrency() (n int) {
 	if max > p.max {
 		p.max = max
 	}
-	return p.max
+	p.mutex.Unlock()
+	return max
 }
 
 func (p *pipeline) batch() int {
@@ -83,7 +82,6 @@ func (p *pipeline) batch() int {
 
 func (p *pipeline) updateLatency(d int64) (n int64) {
 	p.mutex.Lock()
-	defer p.mutex.Unlock()
 	p.latencysCursor++
 	p.latencys[p.latencysCursor%lastsSize] = d
 	var min int64 = minLatency
@@ -94,7 +92,8 @@ func (p *pipeline) updateLatency(d int64) (n int64) {
 	}
 	//logger.Tracef("pipeline.updateLatency %v,%d", p.latencys, min)
 	p.min = min
-	return p.min
+	p.mutex.Unlock()
+	return min
 }
 
 func (p *pipeline) minLatency() time.Duration {
@@ -115,10 +114,8 @@ func (p *pipeline) sleepTime() (d time.Duration) {
 }
 
 func (p *pipeline) write(i *invoker) {
-	p.wMutex.Lock()
-	defer p.wMutex.Unlock()
-	nextIndex := atomic.AddUint64(&p.node.nextIndex, 1)
-	i.index = nextIndex - 1
+	p.lock.Lock()
+	i.index = atomic.LoadUint64(&p.node.nextIndex)
 	p.mutex.Lock()
 	p.pending[i.index] = i
 	p.mutex.Unlock()
@@ -126,11 +123,23 @@ func (p *pipeline) write(i *invoker) {
 	//logger.Tracef("pipeline.write concurrency-%d", concurrency)
 	var data []byte
 	if i.Command.Type() >= 0 {
-		b, _ := p.node.codec.Marshal(p.buffer, i.Command)
+		b, err := p.node.codec.Marshal(p.buffer, i.Command)
+		if err != nil {
+			p.lock.Unlock()
+			i.Error = err
+			i.done()
+			return
+		}
 		data = make([]byte, len(b))
 		copy(data, b)
 	} else {
-		b, _ := p.node.raftCodec.Marshal(p.buffer, i.Command)
+		b, err := p.node.raftCodec.Marshal(p.buffer, i.Command)
+		if err != nil {
+			p.lock.Unlock()
+			i.Error = err
+			i.done()
+			return
+		}
 		data = make([]byte, len(b))
 		copy(data, b)
 	}
@@ -139,7 +148,6 @@ func (p *pipeline) write(i *invoker) {
 	entry.Term = p.node.currentTerm.Load()
 	entry.Command = data
 	entry.CommandType = i.Command.Type()
-	p.bMutex.Lock()
 	p.readyEntries = append(p.readyEntries, entry)
 	if len(p.readyEntries) >= concurrency {
 		start := time.Now().UnixNano()
@@ -151,7 +159,8 @@ func (p *pipeline) write(i *invoker) {
 			p.node.check()
 		}(time.Now().UnixNano() - start)
 	}
-	p.bMutex.Unlock()
+	atomic.AddUint64(&p.node.nextIndex, 1)
+	p.lock.Unlock()
 	select {
 	case p.trigger <- true:
 	default:
@@ -164,13 +173,13 @@ func (p *pipeline) write(i *invoker) {
 
 func (p *pipeline) run() {
 	for {
-		p.bMutex.Lock()
+		p.lock.Lock()
 		if len(p.readyEntries) > 0 {
 			p.node.log.appendEntries(p.readyEntries)
 			p.readyEntries = p.readyEntries[:0]
 			go p.node.check()
 		}
-		p.bMutex.Unlock()
+		p.lock.Unlock()
 		if p.lastTime.Add(p.minLatency() * 10).Before(time.Now()) {
 			p.lastTime = time.Now()
 			p.mutex.Lock()
@@ -208,13 +217,12 @@ func (p *pipeline) apply() {
 	if !atomic.CompareAndSwapInt32(&p.applying, 0, 1) {
 		return
 	}
-	defer atomic.StoreInt32(&p.applying, 0)
-	if p.applyIndex-1 > p.node.stateMachine.lastApplied && p.node.commitIndex > p.node.stateMachine.lastApplied {
+	if p.applyIndex-1 > p.node.stateMachine.lastApplied && p.node.commitIndex.ID() > p.node.stateMachine.lastApplied {
 		//logger.Tracef("pipeline.read commitIndex-%d", p.node.commitIndex)
 		p.node.log.applyCommitedEnd(p.applyIndex - 1)
 	}
 	var err error
-	for p.applyIndex <= p.node.commitIndex {
+	for p.applyIndex <= p.node.commitIndex.ID() {
 		p.mutex.Lock()
 		var i *invoker
 		if in, ok := p.pending[p.applyIndex]; ok {
@@ -236,4 +244,5 @@ func (p *pipeline) apply() {
 		p.applyIndex++
 		p.mutex.Unlock()
 	}
+	atomic.StoreInt32(&p.applying, 0)
 }

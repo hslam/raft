@@ -184,6 +184,7 @@ func (s *storage) AppendWrite(fileName string, data []byte) error {
 	}
 	return f.Sync()
 }
+
 func (s *storage) SeekWrite(fileName string, cursor uint64, data []byte) error {
 	filePath := path.Join(s.dataDir, fileName)
 	f, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY, 0600)
@@ -199,6 +200,23 @@ func (s *storage) SeekWrite(fileName string, cursor uint64, data []byte) error {
 		return io.ErrShortWrite
 	}
 	return f.Sync()
+}
+
+func (s *storage) SeekWriteNoSync(fileName string, cursor uint64, data []byte) error {
+	filePath := path.Join(s.dataDir, fileName)
+	f, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY, 0600)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	ret, _ := f.Seek(int64(cursor), os.SEEK_SET)
+	n, err := f.WriteAt(data, ret)
+	if err != nil {
+		return err
+	} else if n < len(data) {
+		return io.ErrShortWrite
+	}
+	return nil
 }
 
 func (s *storage) SeekRead(fileName string, cursor uint64, b []byte) (n int, err error) {

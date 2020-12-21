@@ -224,9 +224,9 @@ func (s *stateMachine) recover() error {
 		s.lastApplied = s.snapshotReadWriter.lastIncludedIndex.ID()
 		logger.Tracef("stateMachine.recover %s lastApplied %d==%d", s.node.address, lastApplied, s.lastApplied)
 	}
-	if s.node.commitIndex < s.snapshotReadWriter.lastIncludedIndex.ID() {
-		var commitIndex = s.node.commitIndex
-		s.node.commitIndex = s.snapshotReadWriter.lastIncludedIndex.ID()
+	if s.node.commitIndex.ID() < s.snapshotReadWriter.lastIncludedIndex.ID() {
+		var commitIndex = s.node.commitIndex.ID()
+		s.node.commitIndex.Set(s.snapshotReadWriter.lastIncludedIndex.ID())
 		logger.Tracef("stateMachine.recover %s commitIndex %d==%d", s.node.address, commitIndex, s.node.commitIndex)
 	}
 	if s.node.lastLogTerm < s.snapshotReadWriter.lastIncludedTerm.ID() {

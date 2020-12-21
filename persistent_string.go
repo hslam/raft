@@ -26,21 +26,22 @@ func newPersistentString(n *node, name string) *persistentString {
 }
 func (p *persistentString) Reset() {
 	p.mu.Lock()
-	defer p.mu.Unlock()
 	p.value = ""
 	p.save()
+	p.mu.Unlock()
 }
 func (p *persistentString) Set(v string) {
 	p.mu.Lock()
-	defer p.mu.Unlock()
 	p.value = v
 	p.save()
+	p.mu.Unlock()
 }
 
 func (p *persistentString) String() string {
 	p.mu.RLock()
-	defer p.mu.RUnlock()
-	return p.value
+	value := p.value
+	p.mu.RUnlock()
+	return value
 }
 
 func (p *persistentString) save() {

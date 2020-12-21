@@ -37,6 +37,7 @@ const (
 	defaultIndex                  = "index"
 	defaultTerm                   = "term"
 	defaultVoteFor                = "votefor"
+	defaultCommitIndex            = "commitindex"
 	defaultSnapshot               = "snapshot"
 	defaultLastIncludedIndex      = "lastincludedindex"
 	defaultLastIncludedTerm       = "lastincludedterm"

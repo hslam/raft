@@ -88,7 +88,7 @@ type node struct {
 	votedFor    *atomic.String
 
 	//volatile state on all servers
-	commitIndex   uint64
+	commitIndex   *persistentUint64
 	firstLogIndex uint64
 	lastLogIndex  uint64
 	lastLogTerm   uint64
@@ -166,7 +166,7 @@ func NewNode(host string, port int, dataDir string, context interface{}, join bo
 	n.server = newServer(n, fmt.Sprintf(":%d", port))
 	//n.currentTerm = newPersistentUint64(n, defaultTerm, 0, 0)
 	n.currentTerm = atomic.NewUint64(0)
-	n.commitIndex = 0
+	n.commitIndex = newPersistentUint64(n, defaultCommitIndex, 0, time.Second)
 	//n.votedFor = newPersistentString(n, defaultVoteFor)
 	n.votedFor = atomic.NewString("")
 	n.state = newFollowerState(n)
@@ -337,6 +337,7 @@ func (n *node) Stop() {
 		close(n.done)
 		n.stoped = true
 		n.running = false
+		n.commitIndex.Stop()
 	})
 }
 
@@ -414,7 +415,7 @@ func (n *node) Lease() bool {
 }
 
 func (n *node) LeaseRead() (ok bool) {
-	commitIndex := atomic.LoadUint64(&n.commitIndex)
+	commitIndex := n.commitIndex.ID()
 	if atomic.LoadUint64(&n.stateMachine.lastApplied) < commitIndex {
 		timer := time.NewTimer(defaultCommandTimeout)
 		var done = make(chan struct{}, 1)
@@ -521,9 +522,9 @@ func (n *node) Do(command Command) (interface{}, error) {
 
 func (n *node) do(command Command, timeout time.Duration) (reply interface{}, err error) {
 	i := n.put(command)
-	runtime.Gosched()
 	if i.Error == nil {
 		timer := time.NewTimer(timeout)
+		runtime.Gosched()
 		select {
 		case <-i.Done:
 			timer.Stop()
@@ -532,6 +533,9 @@ func (n *node) do(command Command, timeout time.Duration) (reply interface{}, er
 		case <-timer.C:
 			err = ErrCommandTimeout
 		}
+	} else {
+		reply = i.Reply
+		err = i.Error
 	}
 	freeInvoker(i)
 	return
@@ -910,7 +914,7 @@ func (n *node) reset() {
 	n.nextIndex = 1
 	n.lastLogIndex = 0
 	n.lastLogTerm = 0
-	n.commitIndex = 0
+	n.commitIndex.Set(0)
 	n.stateMachine.lastApplied = 0
 	n.stateMachine.snapshotReadWriter.lastIncludedIndex.Set(0)
 	n.stateMachine.snapshotReadWriter.lastIncludedTerm.Set(0)
@@ -918,6 +922,7 @@ func (n *node) reset() {
 }
 
 func (n *node) load() {
+	n.commitIndex.load()
 	n.stateMachine.load()
 	n.log.load()
 }
@@ -1027,10 +1032,10 @@ func (n *node) commit() bool {
 	defer n.nodesMut.RUnlock()
 	if n.votingsCount() == 1 {
 		index := n.lastLogIndex
-		if index > n.commitIndex {
+		if index > n.commitIndex.ID() {
 			//n.storage.Sync(n.log.name)
 			//n.storage.Sync(n.log.indexs.name)
-			n.commitIndex = index
+			n.commitIndex.Set(index)
 			//n.pipeline.commitIndex <- index
 			go n.pipeline.apply()
 			return true
@@ -1051,11 +1056,11 @@ func (n *node) commit() bool {
 	}
 	quickSort(lastLogIndexs, -999, -999)
 	index := lastLogIndexs[len(lastLogIndexs)/2]
-	if index > n.commitIndex {
+	if index > n.commitIndex.ID() {
 		//logger.Tracef("node.commit %s sort after %v %d", n.address, lastLogIndexs, index)
 		//n.storage.Sync(n.log.name)
 		//n.storage.Sync(n.log.indexs.name)
-		n.commitIndex = index
+		n.commitIndex.Set(index)
 		//n.pipeline.commitIndex <- index
 		go n.pipeline.apply()
 		return true
