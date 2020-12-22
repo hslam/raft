@@ -4,6 +4,7 @@
 package raft
 
 import (
+	"runtime"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -186,11 +187,15 @@ func (p *pipeline) run() {
 			p.max /= 2
 			p.mutex.Unlock()
 		}
+		timer := time.NewTimer(p.sleepTime())
+		runtime.Gosched()
 		select {
-		case <-time.After(p.sleepTime()):
+		case <-timer.C:
 		case <-p.trigger:
+			timer.Stop()
 			time.Sleep(p.sleepTime())
 		case <-p.done:
+			timer.Stop()
 			return
 		}
 	}
@@ -199,11 +204,13 @@ func (p *pipeline) run() {
 func (p *pipeline) read() {
 	for {
 	loop:
+		runtime.Gosched()
 		time.Sleep(p.minLatency() / 10)
 		p.apply()
 		if atomic.LoadUint64(&p.node.nextIndex)-1 > p.node.stateMachine.lastApplied {
 			goto loop
 		}
+		runtime.Gosched()
 		select {
 		case <-p.readTrigger:
 			goto loop
@@ -230,6 +237,7 @@ func (p *pipeline) apply() {
 		} else {
 			p.mutex.Unlock()
 			//Traceln("pipeline.read sleep")
+			runtime.Gosched()
 			time.Sleep(p.minLatency() / 100)
 			continue
 		}

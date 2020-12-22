@@ -122,11 +122,6 @@ func (r *readIndex) reply(id uint64, success bool) {
 
 func (r *readIndex) send() {
 	if atomic.CompareAndSwapInt32(&r.working, 0, 1) {
-		defer atomic.StoreInt32(&r.working, 0)
-		defer func() {
-			if err := recover(); err != nil {
-			}
-		}()
 		r.mu.Lock()
 		id := r.id
 		if chs, ok := r.m[id]; ok {
@@ -137,6 +132,7 @@ func (r *readIndex) send() {
 				r.mu.Unlock()
 				if !r.node.running {
 					r.reply(id, false)
+					atomic.StoreInt32(&r.working, 0)
 					return
 				}
 				if r.node.IsLeader() {
@@ -146,13 +142,16 @@ func (r *readIndex) send() {
 						go r.updateLatency(time.Now().UnixNano() - start)
 						r.reply(id, ok)
 					}(id)
+					atomic.StoreInt32(&r.working, 0)
 					return
 				}
 				r.reply(id, false)
+				atomic.StoreInt32(&r.working, 0)
 				return
 			}
 		}
 		r.mu.Unlock()
+		atomic.StoreInt32(&r.working, 0)
 	}
 	return
 }
@@ -160,6 +159,7 @@ func (r *readIndex) send() {
 func (r *readIndex) run() {
 	for {
 	loop:
+		runtime.Gosched()
 		time.Sleep(r.minLatency() / 10)
 		r.send()
 		r.mu.Lock()
@@ -168,6 +168,7 @@ func (r *readIndex) run() {
 		if length > 0 {
 			goto loop
 		}
+		runtime.Gosched()
 		select {
 		case <-r.trigger:
 			goto loop

@@ -201,6 +201,7 @@ func NewNode(host string, port int, dataDir string, context interface{}, join bo
 func (n *node) Start() {
 	n.onceStart.Do(func() {
 		n.recover()
+		n.currentTerm.Store(n.lastLogTerm + 1)
 		n.checkLog()
 		n.server.listenAndServe()
 		go n.run()
@@ -212,6 +213,7 @@ func (n *node) Start() {
 func (n *node) run() {
 	go func(updateTicker *time.Ticker, done chan struct{}) {
 		for {
+			runtime.Gosched()
 			select {
 			case <-done:
 				goto endfor
@@ -246,6 +248,7 @@ func (n *node) run() {
 	endfor:
 	}(n.updateTicker, n.done)
 	for {
+		runtime.Gosched()
 		select {
 		case <-n.ticker.C:
 			func() {
