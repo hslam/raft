@@ -4,8 +4,6 @@
 package raft
 
 import (
-	"bytes"
-	"encoding/gob"
 	"encoding/json"
 	"encoding/xml"
 	"errors"
@@ -43,23 +41,6 @@ func (c *XMLCodec) Marshal(buf []byte, v interface{}) ([]byte, error) {
 // Unmarshal parses the XML-encoded data and stores the result in the value pointed to by v.
 func (c *XMLCodec) Unmarshal(data []byte, v interface{}) error {
 	return xml.Unmarshal(data, v)
-}
-
-// GOBCodec struct
-type GOBCodec struct {
-}
-
-// Marshal returns the GOB encoding of v.
-func (c *GOBCodec) Marshal(buf []byte, v interface{}) ([]byte, error) {
-	var buffer = bytes.NewBuffer(buf)
-	buffer.Reset()
-	gob.NewEncoder(buffer).Encode(v)
-	return buffer.Bytes(), nil
-}
-
-// Unmarshal parses the GOB-encoded data and stores the result in the value pointed to by v.
-func (c *GOBCodec) Unmarshal(data []byte, v interface{}) error {
-	return gob.NewDecoder(bytes.NewReader(data)).Decode(v)
 }
 
 // BYTESCodec struct
