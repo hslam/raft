@@ -121,7 +121,6 @@ type node struct {
 
 	commiting int32
 
-	join       bool
 	nonVoting  bool
 	majorities bool
 	leave      bool
@@ -155,7 +154,6 @@ func NewNode(host string, port int, dataDir string, context interface{}, join bo
 		context:         context,
 		commands:        &commands{types: make(map[int32]*sync.Pool)},
 		nextIndex:       1,
-		join:            join,
 	}
 	n.storage = newStorage(dataDir)
 	n.votes = newVotes(n)
@@ -344,6 +342,8 @@ func (n *node) Stop() {
 		n.stoped = true
 		n.running = false
 		n.commitIndex.Stop()
+		n.rpcs.Close()
+		n.server.Stop()
 	})
 }
 

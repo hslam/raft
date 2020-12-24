@@ -21,13 +21,13 @@ const (
 	removePeerName      = "L"
 )
 
-func listenAndServe(address string, n *node) {
+func listenAndServe(address string, s *server) {
 	service := new(service)
-	service.node = n
-	server := rpc.NewServer()
-	server.RegisterName(serviceName, service)
+	service.node = s.node
+	s.server = rpc.NewServer()
+	s.server.RegisterName(serviceName, service)
 	rpc.SetLogLevel(rpc.OffLogLevel)
-	logger.Infoln(server.Listen(network, address, codec))
+	logger.Infoln(s.server.Listen(network, address, codec))
 }
 
 type rpcs struct {

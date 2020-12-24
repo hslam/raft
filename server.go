@@ -3,9 +3,14 @@
 
 package raft
 
+import (
+	"github.com/hslam/rpc"
+)
+
 type server struct {
-	node *node
-	addr string
+	node   *node
+	server *rpc.Server
+	addr   string
 }
 
 func newServer(n *node, addr string) *server {
@@ -15,6 +20,11 @@ func newServer(n *node, addr string) *server {
 	}
 	return s
 }
+
 func (s *server) listenAndServe() {
-	go listenAndServe(s.addr, s.node)
+	go listenAndServe(s.addr, s)
+}
+
+func (s *server) Stop() error {
+	return s.server.Close()
 }
