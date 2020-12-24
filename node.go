@@ -42,6 +42,7 @@ type Node interface {
 	Join(info *NodeInfo) (success bool)
 	Leave(Address string) (success bool, ok bool)
 	LookupPeer(addr string) *NodeInfo
+	LeaderChange(leaderChange func())
 }
 
 type node struct {
@@ -124,6 +125,8 @@ type node struct {
 	nonVoting  bool
 	majorities bool
 	leave      bool
+
+	leaderChange func()
 }
 
 // NewNode returns a new raft node.
@@ -397,6 +400,10 @@ func (n *node) term() uint64 {
 		return 0
 	}
 	return n.currentTerm.Load()
+}
+
+func (n *node) LeaderChange(leaderChange func()) {
+	n.leaderChange = leaderChange
 }
 
 func (n *node) Leader() string {

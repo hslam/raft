@@ -225,6 +225,9 @@ func (r *raft) AppendEntries(req *AppendEntriesRequest, res *AppendEntriesRespon
 		r.node.votedFor.Store(req.LeaderId)
 		r.node.leader = req.LeaderId
 		logger.Tracef("raft.HandleAppendEntries %s State:%s leader-%s Term:%d", r.node.address, r.node.State(), r.node.leader, r.node.currentTerm.Load())
+		if r.node.leaderChange != nil {
+			go r.node.leaderChange()
+		}
 	}
 	if r.node.leader != req.LeaderId {
 		res.Success = false

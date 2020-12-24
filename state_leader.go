@@ -48,6 +48,9 @@ func (s *leaderState) Start() {
 		if ok, _ := n.do(noOperationCommand, defaultCommandTimeout*10); ok != nil {
 			if n.currentTerm.Load() == term {
 				n.ready = true
+				if s.node.leaderChange != nil {
+					go s.node.leaderChange()
+				}
 				return
 			}
 		}
