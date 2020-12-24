@@ -332,8 +332,9 @@ endfor:
 
 func (n *node) Running() bool {
 	n.mu.RLock()
-	defer n.mu.RUnlock()
-	return n.running
+	running := n.running
+	n.mu.RUnlock()
+	return running
 }
 
 func (n *node) Stop() {
@@ -349,8 +350,9 @@ func (n *node) Stop() {
 
 func (n *node) Stoped() bool {
 	n.mu.RLock()
-	defer n.mu.RUnlock()
-	return n.stoped
+	stoped := n.stoped
+	n.mu.RUnlock()
+	return stoped
 }
 
 func (n *node) voting() bool {
@@ -391,8 +393,9 @@ func (n *node) State() string {
 
 func (n *node) Term() uint64 {
 	n.mu.RLock()
-	defer n.mu.RUnlock()
-	return n.term()
+	term := n.term()
+	n.mu.RUnlock()
+	return term
 }
 
 func (n *node) term() uint64 {
@@ -403,25 +406,30 @@ func (n *node) term() uint64 {
 }
 
 func (n *node) LeaderChange(leaderChange func()) {
+	n.mu.RLock()
 	n.leaderChange = leaderChange
+	n.mu.RUnlock()
 }
 
 func (n *node) Leader() string {
 	n.mu.RLock()
-	defer n.mu.RUnlock()
-	return n.leader
+	leader := n.leader
+	n.mu.RUnlock()
+	return leader
 }
 
 func (n *node) Ready() bool {
 	n.mu.RLock()
-	defer n.mu.RUnlock()
-	return n.ready
+	ready := n.ready
+	n.mu.RUnlock()
+	return ready
 }
 
 func (n *node) Lease() bool {
 	n.mu.RLock()
-	defer n.mu.RUnlock()
-	return n.lease
+	lease := n.lease
+	n.mu.RUnlock()
+	return lease
 }
 
 func (n *node) LeaseRead() (ok bool) {
@@ -443,8 +451,9 @@ func (n *node) LeaseRead() (ok bool) {
 
 func (n *node) IsLeader() bool {
 	n.mu.RLock()
-	defer n.mu.RUnlock()
-	return n.isLeader()
+	isLeader := n.isLeader()
+	n.mu.RUnlock()
+	return isLeader
 }
 
 func (n *node) isLeader() bool {
@@ -459,26 +468,28 @@ func (n *node) isLeader() bool {
 
 func (n *node) Address() string {
 	n.mu.RLock()
-	defer n.mu.RUnlock()
-	return n.address
+	address := n.address
+	n.mu.RUnlock()
+	return address
 }
 
 func (n *node) SetCodec(codec Codec) {
 	n.mu.RLock()
-	defer n.mu.RUnlock()
 	n.codec = codec
+	n.mu.RUnlock()
 }
 
 func (n *node) SetContext(context interface{}) {
 	n.mu.Lock()
-	defer n.mu.Unlock()
 	n.context = context
+	n.mu.Unlock()
 }
 
 func (n *node) Context() interface{} {
 	n.mu.RLock()
-	defer n.mu.RUnlock()
-	return n.context
+	context := n.context
+	n.mu.RUnlock()
+	return context
 }
 
 func (n *node) SetGzipSnapshot(gzip bool) {
@@ -512,8 +523,9 @@ func (n *node) RegisterCommand(command Command) error {
 		return ErrCommandTypeMinus
 	}
 	n.mu.Lock()
-	defer n.mu.Unlock()
-	return n.commands.register(command)
+	err := n.commands.register(command)
+	n.mu.Unlock()
+	return err
 }
 
 func (n *node) registerCommand(command Command) error {
@@ -605,17 +617,16 @@ func (n *node) waitApply(commitIndex uint64, done chan struct{}) {
 
 func (n *node) Peers() []string {
 	n.nodesMut.Lock()
-	defer n.nodesMut.Unlock()
 	peers := make([]string, 0, len(n.peers))
 	for _, v := range n.peers {
 		peers = append(peers, v.address)
 	}
+	n.nodesMut.Unlock()
 	return peers
 }
 
 func (n *node) membership() []string {
 	n.nodesMut.Lock()
-	defer n.nodesMut.Unlock()
 	ms := make([]string, 0, len(n.peers)+1)
 	if !n.leave {
 		ms = append(ms, fmt.Sprintf("%s;%t", n.address, n.nonVoting))
@@ -623,6 +634,7 @@ func (n *node) membership() []string {
 	for _, v := range n.peers {
 		ms = append(ms, fmt.Sprintf("%s;%t", v.address, v.nonVoting))
 	}
+	n.nodesMut.Unlock()
 	return ms
 }
 
@@ -699,7 +711,6 @@ func (n *node) resetVotes() {
 
 func (n *node) consideredForMajorities() {
 	n.nodesMut.Lock()
-	defer n.nodesMut.Unlock()
 	if n.stateMachine.configuration.LookupPeer(n.address) != nil {
 		n.majorities = true
 	} else {
@@ -708,6 +719,7 @@ func (n *node) consideredForMajorities() {
 	for _, v := range n.peers {
 		v.majorities = true
 	}
+	n.nodesMut.Unlock()
 }
 
 func (n *node) deleteNotPeers(peers []string) {
@@ -720,36 +732,39 @@ func (n *node) deleteNotPeers(peers []string) {
 		m[v] = true
 	}
 	n.nodesMut.Lock()
-	defer n.nodesMut.Unlock()
 	for _, v := range n.peers {
 		if _, ok := m[v.address]; !ok {
 			delete(n.peers, v.address)
 		}
 	}
+	n.nodesMut.Unlock()
 }
 
 func (n *node) clearPeers() {
 	n.nodesMut.Lock()
-	defer n.nodesMut.Unlock()
 	n.peers = make(map[string]*peer)
+	n.nodesMut.Unlock()
 }
 
 func (n *node) LookupPeer(addr string) *NodeInfo {
 	n.nodesMut.Lock()
-	defer n.nodesMut.Unlock()
-	return n.stateMachine.configuration.LookupPeer(addr)
+	nodeInfo := n.stateMachine.configuration.LookupPeer(addr)
+	n.nodesMut.Unlock()
+	return nodeInfo
 }
 
 func (n *node) NodesCount() int {
 	n.nodesMut.RLock()
-	defer n.nodesMut.RUnlock()
-	return len(n.peers) + 1
+	count := len(n.peers) + 1
+	n.nodesMut.RUnlock()
+	return count
 }
 
 func (n *node) Quorum() int {
 	n.nodesMut.RLock()
-	defer n.nodesMut.RUnlock()
-	return n.quorum()
+	quorum := n.quorum()
+	n.nodesMut.RUnlock()
+	return quorum
 }
 
 func (n *node) quorum() int {
@@ -771,8 +786,9 @@ func (n *node) votingsCount() int {
 
 func (n *node) AliveCount() int {
 	n.nodesMut.RLock()
-	defer n.nodesMut.RUnlock()
-	return n.aliveCount()
+	aliveCount := n.aliveCount()
+	n.nodesMut.RUnlock()
+	return aliveCount
 }
 
 func (n *node) aliveCount() int {
@@ -787,7 +803,6 @@ func (n *node) aliveCount() int {
 
 func (n *node) requestVotes() error {
 	n.nodesMut.RLock()
-	defer n.nodesMut.RUnlock()
 	n.votes.Clear()
 	n.votes.vote <- newVote(n.address, n.currentTerm.Load(), 1)
 	for _, v := range n.peers {
@@ -795,37 +810,38 @@ func (n *node) requestVotes() error {
 			go v.requestVote()
 		}
 	}
+	n.nodesMut.RUnlock()
 	return nil
 }
 
 func (n *node) detectNodes() error {
 	n.nodesMut.RLock()
-	defer n.nodesMut.RUnlock()
 	for _, v := range n.peers {
 		if v.alive == false {
 			go v.ping()
 		}
 	}
+	n.nodesMut.RUnlock()
 	return nil
 }
 
 func (n *node) keepAliveNodes() error {
 	n.nodesMut.RLock()
-	defer n.nodesMut.RUnlock()
 	for _, v := range n.peers {
 		go v.ping()
 	}
+	n.nodesMut.RUnlock()
 	return nil
 }
 
 func (n *node) heartbeats() error {
 	n.nodesMut.RLock()
-	defer n.nodesMut.RUnlock()
 	for _, v := range n.peers {
 		if v.alive {
 			go v.heartbeat()
 		}
 	}
+	n.nodesMut.RUnlock()
 	return nil
 }
 
@@ -889,7 +905,6 @@ func (n *node) install() bool {
 
 func (n *node) check() error {
 	n.nodesMut.RLock()
-	defer n.nodesMut.RUnlock()
 	for _, v := range n.peers {
 		if v.alive == true {
 			go v.check()
@@ -898,12 +913,12 @@ func (n *node) check() error {
 	if len(n.peers) == 0 {
 		go n.commit()
 	}
+	n.nodesMut.RUnlock()
 	return nil
 }
 
 func (n *node) minNextIndex() uint64 {
 	n.nodesMut.RLock()
-	defer n.nodesMut.RUnlock()
 	var min uint64
 	for _, v := range n.peers {
 		if v.alive == true && v.nextIndex > 0 {
@@ -914,6 +929,7 @@ func (n *node) minNextIndex() uint64 {
 			}
 		}
 	}
+	n.nodesMut.RUnlock()
 	return min
 }
 
