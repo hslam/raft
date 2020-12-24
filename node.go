@@ -837,7 +837,8 @@ func (n *node) checkLeader() bool {
 	done := make(chan struct{}, 1)
 	count := uint32(1)
 	send := uint32(1)
-	for _, v := range peers {
+	for i := range peers {
+		v := peers[i]
 		if !v.voting() {
 			continue
 		}
@@ -863,6 +864,7 @@ func (n *node) checkLeader() bool {
 	}
 	//logger.Tracef("node.checkLeader %s quorum-%v", n.address, quorum)
 	timer := time.NewTimer(defaultCommandTimeout)
+	runtime.Gosched()
 	select {
 	case <-done:
 		timer.Stop()
