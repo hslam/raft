@@ -68,8 +68,9 @@ func TestCluster(t *testing.T) {
 	os.RemoveAll(dir)
 	infos := []*NodeInfo{{Address: "localhost:9001"}, {Address: "localhost:9002"}, {Address: "localhost:9003"}, {Address: "localhost:9004", NonVoting: true}, {Address: "localhost:9005", NonVoting: true}}
 	wg := sync.WaitGroup{}
-	var closed uint32
-	done := make(chan struct{})
+	var readflag uint32
+	startRead := make(chan struct{})
+	var joinflag uint32
 	startJoin := make(chan struct{})
 	al := sync.WaitGroup{}
 	al.Add(3)
@@ -100,9 +101,7 @@ func TestCluster(t *testing.T) {
 			node.SetCodec(&JSONCodec{})
 			node.SetSnapshot(&testSnapshot{ctx: ctx})
 			node.SetSyncTypes([]*SyncType{
-				{Seconds: 900, Changes: 1},
-				{Seconds: 300, Changes: 10},
-				{Seconds: 60, Changes: 10000},
+				{Seconds: 1, Changes: 1},
 			})
 			node.Start()
 			node.LeaderChange(func() {
@@ -113,6 +112,12 @@ func TestCluster(t *testing.T) {
 					t.Error(lookupLeader.Address, leader)
 				}
 				node.Do(&testCommand{"foobar"})
+				if node.IsLeader() {
+					if atomic.CompareAndSwapUint32(&readflag, 0, 1) {
+						close(startRead)
+					}
+				}
+				<-startRead
 				time.Sleep(time.Second)
 				if ok := node.Lease(); ok {
 					value := ctx.Get()
@@ -127,29 +132,28 @@ func TestCluster(t *testing.T) {
 					}
 				}
 				if node.IsLeader() {
-					if atomic.CompareAndSwapUint32(&closed, 0, 1) {
+					if atomic.CompareAndSwapUint32(&joinflag, 0, 1) {
 						close(startJoin)
-						close(done)
 					}
 				}
 			})
 			if index < 3 {
 				<-startJoin
-			}
-			if node.IsLeader() {
-				if _, ok := node.Leave(infos[4].Address); !ok {
-					t.Error()
+				time.Sleep(time.Second)
+				if node.IsLeader() {
+					if _, ok := node.Leave(infos[4].Address); !ok {
+						t.Error()
+					}
+					al.Done()
+				} else {
+					if _, ok := node.Leave(infos[3].Address); !ok {
+						t.Error()
+					}
+					al.Done()
 				}
-				al.Done()
-			} else if index < 3 {
-				if _, ok := node.Leave(infos[3].Address); !ok {
-					t.Error()
-				}
-				al.Done()
 			}
 			al.Wait()
-			time.Sleep(time.Second * 3)
-			<-done
+			time.Sleep(time.Second * 2)
 			node.Stop()
 		}()
 	}
