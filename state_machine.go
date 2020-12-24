@@ -38,8 +38,9 @@ func newStateMachine(n *node) *stateMachine {
 }
 func (s *stateMachine) Apply(index uint64, command Command) (reply interface{}, err error, applyErr error) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.apply(index, command)
+	reply, err, applyErr = s.apply(index, command)
+	s.mu.Unlock()
+	return
 }
 func (s *stateMachine) Lock() {
 	s.mu.Lock()
@@ -50,27 +51,26 @@ func (s *stateMachine) Unlock() {
 func (s *stateMachine) apply(index uint64, command Command) (reply interface{}, err error, applyErr error) {
 	if index <= s.lastApplied {
 		return nil, nil, errRepeated
-	} else if index != s.lastApplied+1 {
+	}
+	if index != s.lastApplied+1 {
 		return nil, nil, errOrder
 	}
-	defer func() {
-		s.lastApplied = index
-		if s.always {
-			s.saveSnapshot()
-		}
-	}()
 	if command.Type() >= 0 {
 		reply, err = command.Do(s.node.context)
 	} else {
 		reply, err = command.Do(s.node)
+	}
+	s.lastApplied = index
+	if s.always {
+		s.saveSnapshot()
 	}
 	return reply, err, nil
 }
 
 func (s *stateMachine) SetSnapshotPolicy(snapshotPolicy SnapshotPolicy) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	s.setSnapshotPolicy(snapshotPolicy)
+	s.mu.Unlock()
 }
 
 func (s *stateMachine) setSnapshotPolicy(snapshotPolicy SnapshotPolicy) {
@@ -120,30 +120,31 @@ func (s *stateMachine) setSnapshotPolicy(snapshotPolicy SnapshotPolicy) {
 
 func (s *stateMachine) ClearSyncType() {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	s.saves = []*SyncType{}
+	s.mu.Unlock()
 }
 func (s *stateMachine) AppendSyncType(seconds, changes int) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	s.saves = append(s.saves, &SyncType{seconds, changes})
+	s.mu.Unlock()
 }
 func (s *stateMachine) SetSyncTypes(saves []*SyncType) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	s.saves = saves
 	s.setSnapshotPolicy(CustomSync)
+	s.mu.Unlock()
 }
 func (s *stateMachine) SetSnapshot(snapshot Snapshot) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	s.snapshot = snapshot
+	s.mu.Unlock()
 }
 
 func (s *stateMachine) SaveSnapshot() error {
 	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.saveSnapshot()
+	err := s.saveSnapshot()
+	s.mu.Unlock()
+	return err
 }
 func (s *stateMachine) saveSnapshot() error {
 	if s.snapshot != nil {
@@ -191,6 +192,7 @@ func (s *stateMachine) saveSnapshot() error {
 	}
 	return ErrSnapshotCodecNil
 }
+
 func (s *stateMachine) RecoverSnapshot() error {
 	if s.snapshot != nil {
 		s.snapshotReadWriter.load()
