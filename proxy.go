@@ -5,6 +5,7 @@ package raft
 
 import (
 	"github.com/hslam/rpc"
+	"runtime"
 	"sync"
 	"time"
 )
@@ -49,6 +50,7 @@ func (p *proxy) CallQueryLeader(addr string) (term uint64, leaderID string, ok b
 	call.Done = done
 	p.node.rpcs.RoundTrip(addr, call)
 	timer := time.NewTimer(p.queryLeaderTimeout)
+	runtime.Gosched()
 	select {
 	case call := <-done:
 		timer.Stop()
@@ -84,6 +86,7 @@ func (p *proxy) CallAddPeer(addr string, info *NodeInfo) (success bool, ok bool)
 	call.Done = done
 	p.node.rpcs.RoundTrip(addr, call)
 	timer := time.NewTimer(p.addPeerTimeout)
+	runtime.Gosched()
 	select {
 	case call := <-done:
 		timer.Stop()
@@ -119,6 +122,7 @@ func (p *proxy) CallRemovePeer(addr string, Address string) (success bool, ok bo
 	call.Done = done
 	p.node.rpcs.RoundTrip(addr, call)
 	timer := time.NewTimer(p.removePeerTimeout)
+	runtime.Gosched()
 	select {
 	case call := <-done:
 		timer.Stop()

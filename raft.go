@@ -5,6 +5,7 @@ package raft
 
 import (
 	"github.com/hslam/rpc"
+	"runtime"
 	"sync"
 	"time"
 )
@@ -55,6 +56,7 @@ func (r *raft) CallRequestVote(addr string) (ok bool) {
 	call.Done = done
 	r.node.rpcs.RoundTrip(addr, call)
 	timer := time.NewTimer(r.requestVoteTimeout)
+	runtime.Gosched()
 	select {
 	case call := <-done:
 		timer.Stop()
@@ -109,6 +111,7 @@ func (r *raft) CallAppendEntries(addr string, prevLogIndex, prevLogTerm uint64, 
 	call.Done = done
 	r.node.rpcs.RoundTrip(addr, call)
 	timer := time.NewTimer(timeout)
+	runtime.Gosched()
 	select {
 	case call := <-done:
 		timer.Stop()
@@ -157,6 +160,7 @@ func (r *raft) CallInstallSnapshot(addr string, LastIncludedIndex, LastIncludedT
 	call.Done = done
 	r.node.rpcs.RoundTrip(addr, call)
 	timer := time.NewTimer(r.installSnapshotTimeout)
+	runtime.Gosched()
 	select {
 	case call := <-done:
 		timer.Stop()
