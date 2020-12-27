@@ -247,10 +247,6 @@ func (n *node) run() {
 				if n.workTicker == nil {
 					n.deferTime = time.Now()
 					n.workTicker = timer.TickFunc(defaultMaxDelay, func() {
-						defer func() {
-							if err := recover(); err != nil {
-							}
-						}()
 						n.state.Update()
 					})
 				}
@@ -268,16 +264,12 @@ func (n *node) run() {
 		}
 	}
 endfor:
-	n.printTicker.Stop()
-	n.printTicker = nil
-	n.keepAliveTicker.Stop()
-	n.keepAliveTicker = nil
-	n.detectTicker.Stop()
-	n.detectTicker = nil
 	n.ticker.Stop()
-	n.ticker = nil
 	n.updateTicker.Stop()
-	n.updateTicker = nil
+	n.printTicker.Stop()
+	n.keepAliveTicker.Stop()
+	n.detectTicker.Stop()
+	n.checkLogTicker.Stop()
 }
 
 func (n *node) Running() bool {
@@ -295,6 +287,9 @@ func (n *node) Stop() {
 		n.commitIndex.Stop()
 		n.rpcs.Close()
 		n.server.Stop()
+		n.stateMachine.Stop()
+		n.pipeline.Stop()
+		n.readIndex.Stop()
 	})
 }
 

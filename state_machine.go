@@ -36,18 +36,22 @@ func newStateMachine(n *node) *stateMachine {
 	s.SetSnapshotPolicy(DefalutSync)
 	return s
 }
+
 func (s *stateMachine) Apply(index uint64, command Command) (reply interface{}, err error, applyErr error) {
 	s.mu.Lock()
 	reply, err, applyErr = s.apply(index, command)
 	s.mu.Unlock()
 	return
 }
+
 func (s *stateMachine) Lock() {
 	s.mu.Lock()
 }
+
 func (s *stateMachine) Unlock() {
 	s.mu.Unlock()
 }
+
 func (s *stateMachine) apply(index uint64, command Command) (reply interface{}, err error, applyErr error) {
 	if index <= s.lastApplied {
 		return nil, nil, errRepeated
@@ -123,17 +127,20 @@ func (s *stateMachine) ClearSyncType() {
 	s.saves = []*SyncType{}
 	s.mu.Unlock()
 }
+
 func (s *stateMachine) AppendSyncType(seconds, changes int) {
 	s.mu.Lock()
 	s.saves = append(s.saves, &SyncType{seconds, changes})
 	s.mu.Unlock()
 }
+
 func (s *stateMachine) SetSyncTypes(saves []*SyncType) {
 	s.mu.Lock()
 	s.saves = saves
 	s.setSnapshotPolicy(CustomSync)
 	s.mu.Unlock()
 }
+
 func (s *stateMachine) SetSnapshot(snapshot Snapshot) {
 	s.mu.Lock()
 	s.snapshot = snapshot
@@ -146,6 +153,7 @@ func (s *stateMachine) SaveSnapshot() error {
 	s.mu.Unlock()
 	return err
 }
+
 func (s *stateMachine) saveSnapshot() error {
 	if s.snapshot != nil {
 		if !s.node.storage.Exists(defaultSnapshot) && s.snapshotReadWriter.work {
@@ -261,6 +269,7 @@ func (s *stateMachine) run() {
 		go snapshotSync.run()
 	}
 }
+
 func (s *stateMachine) Stop() {
 	logger.Tracef("stateMachine.Stop %d", len(s.snapshotSyncs))
 	for _, snapshotSync := range s.snapshotSyncs {
@@ -270,4 +279,5 @@ func (s *stateMachine) Stop() {
 		}
 	}
 	s.snapshotSyncs = make([]*snapshotSync, 0)
+	s.snapshotReadWriter.Stop()
 }

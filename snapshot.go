@@ -6,6 +6,7 @@ package raft
 import (
 	"compress/gzip"
 	"errors"
+	"github.com/hslam/atomic"
 	"github.com/hslam/code"
 	"io"
 	"os"
@@ -42,8 +43,10 @@ type snapshotReadWriter struct {
 	length            uint64
 	ticker            *time.Ticker
 	tarWork           bool
-	done              bool
+	finish            bool
 	gzip              bool
+	done              chan struct{}
+	closed            int32
 }
 
 func newSnapshotReadWriter(n *node, name string, gzip bool) *snapshotReadWriter {
@@ -63,16 +66,20 @@ func newSnapshotReadWriter(n *node, name string, gzip bool) *snapshotReadWriter 
 		lastTarIndex:      newPersistentUint64(n, defaultLastTarIndex, 0, 0),
 		tarWork:           true,
 		gzip:              gzip,
+		done:              make(chan struct{}, 1),
 	}
 	go s.run()
 	return s
 }
+
 func (s *snapshotReadWriter) Gz() bool {
 	return s.gzip
 }
+
 func (s *snapshotReadWriter) Gzip(gz bool) {
 	s.gzip = gz
 }
+
 func (s *snapshotReadWriter) FileName() string {
 	name := s.tarName
 	if s.gzip {
@@ -80,6 +87,7 @@ func (s *snapshotReadWriter) FileName() string {
 	}
 	return name
 }
+
 func (s *snapshotReadWriter) Reset(lastIncludedIndex, lastIncludedTerm uint64) {
 	s.lastIncludedIndex.Set(lastIncludedIndex)
 	s.lastIncludedTerm.Set(lastIncludedTerm)
@@ -87,6 +95,7 @@ func (s *snapshotReadWriter) Reset(lastIncludedIndex, lastIncludedTerm uint64) {
 	s.ret = 0
 	s.readRet = 0
 }
+
 func (s *snapshotReadWriter) Write(p []byte) (n int, err error) {
 	err = s.node.storage.SeekWrite(s.flushName, s.ret, p)
 	if err != nil {
@@ -96,6 +105,7 @@ func (s *snapshotReadWriter) Write(p []byte) (n int, err error) {
 	s.ret += uint64(n)
 	return n, nil
 }
+
 func (s *snapshotReadWriter) Rename() error {
 	defer func() {
 		if s.node.storage.Exists(s.tmpName) {
@@ -105,6 +115,7 @@ func (s *snapshotReadWriter) Rename() error {
 	s.node.storage.Rename(s.name, s.tmpName)
 	return s.node.storage.Rename(s.flushName, s.name)
 }
+
 func (s *snapshotReadWriter) Append(offset uint64, p []byte) (n int, err error) {
 	err = s.node.storage.SeekWrite(s.FileName(), offset, p)
 	if err != nil {
@@ -182,6 +193,7 @@ func (s *snapshotReadWriter) AppendFile(name string) error {
 	}
 	return nil
 }
+
 func (s *snapshotReadWriter) RecoverFile(source *os.File, name string) error {
 	var (
 		size    uint64
@@ -225,6 +237,7 @@ func (s *snapshotReadWriter) RecoverFile(source *os.File, name string) error {
 	}
 	return nil
 }
+
 func (s *snapshotReadWriter) Tar() error {
 	if s.canTar() {
 		s.disableTar()
@@ -234,6 +247,7 @@ func (s *snapshotReadWriter) Tar() error {
 	}
 	return nil
 }
+
 func (s *snapshotReadWriter) tar() error {
 	if !s.node.storage.Exists(defaultLastIncludedIndex) {
 		s.lastIncludedIndex.save()
@@ -252,7 +266,7 @@ func (s *snapshotReadWriter) tar() error {
 	//if !s.node.storage.Exists(DefaultLog) {
 	//	return errors.New(DefaultLog + " file is not existed")
 	//}
-	s.done = false
+	s.finish = false
 	lastTarIndex := s.lastTarIndex.ID()
 	s.lastTarIndex.Set(s.lastIncludedIndex.ID())
 	s.node.storage.Truncate(defaultTar, 0)
@@ -266,17 +280,18 @@ func (s *snapshotReadWriter) tar() error {
 		s.gz()
 	}
 	logger.Tracef("snapshotReadWriter.tar %s lastTarIndex %d==>%d", s.node.address, lastTarIndex, s.lastTarIndex.ID())
-	s.done = true
+	s.finish = true
 	if s.gzip {
 		s.node.storage.Rm(s.tarName)
 	}
 	return nil
 }
+
 func (s *snapshotReadWriter) untar() error {
 	if s.node.storage.IsEmpty(s.FileName()) {
 		return errors.New(s.FileName() + " file is empty")
 	}
-	if !s.done {
+	if !s.finish {
 		return nil
 	}
 	//logger.Tracef("snapshotReadWriter.untar gzip %t", s.gzip)
@@ -309,6 +324,7 @@ func (s *snapshotReadWriter) untar() error {
 	}
 	return nil
 }
+
 func (s *snapshotReadWriter) gz() error {
 	dest, err := s.node.storage.FileWriter(defaultTarGz)
 	if err != nil {
@@ -347,6 +363,7 @@ func (s *snapshotReadWriter) gz() error {
 	writer.Flush()
 	return nil
 }
+
 func (s *snapshotReadWriter) ungz() error {
 	dest, err := s.node.storage.FileWriter(defaultTar)
 	if err != nil {
@@ -369,19 +386,23 @@ func (s *snapshotReadWriter) ungz() error {
 	}
 	return nil
 }
+
 func (s *snapshotReadWriter) clear() error {
 	return s.node.storage.Truncate(s.FileName(), 0)
 }
+
 func (s *snapshotReadWriter) canTar() bool {
 	s.mut.RLock()
 	defer s.mut.RUnlock()
 	return s.tarWork
 }
+
 func (s *snapshotReadWriter) disableTar() {
 	s.mut.Lock()
 	defer s.mut.Unlock()
 	s.tarWork = false
 }
+
 func (s *snapshotReadWriter) enableTar() {
 	s.mut.Lock()
 	defer s.mut.Unlock()
@@ -389,15 +410,21 @@ func (s *snapshotReadWriter) enableTar() {
 }
 
 func (s *snapshotReadWriter) run() {
-	for range s.ticker.C {
-		if s.node.install() && s.lastIncludedIndex.ID() > s.lastTarIndex.ID() && s.node.isLeader() {
-			s.Tar()
+	for {
+		select {
+		case <-s.ticker.C:
+			if s.node.install() && s.lastIncludedIndex.ID() > s.lastTarIndex.ID() && s.node.isLeader() {
+				s.Tar()
+			}
+		case <-s.done:
+			return
 		}
 	}
 }
+
 func (s *snapshotReadWriter) Stop() {
-	if s.ticker != nil {
+	if atomic.CompareAndSwapInt32(&s.closed, 0, 1) {
 		s.ticker.Stop()
-		s.ticker = nil
+		close(s.done)
 	}
 }

@@ -22,6 +22,7 @@ type pipeline struct {
 	pending        map[uint64]*invoker
 	readyEntries   []*Entry
 	count          uint64
+	closed         int32
 	done           chan bool
 	lasts          [lastsSize]int
 	lastsCursor    int
@@ -253,4 +254,13 @@ func (p *pipeline) apply() {
 		p.mutex.Unlock()
 	}
 	atomic.StoreInt32(&p.applying, 0)
+}
+
+func (p *pipeline) Stop() {
+	if !atomic.CompareAndSwapInt32(&p.closed, 0, 1) {
+		return
+	}
+	close(p.done)
+	close(p.trigger)
+	close(p.readTrigger)
 }

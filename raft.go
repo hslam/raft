@@ -287,7 +287,7 @@ func (r *raft) InstallSnapshot(req *InstallSnapshotRequest, res *InstallSnapshot
 	logger.Tracef("raft.HandleInstallSnapshot offset %d len %d done %t", req.Offset, len(req.Data), req.Done)
 	if req.Offset == 0 {
 		r.node.stateMachine.snapshotReadWriter.clear()
-		r.node.stateMachine.snapshotReadWriter.done = false
+		r.node.stateMachine.snapshotReadWriter.finish = false
 	}
 	r.node.stateMachine.append(req.Offset, req.Data)
 	offset, err := r.node.storage.Size(r.node.stateMachine.snapshotReadWriter.FileName())
@@ -299,7 +299,7 @@ func (r *raft) InstallSnapshot(req *InstallSnapshotRequest, res *InstallSnapshot
 		if r.node.leader != req.LeaderId {
 			r.node.leader = req.LeaderId
 		}
-		r.node.stateMachine.snapshotReadWriter.done = true
+		r.node.stateMachine.snapshotReadWriter.finish = true
 		r.node.stateMachine.snapshotReadWriter.lastIncludedIndex.Set(req.LastIncludedIndex)
 		r.node.stateMachine.snapshotReadWriter.lastIncludedTerm.Set(req.LastIncludedTerm)
 		r.node.stateMachine.snapshotReadWriter.untar()
