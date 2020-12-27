@@ -212,107 +212,57 @@ func (n *node) Start() {
 }
 
 func (n *node) run() {
-	go func(updateTicker *time.Ticker, done chan struct{}) {
-		for {
-			runtime.Gosched()
-			select {
-			case <-done:
-				goto endfor
-			case <-n.updateTicker.C:
-				func() {
-					defer func() {
-						if err := recover(); err != nil {
-						}
-					}()
-					if !n.running {
-						return
-					}
-					if n.workTicker != nil && n.deferTime.Add(time.Duration(minLatency*10)).Before(time.Now()) {
-						n.workTicker.Stop()
-						n.workTicker = nil
-					}
-					if n.state.Update() {
-						if n.workTicker == nil {
-							n.deferTime = time.Now()
-							n.workTicker = timer.TickFunc(defaultMaxDelay, func() {
-								defer func() {
-									if err := recover(); err != nil {
-									}
-								}()
-								n.state.Update()
-							})
-						}
-					}
-				}()
-			}
-		}
-	endfor:
-	}(n.updateTicker, n.done)
 	for {
 		runtime.Gosched()
 		select {
-		case <-n.ticker.C:
-			func() {
-				defer func() {
-					if err := recover(); err != nil {
-					}
-				}()
-				if !n.running {
-					return
-				}
-				select {
-				case i := <-n.changeStateChan:
-					if i == 1 {
-						n.setState(n.state.NextState())
-					} else if i == -1 {
-						n.setState(n.state.StepDown())
-					} else if i == 0 {
-						n.state.Start()
-					}
-				default:
-					n.state.FixedUpdate()
-				}
-			}()
-		case <-n.printTicker.C:
-			func() {
-				defer func() {
-					if err := recover(); err != nil {
-					}
-				}()
-				n.print()
-			}()
-		case <-n.keepAliveTicker.C:
-			func() {
-				defer func() {
-					if err := recover(); err != nil {
-					}
-				}()
-				n.keepAliveNodes()
-			}()
-		case <-n.detectTicker.C:
-			func() {
-				defer func() {
-					if err := recover(); err != nil {
-					}
-				}()
-				n.detectNodes()
-			}()
-		case <-n.checkLogTicker.C:
-			func() {
-				defer func() {
-					if err := recover(); err != nil {
-					}
-				}()
-				n.checkLog()
-			}()
-		case v := <-n.votes.vote:
-			func() {
-				defer func() {
-					if err := recover(); err != nil {
-					}
-				}()
+		case v, ok := <-n.votes.vote:
+			if ok {
 				n.votes.AddVote(v)
-			}()
+			}
+		case <-n.ticker.C:
+			if !n.running {
+				return
+			}
+			select {
+			case i := <-n.changeStateChan:
+				if i == 1 {
+					n.setState(n.state.NextState())
+				} else if i == -1 {
+					n.setState(n.state.StepDown())
+				} else if i == 0 {
+					n.state.Start()
+				}
+			default:
+				n.state.FixedUpdate()
+			}
+		case <-n.updateTicker.C:
+			if !n.running {
+				return
+			}
+			if n.workTicker != nil && n.deferTime.Add(time.Duration(minLatency*10)).Before(time.Now()) {
+				n.workTicker.Stop()
+				n.workTicker = nil
+			}
+			if n.state.Update() {
+				if n.workTicker == nil {
+					n.deferTime = time.Now()
+					n.workTicker = timer.TickFunc(defaultMaxDelay, func() {
+						defer func() {
+							if err := recover(); err != nil {
+							}
+						}()
+						n.state.Update()
+					})
+				}
+			}
+		case <-n.printTicker.C:
+			n.print()
+		case <-n.keepAliveTicker.C:
+			n.keepAliveNodes()
+		case <-n.detectTicker.C:
+			n.detectNodes()
+		case <-n.checkLogTicker.C:
+			n.checkLog()
 		case <-n.done:
 			goto endfor
 		}
