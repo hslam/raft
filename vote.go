@@ -6,7 +6,6 @@ package raft
 import (
 	"strconv"
 	"sync"
-	"time"
 )
 
 type vote struct {
@@ -32,18 +31,12 @@ type votes struct {
 	node      *node
 	vote      chan *vote
 	voteDic   map[string]int
-	voteTotal int
 	voteCount int
-	quorum    int
-	total     int
-	notice    chan bool
-	timeout   time.Duration
 }
 
 func newVotes(n *node) *votes {
 	vs := &votes{
-		node:   n,
-		notice: make(chan bool, 1),
+		node: n,
 	}
 	vs.Reset(1)
 	vs.Clear()
@@ -52,36 +45,28 @@ func newVotes(n *node) *votes {
 
 func (vs *votes) AddVote(v *vote) {
 	vs.mu.Lock()
-	defer vs.mu.Unlock()
 	if _, ok := vs.voteDic[v.Key()]; ok {
+		vs.mu.Unlock()
 		return
 	}
 	vs.voteDic[v.Key()] = v.vote
 	if v.term == vs.node.currentTerm.Load() {
-		vs.voteTotal++
 		vs.voteCount += v.vote
 	}
-	if vs.quorum > 0 && vs.voteCount >= vs.quorum {
-		vs.notice <- true
-	} else if vs.total > 0 && vs.voteTotal >= vs.total {
-		vs.notice <- false
-	}
+	vs.mu.Unlock()
 }
 
 func (vs *votes) Clear() {
-	for {
-		if len(vs.vote) > 0 {
-			<-vs.vote
-		} else {
-			break
-		}
-	}
+	vs.mu.Lock()
+	clearVote(vs.vote)
 	vs.voteDic = make(map[string]int)
 	vs.voteCount = 0
-	vs.voteTotal = 0
+	vs.mu.Unlock()
+
 }
 
 func (vs *votes) Reset(count int) {
+	vs.mu.Lock()
 	if vs.vote != nil {
 		close(vs.vote)
 	}
@@ -89,36 +74,25 @@ func (vs *votes) Reset(count int) {
 		count = 1
 	}
 	vs.vote = make(chan *vote, count)
+	vs.mu.Unlock()
 }
 
 func (vs *votes) Count() int {
-	return vs.voteCount
+	vs.mu.Lock()
+	voteCount := vs.voteCount
+	vs.mu.Unlock()
+	return voteCount
 }
 
-func (vs *votes) Total() int {
-	return vs.voteTotal
+func clearVote(v chan *vote) {
+	for len(v) > 0 {
+		clearVoteOnce(v)
+	}
 }
 
-func (vs *votes) SetQuorum(quorum int) {
-	vs.quorum = quorum
-}
-
-func (vs *votes) SetTotal(total int) {
-	vs.total = total
-}
-
-func (vs *votes) GetNotice() chan bool {
-	return vs.notice
-}
-
-func (vs *votes) SetTimeout(timeout time.Duration) {
-	vs.timeout = timeout
-	go vs.run()
-}
-
-func (vs *votes) run() {
+func clearVoteOnce(v chan *vote) {
 	select {
-	case <-time.After(vs.timeout):
-		vs.notice <- false
+	case <-v:
+	default:
 	}
 }
