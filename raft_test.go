@@ -99,6 +99,7 @@ func TestCluster(t *testing.T) {
 			}
 			node.RegisterCommand(&testCommand{})
 			node.SetCodec(&JSONCodec{})
+			node.SetContext(ctx)
 			node.SetSnapshot(&testSnapshot{ctx: ctx})
 			node.SetSyncTypes([]*SyncType{
 				{Seconds: 1, Changes: 1},
@@ -118,7 +119,7 @@ func TestCluster(t *testing.T) {
 				}
 				<-startRead
 				time.Sleep(time.Second)
-				if ok := node.Lease(); ok {
+				if ok := node.LeaseRead(); ok {
 					value := ctx.Get()
 					if value != "foobar" {
 						t.Error(value)
@@ -198,6 +199,7 @@ func TestClusterMore(t *testing.T) {
 			node := n.(*node)
 			node.RegisterCommand(&testCommand{})
 			node.SetCodec(&JSONCodec{})
+			node.SetContext(ctx)
 			node.SetSnapshot(&testSnapshot{ctx: ctx})
 			node.SetSnapshotPolicy(Always)
 			node.SetSnapshotPolicy(EverySecond)
@@ -228,7 +230,7 @@ func TestClusterMore(t *testing.T) {
 				}
 				<-startRead
 				time.Sleep(time.Second)
-				if ok := node.Lease(); ok {
+				if ok := node.LeaseRead(); ok {
 					value := ctx.Get()
 					if value != "foobar" {
 						t.Error(value)
@@ -264,6 +266,21 @@ func TestClusterMore(t *testing.T) {
 			}
 			al.Wait()
 			if index < 3 && node.IsLeader() {
+				if !node.Running() {
+					t.Error()
+				}
+				if !node.Ready() {
+					t.Error()
+				}
+				if node.Term() == 0 {
+					t.Error()
+				}
+				if len(node.Address()) == 0 {
+					t.Error()
+				}
+				if _, ok := node.Context().(*testContext); !ok {
+					t.Error()
+				}
 				node.stepDown()
 			}
 			time.Sleep(time.Second * 3)
@@ -272,6 +289,12 @@ func TestClusterMore(t *testing.T) {
 			}
 			time.Sleep(time.Second * 2)
 			node.Stop()
+			if !node.Stoped() {
+				t.Error()
+			}
+			if index >= 3 {
+				node.deleteNotPeers(nil)
+			}
 		}()
 	}
 	wg.Wait()
