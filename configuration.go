@@ -8,10 +8,12 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
+	"sync"
 )
 
 type configuration struct {
 	node  *node
+	mu    sync.Mutex
 	nodes map[string]*NodeInfo
 }
 
@@ -28,14 +30,18 @@ func newConfiguration(n *node) *configuration {
 }
 
 func (c *configuration) SetNodes(nodes []*NodeInfo) {
+	c.mu.Lock()
 	for _, v := range nodes {
 		c.nodes[v.Address] = v
 	}
+	c.mu.Unlock()
 	c.save()
 }
 
 func (c *configuration) AddPeer(peer *NodeInfo) {
+	c.mu.Lock()
 	c.nodes[peer.Address] = peer
+	c.mu.Unlock()
 	c.save()
 	if c.node.memberChange != nil {
 		c.node.memberChange()
@@ -43,9 +49,11 @@ func (c *configuration) AddPeer(peer *NodeInfo) {
 }
 
 func (c *configuration) RemovePeer(addr string) {
+	c.mu.Lock()
 	if _, ok := c.nodes[addr]; ok {
 		delete(c.nodes, addr)
 	}
+	c.mu.Unlock()
 	c.save()
 	if c.node.memberChange != nil {
 		c.node.memberChange()
@@ -53,46 +61,45 @@ func (c *configuration) RemovePeer(addr string) {
 }
 
 func (c *configuration) LookupPeer(addr string) *NodeInfo {
+	c.mu.Lock()
 	if v, ok := c.nodes[addr]; ok {
+		c.mu.Unlock()
 		return v
 	}
+	c.mu.Unlock()
 	return nil
 }
 
 func (c *configuration) Peers() []string {
+	c.mu.Lock()
 	peers := make([]string, 0, len(c.nodes))
 	for _, v := range c.nodes {
 		if v.Address != c.node.address {
 			peers = append(peers, v.Address)
 		}
 	}
+	c.mu.Unlock()
 	return peers
 }
 
 func (c *configuration) membership() []string {
+	c.mu.Lock()
 	ms := make([]string, 0, len(c.nodes))
 	for _, v := range c.nodes {
-		if v.Address != c.node.address {
-			ms = append(ms, fmt.Sprintf("%s;%t", v.Address, v.NonVoting))
-		}
+		ms = append(ms, fmt.Sprintf("%s;%t", v.Address, v.NonVoting))
 	}
+	c.mu.Unlock()
 	return ms
-}
-
-func (c *configuration) Nodes() []string {
-	nodes := make([]string, 0)
-	for _, v := range c.nodes {
-		nodes = append(nodes, v.Address)
-	}
-	return nodes
 }
 
 func (c *configuration) save() {
 	storage := &ConfigurationStorage{}
 	storage.Nodes = []*NodeInfo{}
+	c.mu.Lock()
 	for _, v := range c.nodes {
 		storage.Nodes = append(storage.Nodes, v)
 	}
+	c.mu.Unlock()
 	b, _ := json.Marshal(storage)
 	c.node.storage.OverWrite(defaultConfig, b)
 }
@@ -106,13 +113,14 @@ func (c *configuration) load() error {
 		return nil
 	}
 	storage := &ConfigurationStorage{}
-
 	if err = json.Unmarshal(b, storage); err != nil {
 		return err
 	}
+	c.mu.Lock()
 	for _, v := range storage.Nodes {
 		c.nodes[v.Address] = v
 	}
+	c.mu.Unlock()
 	if !c.membershipChanges() {
 		logger.Tracef("configuration.load !membershipChanges")
 		return nil
