@@ -42,19 +42,14 @@ func newPersistentUint64(n *node, name string, offset uint64, tick time.Duration
 	p.load()
 	return p
 }
-func (p *persistentUint64) Incre() uint64 {
-	value := atomic.AddUint64(&p.value, 1)
-	if !p.deferSave {
-		p.save()
-	}
-	return value
-}
+
 func (p *persistentUint64) Set(t uint64) {
 	atomic.StoreUint64(&p.value, t)
 	if !p.deferSave {
 		p.save()
 	}
 }
+
 func (p *persistentUint64) ID() uint64 {
 	return atomic.LoadUint64(&p.value)
 }
@@ -100,6 +95,7 @@ func (p *persistentUint64) run() {
 		}
 	}
 }
+
 func (p *persistentUint64) Stop() {
 	if !atomic.CompareAndSwapUint32(&p.closed, 0, 1) {
 		return
