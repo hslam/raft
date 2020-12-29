@@ -103,7 +103,6 @@ func TestCluster(t *testing.T) {
 			node.SetSyncTypes([]*SyncType{
 				{Seconds: 1, Changes: 1},
 			})
-			node.Start()
 			node.LeaderChange(func() {
 				time.Sleep(time.Second * 2)
 				lookupLeader := node.LookupPeer(leader)
@@ -137,6 +136,7 @@ func TestCluster(t *testing.T) {
 					}
 				}
 			})
+			node.Start()
 			if index < 3 {
 				<-startJoin
 				time.Sleep(time.Second)
@@ -213,7 +213,6 @@ func TestClusterMore(t *testing.T) {
 			})
 			node.MemberChange(func() {
 			})
-			node.Start()
 			node.LeaderChange(func() {
 				time.Sleep(time.Second * 2)
 				lookupLeader := node.LookupPeer(leader)
@@ -247,6 +246,7 @@ func TestClusterMore(t *testing.T) {
 					}
 				}
 			})
+			node.Start()
 			if index < 3 {
 				<-startJoin
 				time.Sleep(time.Second)
