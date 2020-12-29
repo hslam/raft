@@ -4,12 +4,10 @@
 package raft
 
 import (
-	"compress/gzip"
 	"errors"
 	"github.com/hslam/atomic"
-	"github.com/hslam/code"
+	"github.com/hslam/tar"
 	"io"
-	"os"
 	"sync"
 	"time"
 )
@@ -145,99 +143,6 @@ func (s *snapshotReadWriter) load() error {
 	return nil
 }
 
-func (s *snapshotReadWriter) AppendFile(name string) error {
-	var (
-		size    int64
-		offsize int64
-		err     error
-		buf     []byte
-		source  *os.File
-		n       int
-	)
-	size, err = s.node.storage.Size(name)
-	if err != nil {
-		return err
-	}
-	sizeBuf := make([]byte, 8)
-	code.EncodeUint64(sizeBuf, uint64(size))
-	s.node.storage.AppendWrite(defaultTar, sizeBuf)
-	if size > defaultReadFileBufferSize {
-		buf = make([]byte, defaultReadFileBufferSize)
-		source, err = s.node.storage.FileReader(name)
-		if err != nil {
-			return err
-		}
-		defer source.Close()
-		for {
-			offsize += defaultReadFileBufferSize
-			n, err = source.Read(buf)
-			if err != nil && err != io.EOF {
-				return err
-			}
-			s.node.storage.AppendWrite(defaultTar, buf[:n])
-			if size-offsize <= defaultReadFileBufferSize {
-				n, err = source.Read(buf[:size-offsize])
-				if err != nil && err != io.EOF {
-					return err
-				}
-				s.node.storage.AppendWrite(defaultTar, buf[:n])
-				break
-			}
-		}
-	} else {
-		buf, err = s.node.storage.Load(name)
-		if err != nil {
-			return err
-		}
-		s.node.storage.AppendWrite(defaultTar, buf)
-	}
-	return nil
-}
-
-func (s *snapshotReadWriter) RecoverFile(source *os.File, name string) error {
-	var (
-		size    uint64
-		offsize uint64
-		err     error
-		buf     []byte
-		n       int
-	)
-	b := make([]byte, 8)
-	_, err = source.Read(b)
-	if err != nil {
-		return err
-	}
-	code.DecodeUint64(b, &size)
-	s.node.storage.Truncate(name, 0)
-	if size > defaultReadFileBufferSize {
-		buf = make([]byte, defaultReadFileBufferSize)
-		for {
-			n, err = source.Read(buf)
-			if err != nil && err != io.EOF {
-				return err
-			}
-			s.node.storage.SeekWrite(name, offsize, buf[:n])
-			offsize += defaultReadFileBufferSize
-			if size-offsize <= defaultReadFileBufferSize {
-				n, err = source.Read(buf[:size-offsize])
-				if err != nil && err != io.EOF {
-					return err
-				}
-				s.node.storage.SeekWrite(name, offsize, buf[:n])
-				break
-			}
-		}
-	} else {
-		buf = make([]byte, size)
-		_, err = source.Read(buf)
-		if err != nil && err != io.EOF {
-			return err
-		}
-		s.node.storage.OverWrite(name, buf)
-	}
-	return nil
-}
-
 func (s *snapshotReadWriter) Tar() error {
 	if s.canTar() {
 		s.disableTar()
@@ -249,41 +154,30 @@ func (s *snapshotReadWriter) Tar() error {
 }
 
 func (s *snapshotReadWriter) tar() error {
-	if !s.node.storage.Exists(defaultLastIncludedIndex) {
-		s.lastIncludedIndex.save()
-		return errors.New(defaultLastIncludedIndex + " file is not existed")
-	}
-	if !s.node.storage.Exists(defaultLastIncludedTerm) {
-		s.lastIncludedTerm.save()
-		return errors.New(defaultLastIncludedTerm + " file is not existed")
+	if !s.node.storage.Exists(defaultConfig) {
+		return errors.New(defaultConfig + " file is not existed")
 	}
 	if !s.node.storage.Exists(defaultSnapshot) {
 		return errors.New(defaultSnapshot + " file is not existed")
 	}
-	//if !s.node.storage.Exists(DefaultIndex) {
-	//	return errors.New(DefaultIndex + " file is not existed")
-	//}
-	//if !s.node.storage.Exists(DefaultLog) {
-	//	return errors.New(DefaultLog + " file is not existed")
-	//}
 	s.finish = false
 	lastTarIndex := s.lastTarIndex.ID()
 	s.lastTarIndex.Set(s.lastIncludedIndex.ID())
-	s.node.storage.Truncate(defaultTar, 0)
-	s.AppendFile(defaultLastTarIndex)
-	s.AppendFile(defaultLastIncludedIndex)
-	s.AppendFile(defaultLastIncludedTerm)
-	s.AppendFile(defaultSnapshot)
-	//s.AppendFile(DefaultIndex)
-	//s.AppendFile(DefaultLog)
 	if s.gzip {
-		s.gz()
+		tar.Targz(s.node.storage.FilePath(defaultTarGz),
+			s.node.storage.FilePath(defaultLastTarIndex),
+			s.node.storage.FilePath(defaultConfig),
+			s.node.storage.FilePath(defaultSnapshot),
+		)
+	} else {
+		tar.Tar(s.node.storage.FilePath(defaultTar),
+			s.node.storage.FilePath(defaultLastTarIndex),
+			s.node.storage.FilePath(defaultConfig),
+			s.node.storage.FilePath(defaultSnapshot),
+		)
 	}
-	logger.Tracef("snapshotReadWriter.tar %s lastTarIndex %d==>%d", s.node.address, lastTarIndex, s.lastTarIndex.ID())
 	s.finish = true
-	if s.gzip {
-		s.node.storage.Rm(s.tarName)
-	}
+	logger.Tracef("snapshotReadWriter.tar %s lastTarIndex %d==>%d", s.node.address, lastTarIndex, s.lastTarIndex.ID())
 	return nil
 }
 
@@ -294,95 +188,13 @@ func (s *snapshotReadWriter) untar() error {
 	if !s.finish {
 		return nil
 	}
-	//logger.Tracef("snapshotReadWriter.untar gzip %t", s.gzip)
+	logger.Tracef("snapshotReadWriter.untar gzip %t dir %s", s.gzip, s.node.storage.dataDir)
 	if s.gzip {
-		s.ungz()
-	}
-	source, err := s.node.storage.FileReader(defaultTar)
-	if err != nil {
-		return err
-	}
-	defer source.Close()
-	s.RecoverFile(source, defaultLastTarIndex)
-	s.RecoverFile(source, defaultLastIncludedIndex)
-	s.RecoverFile(source, defaultLastIncludedTerm)
-	s.RecoverFile(source, s.name)
-	//s.RecoverFile(source, DefaultIndex)
-	//s.RecoverFile(source, DefaultLog)
-	if !s.node.isLeader() {
-		if s.node.storage.Exists(defaultTar) {
-			s.node.storage.Rm(defaultTar)
-		}
-		if s.node.storage.Exists(defaultLastTarIndex) {
-			s.node.storage.Rm(defaultLastTarIndex)
-		}
-	}
-	if s.gzip {
-		if s.node.storage.Exists(defaultTarGz) {
-			s.node.storage.Rm(defaultTarGz)
-		}
-	}
-	return nil
-}
-
-func (s *snapshotReadWriter) gz() error {
-	dest, err := s.node.storage.FileWriter(defaultTarGz)
-	if err != nil {
-		return err
-	}
-	defer dest.Close()
-	source, err := s.node.storage.FileReader(defaultTar)
-	if err != nil {
-		return err
-	}
-	defer source.Close()
-	size, err := s.node.storage.Size(defaultTar)
-	if err != nil {
-		return err
-	}
-	writer := gzip.NewWriter(dest)
-	defer writer.Close()
-	buf := make([]byte, defaultReadFileBufferSize)
-	var offsize int64 = 0
-	for {
-		n, err := source.Read(buf)
-		if err != nil && err != io.EOF {
-			return err
-		}
-		writer.Write(buf[:n])
-		offsize += defaultReadFileBufferSize
-		if size-offsize <= defaultReadFileBufferSize {
-			n, err = source.Read(buf)
-			if err != nil && err != io.EOF {
-				return err
-			}
-			writer.Write(buf[:n])
-			break
-		}
-	}
-	writer.Flush()
-	return nil
-}
-
-func (s *snapshotReadWriter) ungz() error {
-	dest, err := s.node.storage.FileWriter(defaultTar)
-	if err != nil {
-		return err
-	}
-	defer dest.Close()
-	source, err := s.node.storage.FileReader(defaultTarGz)
-	if err != nil {
-		return err
-	}
-	defer source.Close()
-	reader, err := gzip.NewReader(source)
-	if err != nil {
-		return err
-	}
-	defer reader.Close()
-	_, err = io.Copy(dest, reader)
-	if err != nil && err != io.ErrUnexpectedEOF {
-		return err
+		tar.Untargz(s.node.storage.FilePath(defaultTarGz), s.node.storage.dataDir)
+		s.node.storage.Rm(defaultTarGz)
+	} else {
+		tar.Untar(s.node.storage.FilePath(defaultTar), s.node.storage.dataDir)
+		s.node.storage.Rm(defaultTar)
 	}
 	return nil
 }
@@ -393,20 +205,21 @@ func (s *snapshotReadWriter) clear() error {
 
 func (s *snapshotReadWriter) canTar() bool {
 	s.mut.RLock()
-	defer s.mut.RUnlock()
-	return s.tarWork
+	tarWork := s.tarWork
+	s.mut.RUnlock()
+	return tarWork
 }
 
 func (s *snapshotReadWriter) disableTar() {
 	s.mut.Lock()
-	defer s.mut.Unlock()
 	s.tarWork = false
+	s.mut.Unlock()
 }
 
 func (s *snapshotReadWriter) enableTar() {
 	s.mut.Lock()
-	defer s.mut.Unlock()
 	s.tarWork = true
+	s.mut.Unlock()
 }
 
 func (s *snapshotReadWriter) run() {

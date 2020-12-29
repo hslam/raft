@@ -257,6 +257,7 @@ func (s *stateMachine) recover() error {
 
 func (s *stateMachine) load() {
 	s.snapshotReadWriter.load()
+	s.configuration.load()
 }
 
 func (s *stateMachine) append(offset uint64, p []byte) {
