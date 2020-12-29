@@ -70,10 +70,6 @@ func newSnapshotReadWriter(n *node, name string, gzip bool) *snapshotReadWriter 
 	return s
 }
 
-func (s *snapshotReadWriter) Gz() bool {
-	return s.gzip
-}
-
 func (s *snapshotReadWriter) Gzip(gz bool) {
 	s.gzip = gz
 }
