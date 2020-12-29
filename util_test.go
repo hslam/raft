@@ -14,3 +14,15 @@ func TestSort(t *testing.T) {
 	}
 	quickSort(arr[:0], -999, -999)
 }
+
+func TestMinUint64(t *testing.T) {
+	if minUint64(1, 2) != 1 {
+		t.Error()
+	}
+}
+
+func TestMaxUint64(t *testing.T) {
+	if maxUint64(1, 2) != 2 {
+		t.Error()
+	}
+}
