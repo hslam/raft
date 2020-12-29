@@ -50,14 +50,6 @@ func (l *waLog) putEmtyEntries(entries []*Entry) {
 	}
 }
 
-func (l *waLog) checkIndex(index uint64) bool {
-	ok, err := l.wal.IsExist(index)
-	if err != nil {
-		return false
-	}
-	return ok
-}
-
 func (l *waLog) lookup(index uint64) *Entry {
 	l.mu.Lock()
 	entry := l.read(index)
