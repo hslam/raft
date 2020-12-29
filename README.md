@@ -31,7 +31,7 @@ import "github.com/hslam/raft"
 * Membership Changes
 
 #### helloworld.go
-```
+```go
 package main
 
 import (
