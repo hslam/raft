@@ -105,9 +105,9 @@ func TestCluster(t *testing.T) {
 			})
 			node.Start()
 			node.LeaderChange(func() {
-				time.Sleep(time.Second)
-				leader := node.Leader()
+				time.Sleep(time.Second * 2)
 				lookupLeader := node.LookupPeer(leader)
+				leader := node.Leader()
 				if lookupLeader != nil && lookupLeader.Address != leader {
 					t.Error(lookupLeader.Address, leader)
 				}

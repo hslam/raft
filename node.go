@@ -111,8 +111,7 @@ type node struct {
 	lease bool
 	ready bool
 
-	raftCodec Codec
-	codec     Codec
+	codec Codec
 
 	context      interface{}
 	commands     *commands
@@ -149,8 +148,7 @@ func NewNode(host string, port int, dataDir string, context interface{}, join bo
 		done:            make(chan struct{}, 1),
 		changeStateChan: make(chan int, 1),
 		heartbeatTick:   defaultHeartbeatTick,
-		raftCodec:       new(GOGOPBCodec),
-		codec:           new(JSONCodec),
+		codec:           new(GOGOPBCodec),
 		context:         context,
 		commands:        &commands{types: make(map[int32]*sync.Pool)},
 		nextIndex:       1,

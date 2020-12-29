@@ -220,11 +220,7 @@ func (l *waLog) applyCommitedRange(startIndex uint64, endIndex uint64) {
 		//logger.Tracef("l.applyCommitedRange %s Index %d Type %d",l.node.address,entries[i].Index,entries[i].CommandType)
 		command := l.node.commands.clone(entries[i].CommandType)
 		var err error
-		if entries[i].CommandType >= 0 {
-			err = l.node.codec.Unmarshal(entries[i].Command, command)
-		} else {
-			err = l.node.raftCodec.Unmarshal(entries[i].Command, command)
-		}
+		err = l.node.codec.Unmarshal(entries[i].Command, command)
 		if err == nil {
 			l.node.stateMachine.apply(entries[i].Index, command)
 		} else {
@@ -242,7 +238,7 @@ func (l *waLog) read(index uint64) *Entry {
 		return nil
 	}
 	entry := l.getEmtyEntry()
-	err = l.node.raftCodec.Unmarshal(b, entry)
+	err = l.node.codec.Unmarshal(b, entry)
 	if err != nil {
 		logger.Errorf("l.Decode %s", string(b))
 		return nil
@@ -318,7 +314,7 @@ func (l *waLog) appendEntries(entries []*Entry) bool {
 func (l *waLog) Write(entries []*Entry) (err error) {
 	for i := 0; i < len(entries); i++ {
 		entry := entries[i]
-		b, err := l.node.raftCodec.Marshal(l.buf, entry)
+		b, err := l.node.codec.Marshal(l.buf, entry)
 		if err != nil {
 			return err
 		}
@@ -339,7 +335,7 @@ func (l *waLog) appendEntry(entry *Entry) bool {
 		l.mu.Unlock()
 		return false
 	}
-	b, err := l.node.raftCodec.Marshal(l.buf, entry)
+	b, err := l.node.codec.Marshal(l.buf, entry)
 	if err != nil {
 		return false
 	}
