@@ -27,6 +27,11 @@ func newStorage(dataDir string) *storage {
 	s.MkDir(s.dataDir)
 	return s
 }
+
+func (s *storage) FilePath(fileName string) string {
+	return path.Join(s.dataDir, fileName)
+}
+
 func (s *storage) Sync(fileName string) error {
 	filePath := path.Join(s.dataDir, fileName)
 	f, err := os.OpenFile(filePath, os.O_CREATE|os.O_RDWR, 0600)
@@ -36,6 +41,7 @@ func (s *storage) Sync(fileName string) error {
 	defer f.Close()
 	return f.Sync()
 }
+
 func (s *storage) IsEmpty(fileName string) bool {
 	var empty bool
 	if num, err := s.Size(fileName); err != nil || num == 0 || !s.Exists(fileName) {
@@ -45,6 +51,7 @@ func (s *storage) IsEmpty(fileName string) bool {
 	}
 	return empty
 }
+
 func (s *storage) SafeExists(fileName string) bool {
 	filePath := path.Join(s.dataDir, fileName)
 	var exist = true
@@ -53,6 +60,7 @@ func (s *storage) SafeExists(fileName string) bool {
 	}
 	return exist
 }
+
 func (s *storage) SafeRecover(fileName string) bool {
 	filePath := path.Join(s.dataDir, fileName)
 	tmpFilePath := path.Join(s.dataDir, fileName+defaultTmp)
@@ -65,6 +73,7 @@ func (s *storage) SafeRecover(fileName string) bool {
 	}
 	return true
 }
+
 func (s *storage) Exists(fileName string) bool {
 	filePath := path.Join(s.dataDir, fileName)
 	var exist = true
@@ -73,22 +82,26 @@ func (s *storage) Exists(fileName string) bool {
 	}
 	return exist
 }
+
 func (s *storage) MkDir(dirName string) {
 	if err := os.MkdirAll(dirName, 0744); err != nil {
 		logger.Errorf("Unable to create path: %v", err)
 	}
 }
+
 func (s *storage) RmDir(dirName string) {
 	if err := os.RemoveAll(dirName); err != nil {
 		logger.Errorf("Unable to RmDir path: %v", err)
 	}
 }
+
 func (s *storage) Rm(fileName string) {
 	filePath := path.Join(s.dataDir, fileName)
 	if err := os.Remove(filePath); err != nil {
 		logger.Errorf("Unable to Rm path: %v", err)
 	}
 }
+
 func (s *storage) SafeOverWrite(fileName string, data []byte) error {
 	filePath := path.Join(s.dataDir, fileName)
 	tmpFilePath := path.Join(s.dataDir, fileName+defaultTmp)
@@ -111,11 +124,13 @@ func (s *storage) SafeOverWrite(fileName string, data []byte) error {
 	}
 	return f.Sync()
 }
+
 func (s *storage) Rename(oldName, newName string) error {
 	oldPath := path.Join(s.dataDir, oldName)
 	newPath := path.Join(s.dataDir, newName)
 	return os.Rename(oldPath, newPath)
 }
+
 func (s *storage) Load(fileName string) ([]byte, error) {
 	filePath := path.Join(s.dataDir, fileName)
 	return ioutil.ReadFile(filePath)
@@ -142,6 +157,7 @@ func (s *storage) MD5(fileName string) string {
 	}
 	return ""
 }
+
 func (s *storage) MD5Bytes(fileName string) []byte {
 	filePath := path.Join(s.dataDir, fileName)
 	file, err := os.Open(filePath)
@@ -153,6 +169,7 @@ func (s *storage) MD5Bytes(fileName string) []byte {
 	}
 	return []byte{}
 }
+
 func (s *storage) OverWrite(fileName string, data []byte) error {
 	filePath := path.Join(s.dataDir, fileName)
 	f, err := os.OpenFile(filePath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0600)
@@ -239,6 +256,7 @@ func (s *storage) FileWriter(fileName string) (*os.File, error) {
 	filePath := path.Join(s.dataDir, fileName)
 	return os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY, 0600)
 }
+
 func (s *storage) Truncate(fileName string, size uint64) error {
 	filePath := path.Join(s.dataDir, fileName)
 	f, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY, 0600)
@@ -252,6 +270,7 @@ func (s *storage) Truncate(fileName string, size uint64) error {
 	}
 	return f.Sync()
 }
+
 func (s *storage) TruncateTop(fileName string, size uint64) error {
 	filePath := path.Join(s.dataDir, fileName)
 	f, err := os.OpenFile(filePath, os.O_CREATE|os.O_RDWR, 0600)
@@ -278,6 +297,7 @@ func (s *storage) TruncateTop(fileName string, size uint64) error {
 	}
 	return f.Sync()
 }
+
 func (s *storage) Copy(srcName string, dstName string, offset, size uint64) error {
 	srcPath := path.Join(s.dataDir, srcName)
 	dstPath := path.Join(s.dataDir, dstName)
@@ -317,6 +337,7 @@ func (s *storage) Copy(srcName string, dstName string, offset, size uint64) erro
 	}
 	return dstFile.Sync()
 }
+
 func (s *storage) AppendCopy(srcName string, dstName string, size uint64) error {
 	srcPath := path.Join(s.dataDir, srcName)
 	dstPath := path.Join(s.dataDir, dstName)
@@ -363,6 +384,7 @@ func (s *storage) AppendCopy(srcName string, dstName string, size uint64) error 
 	}
 	return dstFile.Sync()
 }
+
 func (s *storage) Backup(srcName string, dstName string, size uint64) error {
 	srcPath := path.Join(s.dataDir, srcName)
 	dstPath := path.Join(s.dataDir, dstName)
@@ -413,6 +435,7 @@ func (s *storage) Backup(srcName string, dstName string, size uint64) error {
 	}
 	return dstFile.Sync()
 }
+
 func (s *storage) AppendBackup(srcName string, dstName string, size uint64) error {
 	srcPath := path.Join(s.dataDir, srcName)
 	dstPath := path.Join(s.dataDir, dstName)
