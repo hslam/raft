@@ -45,7 +45,7 @@ func (s *leaderState) Start() {
 	s.node.election.Reset()
 	logger.Tracef("%s leaderState.Start Term:%d", s.node.address, s.node.currentTerm.Load())
 	go func(n *node, term uint64) {
-		if ok, _ := n.do(noOperationCommand, defaultCommandTimeout*10); ok != nil {
+		if ok, _ := n.do(noOperationCommand, defaultCommandTimeout); ok != nil {
 			if n.currentTerm.Load() == term {
 				n.ready = true
 				if s.node.leaderChange != nil {
@@ -65,6 +65,7 @@ func (s *leaderState) Update() bool {
 	s.node.check()
 	return s.node.commit()
 }
+
 func (s *leaderState) FixedUpdate() {
 	if !s.node.voting() {
 		s.node.lease = false
@@ -88,10 +89,6 @@ func (s *leaderState) String() string {
 }
 
 func (s *leaderState) StepDown() state {
-	defer func() {
-		if err := recover(); err != nil {
-		}
-	}()
 	logger.Tracef("%s leaderState.StepDown", s.node.address)
 	s.once.Do(func() {
 		s.stop <- true
@@ -104,11 +101,8 @@ func (s *leaderState) StepDown() state {
 	})
 	return newFollowerState(s.node)
 }
+
 func (s *leaderState) NextState() state {
-	defer func() {
-		if err := recover(); err != nil {
-		}
-	}()
 	logger.Tracef("%s leaderState.NextState", s.node.address)
 	s.once.Do(func() {
 		s.stop <- true
@@ -126,13 +120,7 @@ func (s *leaderState) run() {
 	for {
 		select {
 		case <-s.heartbeatTicker.C:
-			func() {
-				defer func() {
-					if err := recover(); err != nil {
-					}
-				}()
-				s.node.heartbeats()
-			}()
+			s.node.heartbeats()
 		case <-s.stop:
 			goto endfor
 		}

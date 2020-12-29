@@ -263,6 +263,13 @@ func TestClusterMore(t *testing.T) {
 				}
 			}
 			al.Wait()
+			if index < 3 && node.IsLeader() {
+				node.stepDown()
+			}
+			time.Sleep(time.Second * 3)
+			if index < 3 && node.IsLeader() {
+				node.nextState()
+			}
 			time.Sleep(time.Second * 2)
 			node.Stop()
 		}()
