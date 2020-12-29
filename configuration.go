@@ -11,16 +11,14 @@ import (
 )
 
 type configuration struct {
-	node    *node
-	storage *ConfigurationStorage
-	nodes   map[string]*NodeInfo
+	node  *node
+	nodes map[string]*NodeInfo
 }
 
 func newConfiguration(n *node) *configuration {
 	c := &configuration{
-		node:    n,
-		storage: &ConfigurationStorage{},
-		nodes:   make(map[string]*NodeInfo),
+		node:  n,
+		nodes: make(map[string]*NodeInfo),
 	}
 	c.load()
 	if _, ok := c.nodes[c.node.address]; !ok {
@@ -39,6 +37,9 @@ func (c *configuration) SetNodes(nodes []*NodeInfo) {
 func (c *configuration) AddPeer(peer *NodeInfo) {
 	c.nodes[peer.Address] = peer
 	c.save()
+	if c.node.memberChange != nil {
+		c.node.memberChange()
+	}
 }
 
 func (c *configuration) RemovePeer(addr string) {
@@ -46,6 +47,9 @@ func (c *configuration) RemovePeer(addr string) {
 		delete(c.nodes, addr)
 	}
 	c.save()
+	if c.node.memberChange != nil {
+		c.node.memberChange()
+	}
 }
 
 func (c *configuration) LookupPeer(addr string) *NodeInfo {
@@ -84,11 +88,12 @@ func (c *configuration) Nodes() []string {
 }
 
 func (c *configuration) save() {
-	c.storage.Nodes = []*NodeInfo{}
+	storage := &ConfigurationStorage{}
+	storage.Nodes = []*NodeInfo{}
 	for _, v := range c.nodes {
-		c.storage.Nodes = append(c.storage.Nodes, v)
+		storage.Nodes = append(storage.Nodes, v)
 	}
-	b, _ := json.Marshal(c.storage)
+	b, _ := json.Marshal(storage)
 	c.node.storage.OverWrite(defaultConfig, b)
 }
 
@@ -100,10 +105,12 @@ func (c *configuration) load() error {
 	if err != nil {
 		return nil
 	}
-	if err = json.Unmarshal(b, c.storage); err != nil {
+	storage := &ConfigurationStorage{}
+
+	if err = json.Unmarshal(b, storage); err != nil {
 		return err
 	}
-	for _, v := range c.storage.Nodes {
+	for _, v := range storage.Nodes {
 		c.nodes[v.Address] = v
 	}
 	if !c.membershipChanges() {
@@ -112,7 +119,7 @@ func (c *configuration) load() error {
 	}
 	lastNodesCount := c.node.NodesCount()
 	c.node.deleteNotPeers(c.Peers())
-	for _, v := range c.storage.Nodes {
+	for _, v := range storage.Nodes {
 		c.node.addNode(v)
 	}
 	nodesCount := c.node.NodesCount()

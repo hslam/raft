@@ -43,6 +43,7 @@ type Node interface {
 	Leave(Address string) (success bool, ok bool)
 	LookupPeer(addr string) *NodeInfo
 	LeaderChange(leaderChange func())
+	MemberChange(memberChange func())
 }
 
 type node struct {
@@ -125,6 +126,7 @@ type node struct {
 	leave      bool
 
 	leaderChange func()
+	memberChange func()
 }
 
 // NewNode returns a new raft node.
@@ -351,6 +353,12 @@ func (n *node) term() uint64 {
 func (n *node) LeaderChange(leaderChange func()) {
 	n.mu.RLock()
 	n.leaderChange = leaderChange
+	n.mu.RUnlock()
+}
+
+func (n *node) MemberChange(memberChange func()) {
+	n.mu.RLock()
+	n.memberChange = memberChange
 	n.mu.RUnlock()
 }
 
