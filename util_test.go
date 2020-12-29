@@ -12,4 +12,5 @@ func TestSort(t *testing.T) {
 			t.Error(arr[i], arr[i+1])
 		}
 	}
+	quickSort(arr[:0], -999, -999)
 }
