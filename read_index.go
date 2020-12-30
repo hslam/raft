@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-const minReadIndexLatency = int64(time.Millisecond * 5)
+const minReadIndexLatency = int64(time.Millisecond)
 
 type readIndex struct {
 	mu             sync.Mutex

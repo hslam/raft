@@ -11,7 +11,7 @@ import (
 )
 
 const lastsSize = 4
-const minLatency = int64(time.Millisecond * 50)
+const minLatency = int64(time.Millisecond * 10)
 
 type pipeline struct {
 	node           *node
