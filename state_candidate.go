@@ -29,12 +29,7 @@ func (s *candidateState) Update() bool {
 	return false
 }
 func (s *candidateState) FixedUpdate() {
-	if !s.node.voting() {
-		s.node.lease = false
-		s.node.stepDown()
-		logger.Tracef("%s candidateState.FixedUpdate non-voting", s.node.address)
-		return
-	} else if s.node.election.Timeout() {
+	if s.node.election.Timeout() {
 		logger.Tracef("%s candidateState.FixedUpdate ElectionTimeout", s.node.address)
 		s.node.stay()
 		return

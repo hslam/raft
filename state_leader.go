@@ -4,25 +4,23 @@
 package raft
 
 import (
-	"sync"
+	"runtime"
+	"sync/atomic"
 	"time"
 )
 
 type leaderState struct {
-	once            *sync.Once
 	node            *node
-	stop            chan bool
-	notice          chan bool
+	closed          int32
+	done            chan bool
 	heartbeatTicker *time.Ticker
 }
 
 func newLeaderState(n *node) state {
 	//logger.Tracef("%s newLeaderState",node.address)
 	s := &leaderState{
-		once:            &sync.Once{},
 		node:            n,
-		stop:            make(chan bool, 1),
-		notice:          make(chan bool, 1),
+		done:            make(chan bool, 1),
 		heartbeatTicker: time.NewTicker(n.heartbeatTick),
 	}
 	s.Start()
@@ -67,12 +65,7 @@ func (s *leaderState) Update() bool {
 }
 
 func (s *leaderState) FixedUpdate() {
-	if !s.node.voting() {
-		s.node.lease = false
-		s.node.stepDown()
-		logger.Tracef("%s leaderState.FixedUpdate non-voting", s.node.address)
-		return
-	} else if s.node.election.Timeout() {
+	if s.node.election.Timeout() {
 		s.node.lease = false
 		s.node.stepDown()
 		logger.Tracef("%s leaderState.FixedUpdate ElectionTimeout", s.node.address)
@@ -90,44 +83,29 @@ func (s *leaderState) String() string {
 
 func (s *leaderState) StepDown() state {
 	logger.Tracef("%s leaderState.StepDown", s.node.address)
-	s.once.Do(func() {
-		s.stop <- true
-		if s.notice != nil {
-			select {
-			case <-s.notice:
-				close(s.notice)
-			}
-		}
-	})
+	if atomic.CompareAndSwapInt32(&s.closed, 0, 1) {
+		close(s.done)
+	}
 	return newFollowerState(s.node)
 }
 
 func (s *leaderState) NextState() state {
 	logger.Tracef("%s leaderState.NextState", s.node.address)
-	s.once.Do(func() {
-		s.stop <- true
-		if s.notice != nil {
-			select {
-			case <-s.notice:
-				close(s.notice)
-			}
-		}
-	})
+	if atomic.CompareAndSwapInt32(&s.closed, 0, 1) {
+		close(s.done)
+	}
 	return newFollowerState(s.node)
 }
 
 func (s *leaderState) run() {
 	for {
+		runtime.Gosched()
 		select {
 		case <-s.heartbeatTicker.C:
 			s.node.heartbeats()
-		case <-s.stop:
-			goto endfor
+		case <-s.done:
+			s.heartbeatTicker.Stop()
+			return
 		}
 	}
-endfor:
-	close(s.stop)
-	s.heartbeatTicker.Stop()
-	s.heartbeatTicker = nil
-	s.notice <- true
 }

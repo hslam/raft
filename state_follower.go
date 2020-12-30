@@ -4,6 +4,7 @@
 package raft
 
 import (
+	"runtime"
 	"sync/atomic"
 	"time"
 )
@@ -38,16 +39,13 @@ func (s *followerState) Update() bool {
 		defer atomic.StoreInt32(&s.applying, 0)
 		var ch = make(chan bool, 1)
 		go func(ch chan bool) {
-			defer func() {
-				if err := recover(); err != nil {
-				}
-			}()
 			//var lastApplied=state.node.stateMachine.lastApplied
 			s.node.log.applyCommited()
 			//logger.Tracef("followerState.Update %s lastApplied %d==>%d",state.node.address, lastApplied,state.node.stateMachine.lastApplied)
 			ch <- true
 		}(ch)
 		timer := time.NewTimer(defaultCommandTimeout)
+		runtime.Gosched()
 		select {
 		case <-ch:
 			timer.Stop()
@@ -64,12 +62,8 @@ func (s *followerState) FixedUpdate() {
 	if s.node.election.Timeout() {
 		s.node.leader = ""
 		s.node.votedFor.Store("")
-		if !s.node.voting() {
-			return
-		}
 		logger.Tracef("%s followerState.FixedUpdate ElectionTimeout", s.node.address)
 		s.node.nextState()
-		return
 	}
 }
 func (s *followerState) String() string {

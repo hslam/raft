@@ -301,3 +301,42 @@ func TestClusterMore(t *testing.T) {
 	os.RemoveAll(dir)
 	GetLogLevel()
 }
+
+func TestClusterNonVoting(t *testing.T) {
+	dir := "raft.test"
+	os.RemoveAll(dir)
+	infos := []*NodeInfo{{Address: "localhost:9001", NonVoting: true}, {Address: "localhost:9002", NonVoting: true}, {Address: "localhost:9003"}, {Address: "localhost:9004"}, {Address: "localhost:9005"}}
+	wg := sync.WaitGroup{}
+	al := sync.WaitGroup{}
+	al.Add(3)
+	for i := 0; i < len(infos); i++ {
+		address := infos[i].Address
+		index := i
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			ctx := &testContext{data: ""}
+			strs := strings.Split(address, ":")
+			port, _ := strconv.Atoi(strs[1])
+			var node Node
+			var err error
+			node, err = NewNode(strs[0], port, dir+"/node."+strconv.FormatInt(int64(index), 10), ctx, false, infos)
+			if err != nil {
+				t.Error(err)
+			}
+			if index > 1 {
+				time.Sleep(time.Second * 3)
+			}
+			node.RegisterCommand(&testCommand{})
+			node.SetCodec(&JSONCodec{})
+			node.SetContext(ctx)
+			node.SetSnapshot(&testSnapshot{ctx: ctx})
+			node.SetSnapshotPolicy(Always)
+			node.Start()
+			time.Sleep(time.Second * 6)
+			node.Stop()
+		}()
+	}
+	wg.Wait()
+	os.RemoveAll(dir)
+}
