@@ -317,35 +317,3 @@ func (l *waLog) Write(entries []*Entry) (err error) {
 	//logger.Tracef("l.Write %d", len(entries))
 	return l.wal.FlushAndSync()
 }
-
-func (l *waLog) appendEntry(entry *Entry) bool {
-	l.mu.Lock()
-	if l.cacheLastLogIndex < l.node.lastLogIndex {
-		l.cacheLastLogIndex = l.node.lastLogIndex
-	}
-	if l.cacheLastLogIndex != entry.Index-1 {
-		l.mu.Unlock()
-		return false
-	}
-	b, err := l.node.codec.Marshal(l.buf, entry)
-	if err != nil {
-		return false
-	}
-	if err = l.wal.Write(entry.Index, b); err != nil {
-		return false
-	}
-	l.cacheLastLogIndex = entry.Index
-	l.cacheLastLogTerm = entry.Term
-	l.mu.Unlock()
-	l.putEmtyEntry(entry)
-	return true
-}
-
-func (l *waLog) FlushAndSync() (err error) {
-	l.mu.Lock()
-	err = l.wal.FlushAndSync()
-	l.node.lastLogIndex = l.cacheLastLogIndex
-	l.node.lastLogTerm = l.cacheLastLogTerm
-	l.mu.Unlock()
-	return
-}

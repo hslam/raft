@@ -295,6 +295,9 @@ func TestClusterMore(t *testing.T) {
 			if index >= 3 {
 				node.deleteNotPeers(nil)
 			}
+			node.log.deleteAfter(node.lastLogIndex)
+			node.log.deleteAfter(node.firstLogIndex)
+			node.log.deleteAfter(1)
 		}()
 	}
 	wg.Wait()
