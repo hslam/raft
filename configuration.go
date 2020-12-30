@@ -122,7 +122,7 @@ func (c *configuration) load() error {
 	}
 	c.mu.Unlock()
 	if !c.membershipChanges() {
-		logger.Tracef("configuration.load !membershipChanges")
+		//logger.Tracef("configuration.load !membershipChanges")
 		return nil
 	}
 	lastNodesCount := c.node.NodesCount()
