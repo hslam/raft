@@ -212,7 +212,11 @@ func (l *waLog) applyCommitedRange(startIndex uint64, endIndex uint64) {
 		//logger.Tracef("l.applyCommitedRange %s Index %d Type %d",l.node.address,entries[i].Index,entries[i].CommandType)
 		command := l.node.commands.clone(entries[i].CommandType)
 		var err error
-		err = l.node.codec.Unmarshal(entries[i].Command, command)
+		if entries[i].CommandType >= 0 {
+			err = l.node.codec.Unmarshal(entries[i].Command, command)
+		} else {
+			err = l.node.raftCodec.Unmarshal(entries[i].Command, command)
+		}
 		if err == nil {
 			l.node.stateMachine.apply(entries[i].Index, command)
 		} else {

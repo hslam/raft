@@ -124,15 +124,27 @@ func (p *pipeline) write(i *invoker) {
 	concurrency := p.concurrency()
 	//logger.Tracef("pipeline.write concurrency-%d", concurrency)
 	var data []byte
-	b, err := p.node.codec.Marshal(p.buffer, i.Command)
-	if err != nil {
-		p.lock.Unlock()
-		i.Error = err
-		i.done()
-		return
+	if i.Command.Type() >= 0 {
+		b, err := p.node.codec.Marshal(p.buffer, i.Command)
+		if err != nil {
+			p.lock.Unlock()
+			i.Error = err
+			i.done()
+			return
+		}
+		data = make([]byte, len(b))
+		copy(data, b)
+	} else {
+		b, err := p.node.raftCodec.Marshal(p.buffer, i.Command)
+		if err != nil {
+			p.lock.Unlock()
+			i.Error = err
+			i.done()
+			return
+		}
+		data = make([]byte, len(b))
+		copy(data, b)
 	}
-	data = make([]byte, len(b))
-	copy(data, b)
 	entry := p.node.log.getEmtyEntry()
 	entry.Index = i.index
 	entry.Term = p.node.currentTerm.Load()

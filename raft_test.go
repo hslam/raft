@@ -83,20 +83,21 @@ func TestCluster(t *testing.T) {
 			ctx := &testContext{data: ""}
 			strs := strings.Split(address, ":")
 			port, _ := strconv.Atoi(strs[1])
-			var node Node
+			var n Node
 			var err error
 			if index < 3 {
-				node, err = NewNode(strs[0], port, dir+"/node."+strconv.FormatInt(int64(index), 10), ctx, false, infos[:3])
+				n, err = NewNode(strs[0], port, dir+"/node."+strconv.FormatInt(int64(index), 10), ctx, false, infos[:3])
 				if err != nil {
 					t.Error(err)
 				}
 			} else {
 				<-startJoin
-				node, err = NewNode(strs[0], port, dir+"/node."+strconv.FormatInt(int64(index), 10), ctx, true, infos[:index+1])
+				n, err = NewNode(strs[0], port, dir+"/node."+strconv.FormatInt(int64(index), 10), ctx, true, infos[:index+1])
 				if err != nil {
 					t.Error(err)
 				}
 			}
+			node := n.(*node)
 			node.RegisterCommand(&testCommand{})
 			node.SetCodec(&JSONCodec{})
 			node.SetContext(ctx)
@@ -154,7 +155,11 @@ func TestCluster(t *testing.T) {
 				}
 			}
 			al.Wait()
-			time.Sleep(time.Second * 2)
+			time.Sleep(time.Second * 3)
+			if index < 3 && node.IsLeader() {
+				node.nextState()
+			}
+			time.Sleep(time.Second * 3)
 			node.Stop()
 		}()
 	}
@@ -201,13 +206,6 @@ func TestClusterMore(t *testing.T) {
 			node.SetCodec(&JSONCodec{})
 			node.SetContext(ctx)
 			node.SetSnapshot(&testSnapshot{ctx: ctx})
-			node.SetSnapshotPolicy(Always)
-			node.SetSnapshotPolicy(EverySecond)
-			node.SetSnapshotPolicy(EveryMinute)
-			node.SetSnapshotPolicy(EveryHour)
-			node.SetSnapshotPolicy(EveryDay)
-			node.SetSnapshotPolicy(DefalutSync)
-			node.SetSnapshotPolicy(Never)
 			node.ClearSyncType()
 			node.AppendSyncType(1, 1)
 			node.SetGzipSnapshot(true)
@@ -287,7 +285,7 @@ func TestClusterMore(t *testing.T) {
 			if index < 3 && node.IsLeader() {
 				node.nextState()
 			}
-			time.Sleep(time.Second * 2)
+			time.Sleep(time.Second * 3)
 			node.Stop()
 			if !node.Stoped() {
 				t.Error()
@@ -298,6 +296,15 @@ func TestClusterMore(t *testing.T) {
 			node.log.deleteAfter(node.lastLogIndex)
 			node.log.deleteAfter(node.firstLogIndex)
 			node.log.deleteAfter(1)
+
+			node.SetSnapshotPolicy(Always)
+			node.SetSnapshotPolicy(EverySecond)
+			node.SetSnapshotPolicy(EveryMinute)
+			node.SetSnapshotPolicy(EveryHour)
+			node.SetSnapshotPolicy(EveryDay)
+			node.SetSnapshotPolicy(DefalutSync)
+			node.SetSnapshotPolicy(Never)
+
 		}()
 	}
 	wg.Wait()
