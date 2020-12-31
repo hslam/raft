@@ -74,25 +74,22 @@ func main() {
 	})
 	node.Start()
 	if benchmark {
-		go func() {
-			for {
-				time.Sleep(time.Second * 5)
-				if node.IsLeader() {
-					node.Do(&context.Command{"foobar"})
-					var Clients = make([]stats.Client, 1)
-					Clients[0] = &context.Client{Node: node, Ctx: ctx, Operation: operation}
-					stats.StartPrint(parallel, total_calls, Clients)
-					break
-				} else if node.Leader() != "" {
-					break
-				}
+		for {
+			time.Sleep(time.Second * 5)
+			if node.IsLeader() {
+				node.Do(&context.Command{"foobar"})
+				var Clients = make([]stats.Client, 1)
+				Clients[0] = &context.Client{Node: node, Ctx: ctx, Operation: operation}
+				stats.StartPrint(parallel, total_calls, Clients)
+				break
+			} else if node.Leader() != "" {
+				break
 			}
-		}()
+		}
 	} else {
 		for {
 			fmt.Printf("%d State:%s - Leader:%s\n", time.Now().Unix(), node.State(), node.Leader())
 			time.Sleep(time.Second * 3)
 		}
 	}
-	select {}
 }

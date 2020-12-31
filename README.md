@@ -24,7 +24,7 @@ go get github.com/hslam/raft
 import "github.com/hslam/raft"
 ```
 
-### [HelloWorld](https://github.com/hslam/raft/tree/master/examples/helloworld "helloworld")
+### [Simple example](https://github.com/hslam/raft/tree/master/examples/helloworld "helloworld")
 
 * Leader Election
 * Non-Voting Members
@@ -156,18 +156,6 @@ func main() {
 ./example -h=localhost -p=9002 -path="raft.example/node.tn.2" -join=false -peers="localhost:9001;localhost:9002;localhost:9003" -log=true -b=true    -o=lease -parallel=4096 -total=100000
 ./example -h=localhost -p=9003 -path="raft.example/node.tn.3" -join=false -peers="localhost:9001;localhost:9002;localhost:9003" -log=true -b=true    -o=lease -parallel=4096 -total=100000
 ```
-### [RaftDB](https://github.com/hslam/raftdb "raftdb")
-The [raftdb](https://github.com/hslam/raftdb  "raftdb") implements a simple distributed key-value datastore, using the raft distributed consensus protocol.
-
-#### Benchmark
-Running on three nodes cluster.
-##### Write
-
-<img src="https://raw.githubusercontent.com/hslam/raft-benchmark/master/raft-write-qps.png" width = "400" height = "300" alt="write-qps" align=center><img src="https://raw.githubusercontent.com/hslam/raft-benchmark/master/raft-write-p99.png" width = "400" height = "300" alt="write-p99" align=center>
-
-##### Read Index
-
-<img src="https://raw.githubusercontent.com/hslam/raft-benchmark/master/raft-read-qps.png" width = "400" height = "300" alt="read-qps" align=center><img src="https://raw.githubusercontent.com/hslam/raft-benchmark/master/raft-read-p99.png" width = "400" height = "300" alt="read-p99" align=center>
 
 ## License
 This package is licensed under a MIT license (Copyright (c) 2019 Meng Huang)
