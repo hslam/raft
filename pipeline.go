@@ -21,6 +21,7 @@ type pipeline struct {
 	mutex          sync.Mutex
 	pending        map[uint64]*invoker
 	readyEntries   []*Entry
+	appendEntries  chan []*Entry
 	count          uint64
 	closed         int32
 	done           chan bool
@@ -38,15 +39,17 @@ type pipeline struct {
 
 func newPipeline(n *node) *pipeline {
 	p := &pipeline{
-		node:        n,
-		buffer:      make([]byte, 1024*64),
-		pending:     make(map[uint64]*invoker),
-		lastTime:    time.Now(),
-		trigger:     make(chan bool, 1),
-		readTrigger: make(chan bool, 1),
-		done:        make(chan bool, 1),
-		min:         minLatency,
+		node:          n,
+		buffer:        make([]byte, 1024*64),
+		pending:       make(map[uint64]*invoker),
+		appendEntries: make(chan []*Entry, 1024),
+		lastTime:      time.Now(),
+		trigger:       make(chan bool),
+		readTrigger:   make(chan bool, 1),
+		done:          make(chan bool, 1),
+		min:           minLatency,
 	}
+	go p.append()
 	go p.run()
 	go p.read()
 	return p
@@ -124,27 +127,21 @@ func (p *pipeline) write(i *invoker) {
 	concurrency := p.concurrency()
 	//logger.Tracef("pipeline.write concurrency-%d", concurrency)
 	var data []byte
+	var codec Codec
 	if i.Command.Type() >= 0 {
-		b, err := p.node.codec.Marshal(p.buffer, i.Command)
-		if err != nil {
-			p.lock.Unlock()
-			i.Error = err
-			i.done()
-			return
-		}
-		data = make([]byte, len(b))
-		copy(data, b)
+		codec = p.node.codec
 	} else {
-		b, err := p.node.raftCodec.Marshal(p.buffer, i.Command)
-		if err != nil {
-			p.lock.Unlock()
-			i.Error = err
-			i.done()
-			return
-		}
-		data = make([]byte, len(b))
-		copy(data, b)
+		codec = p.node.raftCodec
 	}
+	b, err := codec.Marshal(p.buffer, i.Command)
+	if err != nil {
+		p.lock.Unlock()
+		i.Error = err
+		i.done()
+		return
+	}
+	data = make([]byte, len(b))
+	copy(data, b)
 	entry := p.node.log.getEmtyEntry()
 	entry.Index = i.index
 	entry.Term = p.node.currentTerm.Load()
@@ -152,14 +149,9 @@ func (p *pipeline) write(i *invoker) {
 	entry.CommandType = i.Command.Type()
 	p.readyEntries = append(p.readyEntries, entry)
 	if len(p.readyEntries) >= concurrency {
-		start := time.Now().UnixNano()
-		p.node.log.appendEntries(p.readyEntries)
-		p.readyEntries = p.readyEntries[:0]
-		go func(d int64) {
-			p.updateLatency(d)
-			p.lastTime = time.Now()
-			p.node.check()
-		}(time.Now().UnixNano() - start)
+		entries := p.readyEntries
+		p.appendEntries <- entries
+		p.readyEntries = []*Entry{}
 	}
 	atomic.AddUint64(&p.node.nextIndex, 1)
 	p.lock.Unlock()
@@ -173,28 +165,44 @@ func (p *pipeline) write(i *invoker) {
 	}
 }
 
+func (p *pipeline) append() {
+	for {
+		runtime.Gosched()
+		select {
+		case entries, ok := <-p.appendEntries:
+			if ok && len(entries) > 0 {
+				//logger.Tracef("pipeline.write concurrency-%d,entries-%d,sleep-%v", p.batch(), len(entries), p.sleepTime())
+				start := time.Now().UnixNano()
+				p.node.log.appendEntries(entries)
+				go func(d int64) {
+					p.updateLatency(d)
+					p.lastTime = time.Now()
+					p.node.check()
+				}(time.Now().UnixNano() - start)
+			}
+		case <-p.done:
+			return
+		}
+	}
+}
+
 func (p *pipeline) run() {
 	for {
 		p.lock.Lock()
 		if len(p.readyEntries) > 0 {
-			p.node.log.appendEntries(p.readyEntries)
-			p.readyEntries = p.readyEntries[:0]
+			entries := p.readyEntries
+			p.appendEntries <- entries
+			p.readyEntries = []*Entry{}
 			go p.node.check()
 		}
 		p.lock.Unlock()
-		if p.lastTime.Add(p.minLatency() * 10).Before(time.Now()) {
-			p.lastTime = time.Now()
-			p.mutex.Lock()
-			p.max /= 2
-			p.mutex.Unlock()
-		}
 		timer := time.NewTimer(p.sleepTime())
 		runtime.Gosched()
 		select {
 		case <-timer.C:
 		case <-p.trigger:
 			timer.Stop()
-			time.Sleep(p.sleepTime())
+			time.Sleep(p.sleepTime() / 500 * time.Duration(p.concurrency()))
 		case <-p.done:
 			timer.Stop()
 			return
@@ -257,10 +265,10 @@ func (p *pipeline) apply() {
 }
 
 func (p *pipeline) Stop() {
-	if !atomic.CompareAndSwapInt32(&p.closed, 0, 1) {
-		return
+	if atomic.CompareAndSwapInt32(&p.closed, 0, 1) {
+		close(p.done)
+		close(p.trigger)
+		close(p.readTrigger)
+		close(p.appendEntries)
 	}
-	close(p.done)
-	close(p.trigger)
-	close(p.readTrigger)
 }
