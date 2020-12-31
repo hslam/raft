@@ -134,27 +134,27 @@ func main() {
 ```sh
 ./example -h=localhost -p=9001 -path="raft.example/node.1" -join=false -peers="localhost:9001" -log=true -b=true  -o=readindex -parallel=4096 -total=100000
 ```
-**one node lease**
+**one node leaseread**
 ```sh
-./example -h=localhost -p=9001 -path="raft.example/node.1" -join=false -peers="localhost:9001" -log=true -b=true  -o=lease -parallel=4096 -total=100000
+./example -h=localhost -p=9001 -path="raft.example/node.1" -join=false -peers="localhost:9001" -log=true -b=true  -o=leaseread -parallel=4096 -total=100000
 ```
 **three nodes set**
 ```sh
-./example -h=localhost -p=9001 -path="raft.example/node.tn.1" -join=false -peers="localhost:9001;localhost:9002;localhost:9003" -log=true -b=true    -o=set -parallel=4096 -total=100000
-./example -h=localhost -p=9002 -path="raft.example/node.tn.2" -join=false -peers="localhost:9001;localhost:9002;localhost:9003" -log=true -b=true    -o=set -parallel=4096 -total=100000
-./example -h=localhost -p=9003 -path="raft.example/node.tn.3" -join=false -peers="localhost:9001;localhost:9002;localhost:9003" -log=true -b=true    -o=set -parallel=4096 -total=100000
+./example -h=localhost -p=9001 -path="raft.example/node.tn.1" -join=false -peers="localhost:9001;localhost:9002;localhost:9003" -log=true -b=true -o=set -parallel=4096 -total=100000
+./example -h=localhost -p=9002 -path="raft.example/node.tn.2" -join=false -peers="localhost:9001;localhost:9002;localhost:9003" -log=true -b=true -o=set -parallel=4096 -total=100000
+./example -h=localhost -p=9003 -path="raft.example/node.tn.3" -join=false -peers="localhost:9001;localhost:9002;localhost:9003" -log=true -b=true -o=set -parallel=4096 -total=100000
 ```
 **three nodes readindex**
 ```sh
-./example -h=localhost -p=9001 -path="raft.example/node.tn.1" -join=false -peers="localhost:9001;localhost:9002;localhost:9003" -log=true -b=true    -o=readindex -parallel=4096 -total=100000
-./example -h=localhost -p=9002 -path="raft.example/node.tn.2" -join=false -peers="localhost:9001;localhost:9002;localhost:9003" -log=true -b=true    -o=readindex -parallel=4096 -total=100000
-./example -h=localhost -p=9003 -path="raft.example/node.tn.3" -join=false -peers="localhost:9001;localhost:9002;localhost:9003" -log=true -b=true    -o=readindex -parallel=4096 -total=100000
+./example -h=localhost -p=9001 -path="raft.example/node.tn.1" -join=false -peers="localhost:9001;localhost:9002;localhost:9003" -log=true -b=true -o=readindex -parallel=4096 -total=100000
+./example -h=localhost -p=9002 -path="raft.example/node.tn.2" -join=false -peers="localhost:9001;localhost:9002;localhost:9003" -log=true -b=true -o=readindex -parallel=4096 -total=100000
+./example -h=localhost -p=9003 -path="raft.example/node.tn.3" -join=false -peers="localhost:9001;localhost:9002;localhost:9003" -log=true -b=true -o=readindex -parallel=4096 -total=100000
 ```
-**three nodes lease**
+**three nodes leaseread**
 ```sh
-./example -h=localhost -p=9001 -path="raft.example/node.tn.1" -join=false -peers="localhost:9001;localhost:9002;localhost:9003" -log=true -b=true    -o=lease -parallel=4096 -total=100000
-./example -h=localhost -p=9002 -path="raft.example/node.tn.2" -join=false -peers="localhost:9001;localhost:9002;localhost:9003" -log=true -b=true    -o=lease -parallel=4096 -total=100000
-./example -h=localhost -p=9003 -path="raft.example/node.tn.3" -join=false -peers="localhost:9001;localhost:9002;localhost:9003" -log=true -b=true    -o=lease -parallel=4096 -total=100000
+./example -h=localhost -p=9001 -path="raft.example/node.tn.1" -join=false -peers="localhost:9001;localhost:9002;localhost:9003" -log=true -b=true -o=leaseread -parallel=4096 -total=100000
+./example -h=localhost -p=9002 -path="raft.example/node.tn.2" -join=false -peers="localhost:9001;localhost:9002;localhost:9003" -log=true -b=true -o=leaseread -parallel=4096 -total=100000
+./example -h=localhost -p=9003 -path="raft.example/node.tn.3" -join=false -peers="localhost:9001;localhost:9002;localhost:9003" -log=true -b=true -o=leaseread -parallel=4096 -total=100000
 ```
 
 ## License
