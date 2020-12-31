@@ -209,8 +209,6 @@ func TestClusterMore(t *testing.T) {
 			node.ClearSyncType()
 			node.AppendSyncType(1, 1)
 			node.SetGzipSnapshot(true)
-			node.LeaderChange(func() {
-			})
 			node.MemberChange(func() {
 			})
 			node.LeaderChange(func() {
