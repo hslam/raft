@@ -31,7 +31,7 @@ func init() {
 	flag.StringVar(&peers, "peers", "localhost:9001,false;", "host:port,nonVoting;host:port,nonVoting;")
 	flag.BoolVar(&log, "log", true, "log:")
 	flag.BoolVar(&benchmark, "b", true, "benchmark")
-	flag.StringVar(&operation, "o", "set", "set|lease|readindex")
+	flag.StringVar(&operation, "o", "set", "set|readindex|leaseread")
 	flag.IntVar(&parallel, "parallel", 1024, "parallel: -total=10000")
 	flag.IntVar(&total_calls, "total", 1000000, "total_calls: -total=10000")
 }

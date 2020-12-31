@@ -19,8 +19,8 @@ func (c *Client) Call() (int64, int64, bool) {
 	case "set":
 		c.Node.Do(&Command{RandString(16)})
 		return 0, 0, true
-	case "lease":
-		if ok := c.Node.Lease(); ok {
+	case "leaseread":
+		if ok := c.Node.LeaseRead(); ok {
 			value := c.Ctx.Get()
 			if value == "foobar" {
 				return 0, 0, true
