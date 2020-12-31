@@ -139,7 +139,7 @@ func (l *waLog) copyAfter(index uint64, max int) (entries []*Entry) {
 }
 
 func (l *waLog) copyRange(startIndex uint64, endIndex uint64) []*Entry {
-	//logger.Tracef("l.copyRange %s startIndex %d endIndex %d",l.node.address,metas[0].Index,metas[len(metas)-1].Index)
+	//logger.Tracef("log.copyRange %s startIndex %d endIndex %d",l.node.address,metas[0].Index,metas[len(metas)-1].Index)
 	return l.batchRead(startIndex, endIndex)
 }
 
@@ -202,14 +202,14 @@ func (l *waLog) applyCommitedEnd(endIndex uint64) {
 }
 
 func (l *waLog) applyCommitedRange(startIndex uint64, endIndex uint64) {
-	//logger.Tracef("l.applyCommitedRange %s startIndex %d endIndex %d Start",l.node.address,startIndex,endIndex)
+	//logger.Tracef("log.applyCommitedRange %s startIndex %d endIndex %d Start",l.node.address,startIndex,endIndex)
 	entries := l.copyRange(startIndex, endIndex)
 	if entries == nil || len(entries) == 0 {
 		return
 	}
-	//logger.Tracef("l.applyCommitedRange %s startIndex %d endIndex %d length %d",l.node.address,startIndex,endIndex,len(entries))
+	//logger.Tracef("log.applyCommitedRange %s startIndex %d endIndex %d length %d",l.node.address,startIndex,endIndex,len(entries))
 	for i := 0; i < len(entries); i++ {
-		//logger.Tracef("l.applyCommitedRange %s Index %d Type %d",l.node.address,entries[i].Index,entries[i].CommandType)
+		//logger.Tracef("log.applyCommitedRange %s Index %d Type %d",l.node.address,entries[i].Index,entries[i].CommandType)
 		command := l.node.commands.clone(entries[i].CommandType)
 		var err error
 		if entries[i].CommandType >= 0 {
@@ -220,12 +220,12 @@ func (l *waLog) applyCommitedRange(startIndex uint64, endIndex uint64) {
 		if err == nil {
 			l.node.stateMachine.apply(entries[i].Index, command)
 		} else {
-			logger.Errorf("l.applyCommitedRange %s %d error %s", l.node.address, i, err)
+			logger.Errorf("log.applyCommitedRange %s %d error %s", l.node.address, i, err)
 		}
 		l.node.commands.put(command)
 	}
 	l.putEmtyEntries(entries)
-	//logger.Tracef("l.applyCommitedRange %s startIndex %d endIndex %d End %d",l.node.address,startIndex,endIndex,len(entries))
+	//logger.Tracef("log.applyCommitedRange %s startIndex %d endIndex %d End %d",l.node.address,startIndex,endIndex,len(entries))
 }
 
 func (l *waLog) read(index uint64) *Entry {
@@ -236,7 +236,7 @@ func (l *waLog) read(index uint64) *Entry {
 	entry := l.getEmtyEntry()
 	err = l.node.codec.Unmarshal(b, entry)
 	if err != nil {
-		logger.Errorf("l.Decode %s", string(b))
+		logger.Errorf("log.Decode %s", string(b))
 		return nil
 	}
 	return entry
@@ -272,7 +272,7 @@ func (l *waLog) load() (err error) {
 		}
 	}
 	if l.node.lastLogIndex > lastLogIndex {
-		logger.Tracef("l.recover %s lastLogIndex %d", l.node.address, lastLogIndex)
+		logger.Tracef("log.recover %s lastLogIndex %d", l.node.address, lastLogIndex)
 	}
 	l.mu.Unlock()
 	return nil
@@ -290,20 +290,12 @@ func (l *waLog) appendEntries(entries []*Entry) bool {
 		l.mu.Unlock()
 		return false
 	}
-	//start := time.Now()
 	l.Write(entries)
-
-	//logger.Debugf("l.appendEntries %s Write Time %v", l.node.address, time.Now().Sub(start))
-	//start = time.Now()
-	//if !l.node.isLeader() || (l.node.isLeader() && l.node.votingsCount() < 2) {
-	//	l.wal.Sync()
-	//	//logger.Debugf("l.appendEntries %s Write Sync %v", l.node.address, time.Now().Sub(start))
-	//}
 	l.node.lastLogIndex = entries[len(entries)-1].Index
 	l.node.lastLogTerm = entries[len(entries)-1].Term
 	l.mu.Unlock()
 	l.putEmtyEntries(entries)
-	//logger.Tracef("l.appendEntries %s entries %d", l.node.address, len(entries))
+	//logger.Tracef("log.appendEntries %s entries %d", l.node.address, len(entries))
 	return true
 }
 
@@ -318,6 +310,6 @@ func (l *waLog) Write(entries []*Entry) (err error) {
 			return err
 		}
 	}
-	//logger.Tracef("l.Write %d", len(entries))
+	//logger.Tracef("log.Write %d", len(entries))
 	return l.wal.FlushAndSync()
 }
