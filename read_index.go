@@ -179,9 +179,8 @@ func (r *readIndex) run() {
 }
 
 func (r *readIndex) Stop() {
-	if !atomic.CompareAndSwapInt32(&r.closed, 0, 1) {
-		return
+	if atomic.CompareAndSwapInt32(&r.closed, 0, 1) {
+		close(r.done)
+		close(r.trigger)
 	}
-	close(r.done)
-	close(r.trigger)
 }

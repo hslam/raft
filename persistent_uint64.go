@@ -97,9 +97,8 @@ func (p *persistentUint64) run() {
 }
 
 func (p *persistentUint64) Stop() {
-	if !atomic.CompareAndSwapUint32(&p.closed, 0, 1) {
-		return
+	if atomic.CompareAndSwapUint32(&p.closed, 0, 1) {
+		p.ticker.Stop()
+		close(p.done)
 	}
-	p.ticker.Stop()
-	close(p.done)
 }

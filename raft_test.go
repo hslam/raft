@@ -172,10 +172,6 @@ func TestClusterMore(t *testing.T) {
 	os.RemoveAll(dir)
 	infos := []*NodeInfo{{Address: "localhost:9001"}, {Address: "localhost:9002"}, {Address: "localhost:9003"}, {Address: "localhost:9004"}, {Address: "localhost:9005"}}
 	wg := sync.WaitGroup{}
-	var readflag uint32
-	startRead := make(chan struct{})
-	var joinflag uint32
-	startJoin := make(chan struct{})
 	al := sync.WaitGroup{}
 	al.Add(3)
 	for i := 0; i < len(infos); i++ {
@@ -195,7 +191,100 @@ func TestClusterMore(t *testing.T) {
 					t.Error(err)
 				}
 			} else {
-				<-startJoin
+				n, err = NewNode(strs[0], port, dir+"/node."+strconv.FormatInt(int64(index), 10), ctx, true, infos[:index+1])
+				if err != nil {
+					t.Error(err)
+				}
+			}
+			node := n.(*node)
+			node.RegisterCommand(&testCommand{})
+			node.SetCodec(&JSONCodec{})
+			node.SetContext(ctx)
+			node.SetSnapshot(&testSnapshot{ctx: ctx})
+			node.SetSnapshotPolicy(Always)
+			node.SetSnapshotPolicy(EverySecond)
+			node.SetSnapshotPolicy(EveryMinute)
+			node.SetSnapshotPolicy(EveryHour)
+			node.SetSnapshotPolicy(EveryDay)
+			node.SetSnapshotPolicy(DefalutSync)
+			node.SetSnapshotPolicy(Never)
+			node.ClearSyncType()
+			node.AppendSyncType(1, 1)
+			node.SetGzipSnapshot(true)
+			node.MemberChange(func() {
+			})
+			var start bool
+			node.LeaderChange(func() {
+				start = true
+			})
+			node.Start()
+			for {
+				time.Sleep(time.Second)
+				if start {
+					break
+				}
+			}
+			time.Sleep(time.Second * 3)
+			if index < 3 {
+				time.Sleep(time.Second)
+				if node.IsLeader() {
+					if _, ok := node.Leave(infos[4].Address); !ok {
+						t.Error()
+					}
+					al.Done()
+				} else {
+					if _, ok := node.Leave(infos[3].Address); !ok {
+						t.Error()
+					}
+					al.Done()
+				}
+			}
+			al.Wait()
+			time.Sleep(time.Second * 3)
+			if node.isLeader() {
+				node.log.applyCommitedEnd(node.commitIndex.ID())
+			}
+			node.Stop()
+			if !node.Stoped() {
+				t.Error()
+			}
+			if index >= 3 {
+				node.deleteNotPeers(nil)
+			}
+			node.log.deleteAfter(node.lastLogIndex)
+			node.log.deleteAfter(node.firstLogIndex)
+			node.log.deleteAfter(1)
+		}()
+	}
+	wg.Wait()
+	os.RemoveAll(dir)
+	GetLogLevel()
+}
+
+func TestClusterState(t *testing.T) {
+	dir := "raft.test"
+	os.RemoveAll(dir)
+	infos := []*NodeInfo{{Address: "localhost:9001"}, {Address: "localhost:9002"}, {Address: "localhost:9003"}, {Address: "localhost:9004"}, {Address: "localhost:9005"}}
+	wg := sync.WaitGroup{}
+	al := sync.WaitGroup{}
+	al.Add(3)
+	for i := 0; i < len(infos); i++ {
+		address := infos[i].Address
+		index := i
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			ctx := &testContext{data: ""}
+			strs := strings.Split(address, ":")
+			port, _ := strconv.Atoi(strs[1])
+			var n Node
+			var err error
+			if index < 3 {
+				n, err = NewNode(strs[0], port, dir+"/node."+strconv.FormatInt(int64(index), 10), ctx, false, infos[:3])
+				if err != nil {
+					t.Error(err)
+				}
+			} else {
 				n, err = NewNode(strs[0], port, dir+"/node."+strconv.FormatInt(int64(index), 10), ctx, true, infos[:index+1])
 				if err != nil {
 					t.Error(err)
@@ -212,55 +301,9 @@ func TestClusterMore(t *testing.T) {
 			node.MemberChange(func() {
 			})
 			node.LeaderChange(func() {
-				time.Sleep(time.Second * 2)
-				lookupLeader := node.LookupPeer(leader)
-				leader := node.Leader()
-				if lookupLeader != nil && lookupLeader.Address != leader {
-					t.Error(lookupLeader.Address, leader)
-				}
-				node.Do(&testCommand{"foobar"})
-				if node.IsLeader() {
-					if atomic.CompareAndSwapUint32(&readflag, 0, 1) {
-						close(startRead)
-					}
-				}
-				<-startRead
-				time.Sleep(time.Second)
-				if ok := node.LeaseRead(); ok {
-					value := ctx.Get()
-					if value != "foobar" {
-						t.Error(value)
-					}
-				}
-				if ok := node.ReadIndex(); ok {
-					value := ctx.Get()
-					if value != "foobar" {
-						t.Error(value)
-					}
-				}
-				if node.IsLeader() {
-					if atomic.CompareAndSwapUint32(&joinflag, 0, 1) {
-						close(startJoin)
-					}
-				}
 			})
 			node.Start()
-			if index < 3 {
-				<-startJoin
-				time.Sleep(time.Second)
-				if node.IsLeader() {
-					if _, ok := node.Leave(infos[4].Address); !ok {
-						t.Error()
-					}
-					al.Done()
-				} else {
-					if _, ok := node.Leave(infos[3].Address); !ok {
-						t.Error()
-					}
-					al.Done()
-				}
-			}
-			al.Wait()
+			time.Sleep(time.Second * 3)
 			if index < 3 && node.IsLeader() {
 				if !node.Running() {
 					t.Error()
@@ -279,30 +322,12 @@ func TestClusterMore(t *testing.T) {
 				}
 				node.stepDown()
 			}
-			time.Sleep(time.Second * 3)
+			time.Sleep(time.Second * 2)
 			if index < 3 && node.IsLeader() {
 				node.nextState()
 			}
 			time.Sleep(time.Second * 3)
 			node.Stop()
-			if !node.Stoped() {
-				t.Error()
-			}
-			if index >= 3 {
-				node.deleteNotPeers(nil)
-			}
-			node.log.deleteAfter(node.lastLogIndex)
-			node.log.deleteAfter(node.firstLogIndex)
-			node.log.deleteAfter(1)
-
-			node.SetSnapshotPolicy(Always)
-			node.SetSnapshotPolicy(EverySecond)
-			node.SetSnapshotPolicy(EveryMinute)
-			node.SetSnapshotPolicy(EveryHour)
-			node.SetSnapshotPolicy(EveryDay)
-			node.SetSnapshotPolicy(DefalutSync)
-			node.SetSnapshotPolicy(Never)
-
 		}()
 	}
 	wg.Wait()
@@ -345,6 +370,80 @@ func TestClusterNonVoting(t *testing.T) {
 			node.Stop()
 		}()
 	}
+	wg.Wait()
+	os.RemoveAll(dir)
+}
+
+func TestSingle(t *testing.T) {
+	dir := "raft.test"
+	os.RemoveAll(dir)
+	infos := []*NodeInfo{{Address: "localhost:9001"}}
+	wg := sync.WaitGroup{}
+	var readflag uint32
+	startRead := make(chan struct{})
+	var joinflag uint32
+	startJoin := make(chan struct{})
+
+	address := infos[0].Address
+	index := 0
+	ctx := &testContext{data: ""}
+	strs := strings.Split(address, ":")
+	port, _ := strconv.Atoi(strs[1])
+	var n Node
+	var err error
+	n, err = NewNode(strs[0], port, dir+"/node."+strconv.FormatInt(int64(index), 10), ctx, false, infos[:1])
+	if err != nil {
+		t.Error(err)
+	}
+	node := n.(*node)
+	node.RegisterCommand(&testCommand{})
+	node.SetCodec(&JSONCodec{})
+	node.SetContext(ctx)
+	node.SetSnapshot(&testSnapshot{ctx: ctx})
+	node.SetSyncTypes([]*SyncType{
+		{Seconds: 1, Changes: 1},
+	})
+	node.LeaderChange(func() {
+		time.Sleep(time.Second * 2)
+		lookupLeader := node.LookupPeer(leader)
+		leader := node.Leader()
+		if lookupLeader != nil && lookupLeader.Address != leader {
+			t.Error(lookupLeader.Address, leader)
+		}
+		node.Do(&testCommand{"foobar"})
+		if node.IsLeader() {
+			if atomic.CompareAndSwapUint32(&readflag, 0, 1) {
+				close(startRead)
+			}
+		}
+		<-startRead
+		time.Sleep(time.Second)
+		if ok := node.LeaseRead(); ok {
+			value := ctx.Get()
+			if value != "foobar" {
+				t.Error(value)
+			}
+		}
+		if ok := node.ReadIndex(); ok {
+			value := ctx.Get()
+			if value != "foobar" {
+				t.Error(value)
+			}
+		}
+		if node.IsLeader() {
+			if atomic.CompareAndSwapUint32(&joinflag, 0, 1) {
+				close(startJoin)
+			}
+		}
+	})
+	node.Start()
+	<-startJoin
+	time.Sleep(time.Second * 3)
+	if index < 3 && node.IsLeader() {
+		node.nextState()
+	}
+	time.Sleep(time.Second * 3)
+	node.Stop()
 	wg.Wait()
 	os.RemoveAll(dir)
 }
