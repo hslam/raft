@@ -18,13 +18,13 @@ func (s *service) InstallSnapshot(req *InstallSnapshotRequest, res *InstallSnaps
 	return s.node.raft.InstallSnapshot(req, res)
 }
 func (s *service) QueryLeader(req *QueryLeaderRequest, res *QueryLeaderResponse) error {
-	return s.node.proxy.QueryLeader(req, res)
+	return s.node.cluster.QueryLeader(req, res)
 }
 func (s *service) AddPeer(req *AddPeerRequest, res *AddPeerResponse) error {
-	return s.node.proxy.AddPeer(req, res)
+	return s.node.cluster.AddPeer(req, res)
 }
 func (s *service) RemovePeer(req *RemovePeerRequest, res *RemovePeerResponse) error {
-	return s.node.proxy.RemovePeer(req, res)
+	return s.node.cluster.RemovePeer(req, res)
 }
 
 //RPCShortMethodName

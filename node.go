@@ -67,7 +67,7 @@ type node struct {
 	heartbeatTick time.Duration
 	storage       *storage
 	raft          Raft
-	proxy         Proxy
+	cluster       Cluster
 	rpcs          *rpcs
 	server        *server
 	log           *waLog
@@ -165,7 +165,7 @@ func NewNode(host string, port int, dataDir string, context interface{}, join bo
 	n.log = newLog(n)
 	n.election = newElection(n, defaultElectionTimeout)
 	n.raft = newRaft(n)
-	n.proxy = newProxy(n)
+	n.cluster = newCluster(n)
 	n.server = newServer(n, fmt.Sprintf(":%d", port))
 	//n.currentTerm = newPersistentUint64(n, defaultTerm, 0, 0)
 	n.currentTerm = atomic.NewUint64(0)
@@ -594,16 +594,16 @@ func (n *node) membership() []string {
 func (n *node) Join(info *NodeInfo) (success bool) {
 	leader := n.Leader()
 	if leader != "" {
-		success, ok := n.proxy.CallAddPeer(leader, info)
+		success, ok := n.cluster.CallAddPeer(leader, info)
 		if success && ok {
 			return true
 		}
 	}
 	peers := n.Peers()
 	for i := 0; i < len(peers); i++ {
-		_, leaderID, ok := n.proxy.CallQueryLeader(peers[i])
+		_, leaderID, ok := n.cluster.CallQueryLeader(peers[i])
 		if leaderID != "" && ok {
-			success, ok := n.proxy.CallAddPeer(leaderID, info)
+			success, ok := n.cluster.CallAddPeer(leaderID, info)
 			if success && ok {
 				return true
 			}
@@ -615,13 +615,13 @@ func (n *node) Join(info *NodeInfo) (success bool) {
 func (n *node) Leave(Address string) (success bool, ok bool) {
 	leader := n.Leader()
 	if leader != "" {
-		return n.proxy.CallRemovePeer(leader, Address)
+		return n.cluster.CallRemovePeer(leader, Address)
 	}
 	peers := n.Peers()
 	for i := 0; i < len(peers); i++ {
-		_, leaderID, ok := n.proxy.CallQueryLeader(peers[i])
+		_, leaderID, ok := n.cluster.CallQueryLeader(peers[i])
 		if leaderID != "" && ok {
-			n.proxy.CallRemovePeer(leaderID, Address)
+			n.cluster.CallRemovePeer(leaderID, Address)
 		}
 	}
 	return
