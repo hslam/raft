@@ -65,7 +65,7 @@ func (r *raft) CallRequestVote(addr string) (ok bool) {
 		}
 		r.donePool.Put(done)
 		if call.Error != nil {
-			logger.Tracef("raft.RequestVote %s recv %s vote error %s", r.node.address, addr, call.Error.Error())
+			logger.Tracef("raft.CallRequestVote %s recv %s vote error %s", r.node.address, addr, call.Error.Error())
 			*call = rpc.Call{}
 			r.callPool.Put(call)
 			return false
@@ -77,7 +77,7 @@ func (r *raft) CallRequestVote(addr string) (ok bool) {
 			r.node.currentTerm.Store(res.Term)
 			r.node.stepDown()
 		}
-		//logger.Tracef("raft.RequestVote %s recv %s vote %t",r.node.address,addr,res.VoteGranted)
+		//logger.Tracef("raft.CallRequestVote %s recv %s vote %t",r.node.address,addr,res.VoteGranted)
 		if res.VoteGranted {
 			r.node.votes.vote <- newVote(addr, req.Term, 1)
 		} else {
@@ -85,7 +85,7 @@ func (r *raft) CallRequestVote(addr string) (ok bool) {
 		}
 		return true
 	case <-timer.C:
-		logger.Tracef("raft.RequestVote %s recv %s vote time out", r.node.address, addr)
+		logger.Tracef("raft.CallRequestVote %s recv %s vote time out", r.node.address, addr)
 		r.node.votes.vote <- newVote(addr, req.Term, 0)
 	}
 	return false
@@ -120,7 +120,7 @@ func (r *raft) CallAppendEntries(addr string, prevLogIndex, prevLogTerm uint64, 
 		}
 		r.donePool.Put(done)
 		if call.Error != nil {
-			logger.Tracef("raft.AppendEntries %s -> %s error %s", r.node.address, addr, call.Error.Error())
+			logger.Tracef("raft.CallAppendEntries %s -> %s error %s", r.node.address, addr, call.Error.Error())
 			*call = rpc.Call{}
 			r.callPool.Put(call)
 			return 0, 0, false, false
@@ -135,10 +135,10 @@ func (r *raft) CallAppendEntries(addr string, prevLogIndex, prevLogTerm uint64, 
 				return res.NextIndex, res.Term, false, true
 			}
 		}
-		//logger.Tracef("raft.AppendEntries %s -> %s",r.node.address,addr)
+		//logger.Tracef("raft.CallAppendEntries %s -> %s",r.node.address,addr)
 		return res.NextIndex, res.Term, res.Success, true
 	case <-timer.C:
-		logger.Tracef("raft.AppendEntries %s -> %s time out", r.node.address, addr)
+		logger.Tracef("raft.CallAppendEntries %s -> %s time out", r.node.address, addr)
 	}
 	return 0, 0, false, false
 }
@@ -169,7 +169,7 @@ func (r *raft) CallInstallSnapshot(addr string, LastIncludedIndex, LastIncludedT
 		}
 		r.donePool.Put(done)
 		if call.Error != nil {
-			logger.Tracef("raft.InstallSnapshot %s -> %s error %s", r.node.address, addr, call.Error.Error())
+			logger.Tracef("raft.CallInstallSnapshot %s -> %s error %s", r.node.address, addr, call.Error.Error())
 			*call = rpc.Call{}
 			r.callPool.Put(call)
 			return 0, 0, false
@@ -181,10 +181,10 @@ func (r *raft) CallInstallSnapshot(addr string, LastIncludedIndex, LastIncludedT
 			r.node.currentTerm.Store(res.Term)
 			r.node.stepDown()
 		}
-		//logger.Tracef("raft.InstallSnapshot %s -> %s offset %d",r.node.address,addr,res.Offset)
+		//logger.Tracef("raft.CallInstallSnapshot %s -> %s offset %d",r.node.address,addr,res.Offset)
 		return res.Offset, res.NextIndex, true
 	case <-timer.C:
-		logger.Tracef("raft.InstallSnapshot %s -> %s time out", r.node.address, addr)
+		logger.Tracef("raft.CallInstallSnapshot %s -> %s time out", r.node.address, addr)
 	}
 	return 0, 0, false
 }

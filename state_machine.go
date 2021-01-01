@@ -265,14 +265,14 @@ func (s *stateMachine) append(offset uint64, p []byte) {
 }
 
 func (s *stateMachine) run() {
-	logger.Tracef("stateMachine.run %d", len(s.snapshotSyncs))
+	logger.Tracef("stateMachine.run SnapshotSyncs %d", len(s.snapshotSyncs))
 	for _, snapshotSync := range s.snapshotSyncs {
 		go snapshotSync.run()
 	}
 }
 
 func (s *stateMachine) Stop() {
-	logger.Tracef("stateMachine.Stop %d", len(s.snapshotSyncs))
+	//logger.Tracef("stateMachine.Stop %d", len(s.snapshotSyncs))
 	for _, snapshotSync := range s.snapshotSyncs {
 		if snapshotSync != nil {
 			snapshotSync.Stop()
