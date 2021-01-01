@@ -1,5 +1,5 @@
 # raft
-Package raft implements the Raft distributed consensus protocol.
+Package raft implements the Raft distributed consensus protocol based on [hslam/rpc](https://github.com/hslam/rpc "rpc").
 
 ## Features
 
@@ -36,17 +36,12 @@ import (
 	"io/ioutil"
 	"log"
 	"strings"
-	"sync"
 	"time"
 )
 
-var (
-	host  string
-	port  int
-	path  string
-	join  bool
-	peers string
-)
+var host, path, peers string
+var port int
+var join bool
 
 func init() {
 	flag.StringVar(&host, "h", "localhost", "hostname")
@@ -58,20 +53,14 @@ func init() {
 }
 
 func main() {
-	ctx := NewContext()
+	ctx := &Context{data: ""}
 	node, err := raft.NewNode(host, port, path, ctx, join, parse(peers))
 	if err != nil {
 		panic(err)
 	}
 	node.RegisterCommand(&Command{})
 	node.SetCodec(&raft.JSONCodec{})
-	node.SetSnapshot(NewSnapshot(ctx))
-	node.SetSyncTypes([]*raft.SyncType{
-		{Seconds: 900, Changes: 1},
-		{Seconds: 300, Changes: 10},
-		{Seconds: 60, Changes: 10000},
-	})
-	node.Start()
+	node.SetSnapshot(ctx)
 	node.LeaderChange(func() {
 		if node.IsLeader() {
 			node.Do(&Command{"foobar"})
@@ -84,90 +73,49 @@ func main() {
 			log.Printf("State:%s, Get:%s\n", node.State(), ctx.Get())
 		}
 	})
-	for {
-		time.Sleep(time.Second * 5)
+	node.Start()
+	for range time.NewTicker(time.Second * 5).C {
 		log.Printf("State:%s, Leader:%s\n", node.State(), node.Leader())
 	}
 }
 
-// Command implements the raft.Command interface.
-type Command struct {
-	Data string
-}
+type Context struct{ data string }
 
-func (c *Command) Type() int32 {
-	return 1
-}
+func (ctx *Context) Set(value string) { ctx.data = value }
+func (ctx *Context) Get() string      { return ctx.data }
 
-func (c *Command) Do(context interface{}) (interface{}, error) {
-	ctx := context.(*Context)
-	ctx.Set(c.Data)
-	return nil, nil
-}
+// Save implements the raft.Snapshot Save method.
+func (ctx *Context) Save(w io.Writer) (int, error) { return w.Write([]byte(ctx.Get())) }
 
-type Context struct {
-	mut  sync.RWMutex
-	data string
-}
-
-func NewContext() *Context {
-	return &Context{data: ""}
-}
-
-func (ctx *Context) Set(value string) {
-	ctx.mut.Lock()
-	defer ctx.mut.Unlock()
-	ctx.data = value
-}
-
-func (ctx *Context) Get() string {
-	ctx.mut.RLock()
-	defer ctx.mut.RUnlock()
-	return ctx.data
-}
-
-// Snapshot implements the raft.Snapshot interface.
-type Snapshot struct {
-	context *Context
-}
-
-func NewSnapshot(context *Context) *Snapshot {
-	return &Snapshot{context: context}
-}
-
-func (s *Snapshot) Save(w io.Writer) (int, error) {
-	return w.Write([]byte(s.context.Get()))
-}
-
-func (s *Snapshot) Recover(r io.Reader) (int, error) {
+// Recover implements the raft.Snapshot Recover method.
+func (ctx *Context) Recover(r io.Reader) (int, error) {
 	raw, err := ioutil.ReadAll(r)
 	if err != nil {
 		return 0, err
 	}
-	s.context.Set(string(raw))
-	return len(raw), err
+	ctx.Set(string(raw))
+	return len(raw), nil
+}
+
+// Command implements the raft.Command interface.
+type Command struct{ Data string }
+
+func (c *Command) Type() int32 { return 1 }
+func (c *Command) Do(context interface{}) (interface{}, error) {
+	context.(*Context).Set(c.Data)
+	return nil, nil
 }
 
 func parse(peers string) (infos []*raft.NodeInfo) {
 	if peers != "" {
-		nodes := strings.Split(peers, ";")
-		for _, v := range nodes {
-			if v == "" {
-				continue
-			}
-			info := strings.Split(v, ",")
-			var NonVoting bool
-			if len(info) > 1 {
-				if info[1] == "true" {
-					NonVoting = true
+		for _, v := range strings.Split(peers, ";") {
+			if len(v) > 0 {
+				info := strings.Split(v, ",")
+				infos = append(infos, &raft.NodeInfo{Address: info[0]})
+				if len(info) > 1 && info[1] == "true" {
+					infos[len(infos)-1].NonVoting = true
 				}
 			}
-			nodeInfo := &raft.NodeInfo{
-				Address:   info[0],
-				NonVoting: NonVoting,
-				Data:      nil,
-			}
-			infos = append(infos, nodeInfo)
 		}
 	}
 	return
@@ -181,8 +129,7 @@ go build -o node main.go
 
 **one node**
 ```sh
-./node -h=localhost -p=9001 -path="raft.example/node.1" -join=false \
--peers="localhost:9001"
+./node -h=localhost -p=9001 -path="raft.example/node.1" -join=false
 ```
 
 **three nodes**
