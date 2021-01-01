@@ -1,1 +1,0 @@
-protoc ./command.proto --gogofaster_out=./
