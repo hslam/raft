@@ -120,7 +120,7 @@ func (d *Entry) Unmarshal(data []byte) error {
 // RequestVoteRequest represents a rpc request of requesting vote.
 type RequestVoteRequest struct {
 	Term         uint64
-	CandidateId  string
+	CandidateID  string
 	LastLogIndex uint64
 	LastLogTerm  uint64
 }
@@ -129,7 +129,7 @@ type RequestVoteRequest struct {
 func (d *RequestVoteRequest) Size() int {
 	var size uint64
 	size += 11
-	size += 11 + uint64(len(d.CandidateId))
+	size += 11 + uint64(len(d.CandidateID))
 	size += 11
 	size += 11
 	return int(size)
@@ -159,10 +159,10 @@ func (d *RequestVoteRequest) MarshalTo(buf []byte) (int, error) {
 		n = code.EncodeVarint(buf[offset:], d.Term)
 		offset += n
 	}
-	if len(d.CandidateId) > 0 {
+	if len(d.CandidateID) > 0 {
 		buf[offset] = 2<<3 | 2
 		offset++
-		n = code.EncodeString(buf[offset:], d.CandidateId)
+		n = code.EncodeString(buf[offset:], d.CandidateID)
 		offset += n
 	}
 	if d.LastLogIndex != 0 {
@@ -206,9 +206,9 @@ func (d *RequestVoteRequest) Unmarshal(data []byte) error {
 			offset += n
 		case 2:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field CandidateId", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field CandidateID", wireType)
 			}
-			n = code.DecodeString(data[offset:], &d.CandidateId)
+			n = code.DecodeString(data[offset:], &d.CandidateID)
 			offset += n
 		case 3:
 			if wireType != 0 {
@@ -312,7 +312,7 @@ func (d *RequestVoteResponse) Unmarshal(data []byte) error {
 // AppendEntriesRequest represents a rpc request of appending entries.
 type AppendEntriesRequest struct {
 	Term         uint64
-	LeaderId     string
+	LeaderID     string
 	PrevLogIndex uint64
 	PrevLogTerm  uint64
 	LeaderCommit uint64
@@ -323,7 +323,7 @@ type AppendEntriesRequest struct {
 func (d *AppendEntriesRequest) Size() int {
 	var size uint64
 	size += 11
-	size += 11 + uint64(len(d.LeaderId))
+	size += 11 + uint64(len(d.LeaderID))
 	size += 11
 	size += 11
 	size += 11
@@ -359,10 +359,10 @@ func (d *AppendEntriesRequest) MarshalTo(buf []byte) (int, error) {
 		n = code.EncodeVarint(buf[offset:], d.Term)
 		offset += n
 	}
-	if len(d.LeaderId) > 0 {
+	if len(d.LeaderID) > 0 {
 		buf[offset] = 2<<3 | 2
 		offset++
-		n = code.EncodeString(buf[offset:], d.LeaderId)
+		n = code.EncodeString(buf[offset:], d.LeaderID)
 		offset += n
 	}
 	if d.PrevLogIndex != 0 {
@@ -427,9 +427,9 @@ func (d *AppendEntriesRequest) Unmarshal(data []byte) error {
 			offset += n
 		case 2:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field LeaderId", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field LeaderID", wireType)
 			}
-			n = code.DecodeString(data[offset:], &d.LeaderId)
+			n = code.DecodeString(data[offset:], &d.LeaderID)
 			offset += n
 		case 3:
 			if wireType != 0 {
@@ -573,7 +573,7 @@ func (d *AppendEntriesResponse) Unmarshal(data []byte) error {
 // InstallSnapshotRequest represents a rpc request of installing snapshot.
 type InstallSnapshotRequest struct {
 	Term              uint64
-	LeaderId          string
+	LeaderID          string
 	LastIncludedIndex uint64
 	LastIncludedTerm  uint64
 	Offset            uint64
@@ -585,7 +585,7 @@ type InstallSnapshotRequest struct {
 func (d *InstallSnapshotRequest) Size() int {
 	var size uint64
 	size += 11
-	size += 11 + uint64(len(d.LeaderId))
+	size += 11 + uint64(len(d.LeaderID))
 	size += 11
 	size += 11
 	size += 11
@@ -618,10 +618,10 @@ func (d *InstallSnapshotRequest) MarshalTo(buf []byte) (int, error) {
 		n = code.EncodeVarint(buf[offset:], d.Term)
 		offset += n
 	}
-	if len(d.LeaderId) > 0 {
+	if len(d.LeaderID) > 0 {
 		buf[offset] = 2<<3 | 2
 		offset++
-		n = code.EncodeString(buf[offset:], d.LeaderId)
+		n = code.EncodeString(buf[offset:], d.LeaderID)
 		offset += n
 	}
 	if d.LastIncludedIndex != 0 {
@@ -683,9 +683,9 @@ func (d *InstallSnapshotRequest) Unmarshal(data []byte) error {
 			offset += n
 		case 2:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field LeaderId", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field LeaderID", wireType)
 			}
-			n = code.DecodeString(data[offset:], &d.LeaderId)
+			n = code.DecodeString(data[offset:], &d.LeaderID)
 			offset += n
 		case 3:
 			if wireType != 0 {
@@ -1242,14 +1242,14 @@ func (d *QueryLeaderRequest) Unmarshal(data []byte) error {
 // QueryLeaderResponse represents a rpc response of querying leader.
 type QueryLeaderResponse struct {
 	Term     uint64
-	LeaderId string
+	LeaderID string
 }
 
 // Size returns the size of the buffer required to represent the data when encoded.
 func (d *QueryLeaderResponse) Size() int {
 	var size uint64
 	size += 11
-	size += 11 + uint64(len(d.LeaderId))
+	size += 11 + uint64(len(d.LeaderID))
 	return int(size)
 }
 
@@ -1277,10 +1277,10 @@ func (d *QueryLeaderResponse) MarshalTo(buf []byte) (int, error) {
 		n = code.EncodeVarint(buf[offset:], d.Term)
 		offset += n
 	}
-	if len(d.LeaderId) > 0 {
+	if len(d.LeaderID) > 0 {
 		buf[offset] = 2<<3 | 2
 		offset++
-		n = code.EncodeString(buf[offset:], d.LeaderId)
+		n = code.EncodeString(buf[offset:], d.LeaderID)
 		offset += n
 	}
 	return int(offset), nil
@@ -1312,9 +1312,9 @@ func (d *QueryLeaderResponse) Unmarshal(data []byte) error {
 			offset += n
 		case 2:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field LeaderId", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field LeaderID", wireType)
 			}
-			n = code.DecodeString(data[offset:], &d.LeaderId)
+			n = code.DecodeString(data[offset:], &d.LeaderID)
 			offset += n
 		}
 	}
@@ -1405,14 +1405,14 @@ func (d *AddPeerRequest) Unmarshal(data []byte) error {
 // AddPeerResponse represents a rpc response of adding peer.
 type AddPeerResponse struct {
 	Success  bool
-	LeaderId string
+	LeaderID string
 }
 
 // Size returns the size of the buffer required to represent the data when encoded.
 func (d *AddPeerResponse) Size() int {
 	var size uint64
 	size += 11
-	size += 11 + uint64(len(d.LeaderId))
+	size += 11 + uint64(len(d.LeaderID))
 	return int(size)
 }
 
@@ -1440,10 +1440,10 @@ func (d *AddPeerResponse) MarshalTo(buf []byte) (int, error) {
 		n = code.EncodeBool(buf[offset:], d.Success)
 		offset += n
 	}
-	if len(d.LeaderId) > 0 {
+	if len(d.LeaderID) > 0 {
 		buf[offset] = 2<<3 | 2
 		offset++
-		n = code.EncodeString(buf[offset:], d.LeaderId)
+		n = code.EncodeString(buf[offset:], d.LeaderID)
 		offset += n
 	}
 	return int(offset), nil
@@ -1475,9 +1475,9 @@ func (d *AddPeerResponse) Unmarshal(data []byte) error {
 			offset += n
 		case 2:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field LeaderId", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field LeaderID", wireType)
 			}
-			n = code.DecodeString(data[offset:], &d.LeaderId)
+			n = code.DecodeString(data[offset:], &d.LeaderID)
 			offset += n
 		}
 	}
@@ -1555,14 +1555,14 @@ func (d *RemovePeerRequest) Unmarshal(data []byte) error {
 // RemovePeerResponse represents a rpc response of removing peer.
 type RemovePeerResponse struct {
 	Success  bool
-	LeaderId string
+	LeaderID string
 }
 
 // Size returns the size of the buffer required to represent the data when encoded.
 func (d *RemovePeerResponse) Size() int {
 	var size uint64
 	size += 11
-	size += 11 + uint64(len(d.LeaderId))
+	size += 11 + uint64(len(d.LeaderID))
 	return int(size)
 }
 
@@ -1590,10 +1590,10 @@ func (d *RemovePeerResponse) MarshalTo(buf []byte) (int, error) {
 		n = code.EncodeBool(buf[offset:], d.Success)
 		offset += n
 	}
-	if len(d.LeaderId) > 0 {
+	if len(d.LeaderID) > 0 {
 		buf[offset] = 2<<3 | 2
 		offset++
-		n = code.EncodeString(buf[offset:], d.LeaderId)
+		n = code.EncodeString(buf[offset:], d.LeaderID)
 		offset += n
 	}
 	return int(offset), nil
@@ -1625,9 +1625,9 @@ func (d *RemovePeerResponse) Unmarshal(data []byte) error {
 			offset += n
 		case 2:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field LeaderId", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field LeaderID", wireType)
 			}
-			n = code.DecodeString(data[offset:], &d.LeaderId)
+			n = code.DecodeString(data[offset:], &d.LeaderID)
 			offset += n
 		}
 	}

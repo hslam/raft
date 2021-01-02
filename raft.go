@@ -38,7 +38,7 @@ func newRaft(n *node) Raft {
 func (r *raft) CallRequestVote(addr string) (ok bool) {
 	var req = &RequestVoteRequest{}
 	req.Term = r.node.currentTerm.Load()
-	req.CandidateId = r.node.address
+	req.CandidateID = r.node.address
 	req.LastLogIndex = r.node.lastLogIndex
 	req.LastLogTerm = r.node.lastLogTerm
 	var res = &RequestVoteResponse{}
@@ -63,7 +63,7 @@ func (r *raft) CallRequestVote(addr string) (ok bool) {
 func (r *raft) CallAppendEntries(addr string, prevLogIndex, prevLogTerm uint64, entries []*Entry) (nextIndex uint64, term uint64, success bool, ok bool) {
 	var req = &AppendEntriesRequest{}
 	req.Term = r.node.currentTerm.Load()
-	req.LeaderId = r.node.leader
+	req.LeaderID = r.node.leader
 	req.LeaderCommit = r.node.commitIndex.ID()
 	req.PrevLogIndex = prevLogIndex
 	req.PrevLogTerm = prevLogTerm
@@ -92,7 +92,7 @@ func (r *raft) CallAppendEntries(addr string, prevLogIndex, prevLogTerm uint64, 
 func (r *raft) CallInstallSnapshot(addr string, LastIncludedIndex, LastIncludedTerm, Offset uint64, Data []byte, Done bool) (offset uint64, nextIndex uint64, ok bool) {
 	var req = &InstallSnapshotRequest{}
 	req.Term = r.node.currentTerm.Load()
-	req.LeaderId = r.node.leader
+	req.LeaderID = r.node.leader
 	req.LastIncludedIndex = LastIncludedIndex
 	req.LastIncludedTerm = LastIncludedTerm
 	req.Offset = Offset
@@ -125,9 +125,9 @@ func (r *raft) RequestVote(req *RequestVoteRequest, res *RequestVoteResponse) er
 	if r.node.state.String() == leader || r.node.state.String() == candidate || r.node.leader != "" {
 		res.VoteGranted = false
 		return nil
-	} else if (r.node.votedFor.Load() == "" || r.node.votedFor.Load() == req.CandidateId) && req.LastLogIndex >= r.node.lastLogIndex && req.LastLogTerm >= r.node.lastLogTerm {
+	} else if (r.node.votedFor.Load() == "" || r.node.votedFor.Load() == req.CandidateID) && req.LastLogIndex >= r.node.lastLogIndex && req.LastLogTerm >= r.node.lastLogTerm {
 		res.VoteGranted = true
-		r.node.votedFor.Store(req.CandidateId)
+		r.node.votedFor.Store(req.CandidateID)
 		r.node.stepDown()
 	}
 	return nil
@@ -149,14 +149,14 @@ func (r *raft) AppendEntries(req *AppendEntriesRequest, res *AppendEntriesRespon
 		}
 	}
 	if r.node.leader == "" {
-		r.node.votedFor.Store(req.LeaderId)
-		r.node.leader = req.LeaderId
+		r.node.votedFor.Store(req.LeaderID)
+		r.node.leader = req.LeaderID
 		logger.Tracef("raft.HandleAppendEntries %s State:%s leader-%s Term:%d", r.node.address, r.node.State(), r.node.leader, r.node.currentTerm.Load())
 		if r.node.leaderChange != nil {
 			go r.node.leaderChange()
 		}
 	}
-	if r.node.leader != req.LeaderId {
+	if r.node.leader != req.LeaderID {
 		res.Success = false
 		r.node.stepDown()
 		return nil
@@ -219,8 +219,8 @@ func (r *raft) InstallSnapshot(req *InstallSnapshotRequest, res *InstallSnapshot
 	}
 	res.Offset = uint64(offset)
 	if req.Done {
-		if r.node.leader != req.LeaderId {
-			r.node.leader = req.LeaderId
+		if r.node.leader != req.LeaderID {
+			r.node.leader = req.LeaderID
 		}
 		r.node.stateMachine.snapshotReadWriter.finish = true
 		r.node.stateMachine.snapshotReadWriter.lastIncludedIndex.Set(req.LastIncludedIndex)

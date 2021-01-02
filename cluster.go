@@ -9,9 +9,9 @@ import (
 
 // Cluster represents the cluster service.
 type Cluster interface {
-	CallQueryLeader(addr string) (term uint64, leaderID string, ok bool)
-	CallAddPeer(addr string, info *NodeInfo) (success bool, leaderID string, ok bool)
-	CallRemovePeer(addr string, Address string) (success bool, leaderID string, ok bool)
+	CallQueryLeader(addr string) (term uint64, LeaderID string, ok bool)
+	CallAddPeer(addr string, info *NodeInfo) (success bool, LeaderID string, ok bool)
+	CallRemovePeer(addr string, Address string) (success bool, LeaderID string, ok bool)
 	QueryLeader(req *QueryLeaderRequest, res *QueryLeaderResponse) error
 	AddPeer(req *AddPeerRequest, res *AddPeerResponse) error
 	RemovePeer(req *RemovePeerRequest, res *RemovePeerResponse) error
@@ -33,7 +33,7 @@ func newCluster(n *node) Cluster {
 	}
 }
 
-func (c *cluster) CallQueryLeader(addr string) (term uint64, leaderID string, ok bool) {
+func (c *cluster) CallQueryLeader(addr string) (term uint64, LeaderID string, ok bool) {
 	var req = &QueryLeaderRequest{}
 	var res = &QueryLeaderResponse{}
 	err := c.node.rpcs.CallTimeout(addr, c.node.rpcs.QueryLeaderServiceName(), req, res, c.queryLeaderTimeout)
@@ -41,39 +41,39 @@ func (c *cluster) CallQueryLeader(addr string) (term uint64, leaderID string, ok
 		logger.Tracef("raft.CallQueryLeader %s -> %s error %s", c.node.address, addr, err.Error())
 		return 0, "", false
 	}
-	logger.Tracef("raft.CallQueryLeader %s -> %s LeaderId %s", c.node.address, addr, res.LeaderId)
-	return res.Term, res.LeaderId, true
+	logger.Tracef("raft.CallQueryLeader %s -> %s LeaderID %s", c.node.address, addr, res.LeaderID)
+	return res.Term, res.LeaderID, true
 }
 
-func (c *cluster) CallAddPeer(addr string, info *NodeInfo) (success bool, leaderID string, ok bool) {
+func (c *cluster) CallAddPeer(addr string, info *NodeInfo) (success bool, LeaderID string, ok bool) {
 	var req = &AddPeerRequest{}
 	req.Node = info
 	var res = &AddPeerResponse{}
 	err := c.node.rpcs.CallTimeout(addr, c.node.rpcs.AddPeerServiceName(), req, res, c.addPeerTimeout)
 	if err != nil {
 		logger.Tracef("raft.CallAddPeer %s -> %s error %s", c.node.address, addr, err.Error())
-		return false, res.LeaderId, false
+		return false, res.LeaderID, false
 	}
 	logger.Tracef("raft.CallAddPeer %s -> %s Success %t", c.node.address, addr, res.Success)
-	return res.Success, res.LeaderId, true
+	return res.Success, res.LeaderID, true
 }
 
-func (c *cluster) CallRemovePeer(addr string, Address string) (success bool, leaderID string, ok bool) {
+func (c *cluster) CallRemovePeer(addr string, Address string) (success bool, LeaderID string, ok bool) {
 	var req = &RemovePeerRequest{}
 	req.Address = Address
 	var res = &RemovePeerResponse{}
 	err := c.node.rpcs.CallTimeout(addr, c.node.rpcs.RemovePeerServiceName(), req, res, c.removePeerTimeout)
 	if err != nil {
 		logger.Tracef("raft.CallRemovePeer %s -> %s error %s", c.node.address, addr, err.Error())
-		return false, res.LeaderId, false
+		return false, res.LeaderID, false
 	}
 	logger.Tracef("raft.CallRemovePeer %s -> %s Success %t", c.node.address, addr, res.Success)
-	return res.Success, res.LeaderId, true
+	return res.Success, res.LeaderID, true
 }
 
 func (c *cluster) QueryLeader(req *QueryLeaderRequest, res *QueryLeaderResponse) error {
 	if c.node.leader != "" {
-		res.LeaderId = c.node.leader
+		res.LeaderID = c.node.leader
 		res.Term = c.node.term()
 		return nil
 	}
@@ -93,7 +93,7 @@ func (c *cluster) AddPeer(req *AddPeerRequest, res *AddPeerResponse) error {
 		}
 		return err
 	}
-	res.LeaderId = c.node.leader
+	res.LeaderID = c.node.leader
 	return ErrNotLeader
 }
 
@@ -110,6 +110,6 @@ func (c *cluster) RemovePeer(req *RemovePeerRequest, res *RemovePeerResponse) er
 		}
 		return err
 	}
-	res.LeaderId = c.node.leader
+	res.LeaderID = c.node.leader
 	return ErrNotLeader
 }

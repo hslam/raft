@@ -38,7 +38,7 @@ func TestEntry(t *testing.T) {
 
 func TestRequestVoteRequest(t *testing.T) {
 	{
-		var obj = RequestVoteRequest{Term: 1024, CandidateId: "localhost:9001", LastLogIndex: 1024, LastLogTerm: 1024}
+		var obj = RequestVoteRequest{Term: 1024, CandidateID: "localhost:9001", LastLogIndex: 1024, LastLogTerm: 1024}
 		var c = GOGOPBCodec{}
 		var buf = make([]byte, 10240)
 		var objCopy RequestVoteRequest
@@ -49,7 +49,7 @@ func TestRequestVoteRequest(t *testing.T) {
 		}
 	}
 	{
-		var obj = RequestVoteRequest{Term: 1024, CandidateId: "localhost:9001", LastLogIndex: 1024, LastLogTerm: 1024}
+		var obj = RequestVoteRequest{Term: 1024, CandidateID: "localhost:9001", LastLogIndex: 1024, LastLogTerm: 1024}
 		var c = GOGOPBCodec{}
 		var buf = make([]byte, 0)
 		var objCopy RequestVoteRequest
@@ -94,7 +94,7 @@ func TestRequestVoteResponse(t *testing.T) {
 
 func TestAppendEntriesRequest(t *testing.T) {
 	{
-		var obj = AppendEntriesRequest{Term: 1024, LeaderId: "localhost:9001", PrevLogIndex: 1024, PrevLogTerm: 1024, LeaderCommit: 1024, Entries: []*Entry{{Index: 1024, Term: 1024, CommandType: 64, Command: make([]byte, 512)}}}
+		var obj = AppendEntriesRequest{Term: 1024, LeaderID: "localhost:9001", PrevLogIndex: 1024, PrevLogTerm: 1024, LeaderCommit: 1024, Entries: []*Entry{{Index: 1024, Term: 1024, CommandType: 64, Command: make([]byte, 512)}}}
 		var c = GOGOPBCodec{}
 		var buf = make([]byte, 10240)
 		var objCopy AppendEntriesRequest
@@ -105,7 +105,7 @@ func TestAppendEntriesRequest(t *testing.T) {
 		}
 	}
 	{
-		var obj = AppendEntriesRequest{Term: 1024, LeaderId: "localhost:9001", PrevLogIndex: 1024, PrevLogTerm: 1024, LeaderCommit: 1024, Entries: []*Entry{{Index: 1024, Term: 1024, CommandType: 64, Command: make([]byte, 512)}}}
+		var obj = AppendEntriesRequest{Term: 1024, LeaderID: "localhost:9001", PrevLogIndex: 1024, PrevLogTerm: 1024, LeaderCommit: 1024, Entries: []*Entry{{Index: 1024, Term: 1024, CommandType: 64, Command: make([]byte, 512)}}}
 		var c = GOGOPBCodec{}
 		var buf = make([]byte, 0)
 		var objCopy AppendEntriesRequest
@@ -150,7 +150,7 @@ func TestAppendEntriesResponse(t *testing.T) {
 
 func TestInstallSnapshotRequest(t *testing.T) {
 	{
-		var obj = InstallSnapshotRequest{Term: 1024, LeaderId: "localhost:9001", LastIncludedIndex: 1024, LastIncludedTerm: 1024, Offset: 1024, Done: true, Data: make([]byte, 512)}
+		var obj = InstallSnapshotRequest{Term: 1024, LeaderID: "localhost:9001", LastIncludedIndex: 1024, LastIncludedTerm: 1024, Offset: 1024, Done: true, Data: make([]byte, 512)}
 		var c = GOGOPBCodec{}
 		var buf = make([]byte, 10240)
 		var objCopy InstallSnapshotRequest
@@ -161,7 +161,7 @@ func TestInstallSnapshotRequest(t *testing.T) {
 		}
 	}
 	{
-		var obj = InstallSnapshotRequest{Term: 1024, LeaderId: "localhost:9001", LastIncludedIndex: 1024, LastIncludedTerm: 1024, Offset: 1024, Done: true, Data: make([]byte, 512)}
+		var obj = InstallSnapshotRequest{Term: 1024, LeaderID: "localhost:9001", LastIncludedIndex: 1024, LastIncludedTerm: 1024, Offset: 1024, Done: true, Data: make([]byte, 512)}
 		var c = GOGOPBCodec{}
 		var buf = make([]byte, 0)
 		var objCopy InstallSnapshotRequest
@@ -390,7 +390,7 @@ func TestQueryLeaderRequest(t *testing.T) {
 
 func TestQueryLeaderResponse(t *testing.T) {
 	{
-		var obj = QueryLeaderResponse{Term: 1024, LeaderId: "localhost:9001"}
+		var obj = QueryLeaderResponse{Term: 1024, LeaderID: "localhost:9001"}
 		var c = GOGOPBCodec{}
 		var buf = make([]byte, 10240)
 		var objCopy QueryLeaderResponse
@@ -401,7 +401,7 @@ func TestQueryLeaderResponse(t *testing.T) {
 		}
 	}
 	{
-		var obj = QueryLeaderResponse{Term: 1024, LeaderId: "localhost:9001"}
+		var obj = QueryLeaderResponse{Term: 1024, LeaderID: "localhost:9001"}
 		var c = GOGOPBCodec{}
 		var buf = make([]byte, 0)
 		var objCopy QueryLeaderResponse
