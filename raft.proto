@@ -90,6 +90,7 @@ message AddPeerRequest {
 
 message AddPeerResponse {
     bool    Success     = 1;
+    string  LeaderId    = 2;
 }
 
 message RemovePeerRequest {
@@ -97,5 +98,6 @@ message RemovePeerRequest {
 }
 
 message RemovePeerResponse {
-    bool        Success     = 1;
+    bool    Success     = 1;
+    string  LeaderId    = 2;
 }

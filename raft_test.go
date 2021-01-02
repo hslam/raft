@@ -143,12 +143,12 @@ func TestCluster(t *testing.T) {
 				<-startJoin
 				time.Sleep(time.Second)
 				if node.IsLeader() {
-					if _, ok := node.Leave(infos[4].Address); !ok {
+					if ok := node.Leave(infos[4].Address); !ok {
 						t.Error()
 					}
 					al.Done()
 				} else {
-					if _, ok := node.Leave(infos[3].Address); !ok {
+					if ok := node.Leave(infos[3].Address); !ok {
 						t.Error()
 					}
 					al.Done()
@@ -228,12 +228,12 @@ func TestClusterMore(t *testing.T) {
 			if index < 3 {
 				time.Sleep(time.Second)
 				if node.IsLeader() {
-					if _, ok := node.Leave(infos[4].Address); !ok {
+					if ok := node.Leave(infos[4].Address); !ok {
 						t.Error()
 					}
 					al.Done()
 				} else {
-					if _, ok := node.Leave(infos[3].Address); !ok {
+					if ok := node.Leave(infos[3].Address); !ok {
 						t.Error()
 					}
 					al.Done()

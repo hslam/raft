@@ -40,7 +40,7 @@ type Node interface {
 	ReadIndex() bool
 	Peers() []string
 	Join(info *NodeInfo) (success bool)
-	Leave(Address string) (success bool, ok bool)
+	Leave(Address string) (success bool)
 	LookupPeer(addr string) *NodeInfo
 	LeaderChange(leaderChange func())
 	MemberChange(memberChange func())
@@ -316,10 +316,10 @@ func (n *node) stay() {
 }
 
 func (n *node) changeState(i int) {
-	if len(n.changeStateChan) == 1 {
-		return
+	select {
+	case n.changeStateChan <- i:
+	default:
 	}
-	n.changeStateChan <- i
 }
 
 func (n *node) State() string {
@@ -586,35 +586,51 @@ func (n *node) membership() []string {
 
 func (n *node) Join(info *NodeInfo) (success bool) {
 	leader := n.Leader()
-	if leader != "" {
-		success, ok := n.cluster.CallAddPeer(leader, info)
+	for leader != "" {
+		success, leaderID, ok := n.cluster.CallAddPeer(leader, info)
 		if success && ok {
 			return true
 		}
+		leader = leaderID
 	}
 	peers := n.Peers()
 	for i := 0; i < len(peers); i++ {
 		_, leaderID, ok := n.cluster.CallQueryLeader(peers[i])
 		if leaderID != "" && ok {
-			success, ok := n.cluster.CallAddPeer(leaderID, info)
-			if success && ok {
-				return true
+			leader = leaderID
+			for leader != "" {
+				success, leaderID, ok := n.cluster.CallAddPeer(leader, info)
+				if success && ok {
+					return true
+				}
+				leader = leaderID
 			}
 		}
 	}
 	return false
 }
 
-func (n *node) Leave(Address string) (success bool, ok bool) {
+func (n *node) Leave(Address string) (success bool) {
 	leader := n.Leader()
-	if leader != "" {
-		return n.cluster.CallRemovePeer(leader, Address)
+	for leader != "" {
+		success, leaderID, ok := n.cluster.CallRemovePeer(leader, Address)
+		if success && ok {
+			return true
+		}
+		leader = leaderID
 	}
 	peers := n.Peers()
 	for i := 0; i < len(peers); i++ {
 		_, leaderID, ok := n.cluster.CallQueryLeader(peers[i])
 		if leaderID != "" && ok {
-			n.cluster.CallRemovePeer(leaderID, Address)
+			leader = leaderID
+			for leader != "" {
+				success, leaderID, ok := n.cluster.CallRemovePeer(leader, Address)
+				if success && ok {
+					return true
+				}
+				leader = leaderID
+			}
 		}
 	}
 	return

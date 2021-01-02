@@ -1404,13 +1404,15 @@ func (d *AddPeerRequest) Unmarshal(data []byte) error {
 
 // AddPeerResponse represents a rpc response of adding peer.
 type AddPeerResponse struct {
-	Success bool
+	Success  bool
+	LeaderId string
 }
 
 // Size returns the size of the buffer required to represent the data when encoded.
 func (d *AddPeerResponse) Size() int {
 	var size uint64
 	size += 11
+	size += 11 + uint64(len(d.LeaderId))
 	return int(size)
 }
 
@@ -1436,6 +1438,12 @@ func (d *AddPeerResponse) MarshalTo(buf []byte) (int, error) {
 		buf[offset] = 1<<3 | 0
 		offset++
 		n = code.EncodeBool(buf[offset:], d.Success)
+		offset += n
+	}
+	if len(d.LeaderId) > 0 {
+		buf[offset] = 2<<3 | 2
+		offset++
+		n = code.EncodeString(buf[offset:], d.LeaderId)
 		offset += n
 	}
 	return int(offset), nil
@@ -1464,6 +1472,12 @@ func (d *AddPeerResponse) Unmarshal(data []byte) error {
 				return fmt.Errorf("proto: wrong wireType = %d for field Success", wireType)
 			}
 			n = code.DecodeBool(data[offset:], &d.Success)
+			offset += n
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field LeaderId", wireType)
+			}
+			n = code.DecodeString(data[offset:], &d.LeaderId)
 			offset += n
 		}
 	}
@@ -1540,13 +1554,15 @@ func (d *RemovePeerRequest) Unmarshal(data []byte) error {
 
 // RemovePeerResponse represents a rpc response of removing peer.
 type RemovePeerResponse struct {
-	Success bool
+	Success  bool
+	LeaderId string
 }
 
 // Size returns the size of the buffer required to represent the data when encoded.
 func (d *RemovePeerResponse) Size() int {
 	var size uint64
 	size += 11
+	size += 11 + uint64(len(d.LeaderId))
 	return int(size)
 }
 
@@ -1572,6 +1588,12 @@ func (d *RemovePeerResponse) MarshalTo(buf []byte) (int, error) {
 		buf[offset] = 1<<3 | 0
 		offset++
 		n = code.EncodeBool(buf[offset:], d.Success)
+		offset += n
+	}
+	if len(d.LeaderId) > 0 {
+		buf[offset] = 2<<3 | 2
+		offset++
+		n = code.EncodeString(buf[offset:], d.LeaderId)
 		offset += n
 	}
 	return int(offset), nil
@@ -1600,6 +1622,12 @@ func (d *RemovePeerResponse) Unmarshal(data []byte) error {
 				return fmt.Errorf("proto: wrong wireType = %d for field Success", wireType)
 			}
 			n = code.DecodeBool(data[offset:], &d.Success)
+			offset += n
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field LeaderId", wireType)
+			}
+			n = code.DecodeString(data[offset:], &d.LeaderId)
 			offset += n
 		}
 	}
