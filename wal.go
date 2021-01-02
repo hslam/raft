@@ -153,23 +153,8 @@ func (l *waLog) applyCommited() {
 		return
 	}
 	var startIndex = maxUint64(l.node.stateMachine.lastApplied+1, 1)
-	var endIndex = l.node.commitIndex.ID()
-	if startIndex > endIndex {
-		return
-	}
-	if endIndex-startIndex > defaultMaxBatch {
-		index := startIndex
-		for {
-			l.applyCommitedRange(index, index+defaultMaxBatch)
-			index += defaultMaxBatch
-			if endIndex-index <= defaultMaxBatch {
-				l.applyCommitedRange(index, endIndex)
-				break
-			}
-		}
-	} else {
-		l.applyCommitedRange(startIndex, endIndex)
-	}
+	var endIndex = minUint64(l.node.commitIndex.ID(), l.node.lastLogIndex)
+	l.applyCommitedRange(startIndex, endIndex)
 }
 
 func (l *waLog) applyCommitedEnd(endIndex uint64) {
@@ -182,27 +167,31 @@ func (l *waLog) applyCommitedEnd(endIndex uint64) {
 		return
 	}
 	var startIndex = maxUint64(l.node.stateMachine.lastApplied+1, 1)
-	endIndex = minUint64(l.node.commitIndex.ID(), endIndex)
+	endIndex = minUint64(minUint64(l.node.commitIndex.ID(), l.node.lastLogIndex), endIndex)
+	l.applyCommitedRange(startIndex, endIndex)
+}
+
+func (l *waLog) applyCommitedRange(startIndex uint64, endIndex uint64) {
 	if startIndex > endIndex {
 		return
 	}
 	if endIndex-startIndex > defaultMaxBatch {
 		index := startIndex
 		for {
-			l.applyCommitedRange(index, index+defaultMaxBatch)
+			l.applyCommitedBatch(index, index+defaultMaxBatch)
 			index += defaultMaxBatch
 			if endIndex-index <= defaultMaxBatch {
-				l.applyCommitedRange(index, endIndex)
+				l.applyCommitedBatch(index, endIndex)
 				break
 			}
 		}
 	} else {
-		l.applyCommitedRange(startIndex, endIndex)
+		l.applyCommitedBatch(startIndex, endIndex)
 	}
 }
 
-func (l *waLog) applyCommitedRange(startIndex uint64, endIndex uint64) {
-	//logger.Tracef("log.applyCommitedRange %s startIndex %d endIndex %d Start",l.node.address,startIndex,endIndex)
+func (l *waLog) applyCommitedBatch(startIndex uint64, endIndex uint64) {
+	//logger.Tracef("log.applyCommitedRange %s startIndex %d endIndex %d Start", l.node.address, startIndex, endIndex)
 	entries := l.copyRange(startIndex, endIndex)
 	if entries == nil || len(entries) == 0 {
 		return
@@ -231,6 +220,7 @@ func (l *waLog) applyCommitedRange(startIndex uint64, endIndex uint64) {
 func (l *waLog) read(index uint64) *Entry {
 	b, err := l.wal.Read(index)
 	if err != nil {
+		//logger.Errorf("log.read %s index %d firstIndex %d lastIndex %d, commit %d", l.node.address, index, l.node.firstLogIndex, l.node.lastLogIndex, l.node.commitIndex.ID())
 		return nil
 	}
 	entry := l.getEmtyEntry()
@@ -245,7 +235,8 @@ func (l *waLog) read(index uint64) *Entry {
 func (l *waLog) batchRead(startIndex uint64, endIndex uint64) []*Entry {
 	entries := make([]*Entry, 0, endIndex-startIndex+1)
 	for i := startIndex; i < endIndex+1; i++ {
-		entries = append(entries, l.read(i))
+		entry := l.read(i)
+		entries = append(entries, entry)
 	}
 	return entries
 }
