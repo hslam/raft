@@ -28,10 +28,7 @@ func (d *Entry) Marshal() ([]byte, error) {
 	size := d.Size()
 	buf := make([]byte, size)
 	n, err := d.MarshalTo(buf[:size])
-	if err != nil {
-		return nil, err
-	}
-	return buf[:n], nil
+	return buf[:n], err
 }
 
 // MarshalTo marshals into buf and returns the number of bytes.
@@ -143,10 +140,7 @@ func (d *RequestVoteRequest) Marshal() ([]byte, error) {
 	size := d.Size()
 	buf := make([]byte, size)
 	n, err := d.MarshalTo(buf[:size])
-	if err != nil {
-		return nil, err
-	}
-	return buf[:n], nil
+	return buf[:n], err
 }
 
 // MarshalTo marshals into buf and returns the number of bytes.
@@ -252,10 +246,7 @@ func (d *RequestVoteResponse) Marshal() ([]byte, error) {
 	size := d.Size()
 	buf := make([]byte, size)
 	n, err := d.MarshalTo(buf[:size])
-	if err != nil {
-		return nil, err
-	}
-	return buf[:n], nil
+	return buf[:n], err
 }
 
 // MarshalTo marshals into buf and returns the number of bytes.
@@ -349,10 +340,7 @@ func (d *AppendEntriesRequest) Marshal() ([]byte, error) {
 	size := d.Size()
 	buf := make([]byte, size)
 	n, err := d.MarshalTo(buf[:size])
-	if err != nil {
-		return nil, err
-	}
-	return buf[:n], nil
+	return buf[:n], err
 }
 
 // MarshalTo marshals into buf and returns the number of bytes.
@@ -507,10 +495,7 @@ func (d *AppendEntriesResponse) Marshal() ([]byte, error) {
 	size := d.Size()
 	buf := make([]byte, size)
 	n, err := d.MarshalTo(buf[:size])
-	if err != nil {
-		return nil, err
-	}
-	return buf[:n], nil
+	return buf[:n], err
 }
 
 // MarshalTo marshals into buf and returns the number of bytes.
@@ -614,10 +599,7 @@ func (d *InstallSnapshotRequest) Marshal() ([]byte, error) {
 	size := d.Size()
 	buf := make([]byte, size)
 	n, err := d.MarshalTo(buf[:size])
-	if err != nil {
-		return nil, err
-	}
-	return buf[:n], nil
+	return buf[:n], err
 }
 
 // MarshalTo marshals into buf and returns the number of bytes.
@@ -761,10 +743,7 @@ func (d *InstallSnapshotResponse) Marshal() ([]byte, error) {
 	size := d.Size()
 	buf := make([]byte, size)
 	n, err := d.MarshalTo(buf[:size])
-	if err != nil {
-		return nil, err
-	}
-	return buf[:n], nil
+	return buf[:n], err
 }
 
 // MarshalTo marshals into buf and returns the number of bytes.
@@ -860,10 +839,7 @@ func (d *NodeInfo) Marshal() ([]byte, error) {
 	size := d.Size()
 	buf := make([]byte, size)
 	n, err := d.MarshalTo(buf[:size])
-	if err != nil {
-		return nil, err
-	}
-	return buf[:n], nil
+	return buf[:n], err
 }
 
 // MarshalTo marshals into buf and returns the number of bytes.
@@ -959,10 +935,7 @@ func (d *ConfigurationStorage) Marshal() ([]byte, error) {
 	size := d.Size()
 	buf := make([]byte, size)
 	n, err := d.MarshalTo(buf[:size])
-	if err != nil {
-		return nil, err
-	}
-	return buf[:n], nil
+	return buf[:n], err
 }
 
 // MarshalTo marshals into buf and returns the number of bytes.
@@ -1053,10 +1026,7 @@ func (d *AddPeerCommand) Marshal() ([]byte, error) {
 	size := d.Size()
 	buf := make([]byte, size)
 	n, err := d.MarshalTo(buf[:size])
-	if err != nil {
-		return nil, err
-	}
-	return buf[:n], nil
+	return buf[:n], err
 }
 
 // MarshalTo marshals into buf and returns the number of bytes.
@@ -1137,10 +1107,7 @@ func (d *RemovePeerCommand) Marshal() ([]byte, error) {
 	size := d.Size()
 	buf := make([]byte, size)
 	n, err := d.MarshalTo(buf[:size])
-	if err != nil {
-		return nil, err
-	}
-	return buf[:n], nil
+	return buf[:n], err
 }
 
 // MarshalTo marshals into buf and returns the number of bytes.
@@ -1205,10 +1172,7 @@ func (d *NoOperationCommand) Marshal() ([]byte, error) {
 	size := d.Size()
 	buf := make([]byte, size)
 	n, err := d.MarshalTo(buf[:size])
-	if err != nil {
-		return nil, err
-	}
-	return buf[:n], nil
+	return buf[:n], err
 }
 
 // MarshalTo marshals into buf and returns the number of bytes.
@@ -1235,10 +1199,7 @@ func (d *ReconfigurationCommand) Marshal() ([]byte, error) {
 	size := d.Size()
 	buf := make([]byte, size)
 	n, err := d.MarshalTo(buf[:size])
-	if err != nil {
-		return nil, err
-	}
-	return buf[:n], nil
+	return buf[:n], err
 }
 
 // MarshalTo marshals into buf and returns the number of bytes.
@@ -1265,10 +1226,7 @@ func (d *QueryLeaderRequest) Marshal() ([]byte, error) {
 	size := d.Size()
 	buf := make([]byte, size)
 	n, err := d.MarshalTo(buf[:size])
-	if err != nil {
-		return nil, err
-	}
-	return buf[:n], nil
+	return buf[:n], err
 }
 
 // MarshalTo marshals into buf and returns the number of bytes.
@@ -1300,10 +1258,7 @@ func (d *QueryLeaderResponse) Marshal() ([]byte, error) {
 	size := d.Size()
 	buf := make([]byte, size)
 	n, err := d.MarshalTo(buf[:size])
-	if err != nil {
-		return nil, err
-	}
-	return buf[:n], nil
+	return buf[:n], err
 }
 
 // MarshalTo marshals into buf and returns the number of bytes.
@@ -1383,10 +1338,7 @@ func (d *AddPeerRequest) Marshal() ([]byte, error) {
 	size := d.Size()
 	buf := make([]byte, size)
 	n, err := d.MarshalTo(buf[:size])
-	if err != nil {
-		return nil, err
-	}
-	return buf[:n], nil
+	return buf[:n], err
 }
 
 // MarshalTo marshals into buf and returns the number of bytes.
@@ -1467,10 +1419,7 @@ func (d *AddPeerResponse) Marshal() ([]byte, error) {
 	size := d.Size()
 	buf := make([]byte, size)
 	n, err := d.MarshalTo(buf[:size])
-	if err != nil {
-		return nil, err
-	}
-	return buf[:n], nil
+	return buf[:n], err
 }
 
 // MarshalTo marshals into buf and returns the number of bytes.
@@ -1538,10 +1487,7 @@ func (d *RemovePeerRequest) Marshal() ([]byte, error) {
 	size := d.Size()
 	buf := make([]byte, size)
 	n, err := d.MarshalTo(buf[:size])
-	if err != nil {
-		return nil, err
-	}
-	return buf[:n], nil
+	return buf[:n], err
 }
 
 // MarshalTo marshals into buf and returns the number of bytes.
@@ -1609,10 +1555,7 @@ func (d *RemovePeerResponse) Marshal() ([]byte, error) {
 	size := d.Size()
 	buf := make([]byte, size)
 	n, err := d.MarshalTo(buf[:size])
-	if err != nil {
-		return nil, err
-	}
-	return buf[:n], nil
+	return buf[:n], err
 }
 
 // MarshalTo marshals into buf and returns the number of bytes.

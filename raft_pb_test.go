@@ -30,6 +30,9 @@ func TestEntry(t *testing.T) {
 		if !reflect.DeepEqual(obj, objCopy) {
 			t.Error()
 		}
+		if n, err := obj.MarshalTo(nil); n > 0 || err == nil {
+			t.Error("The err should not be nil")
+		}
 	}
 }
 
@@ -54,6 +57,9 @@ func TestRequestVoteRequest(t *testing.T) {
 		c.Unmarshal(data, &objCopy)
 		if !reflect.DeepEqual(obj, objCopy) {
 			t.Error()
+		}
+		if n, err := obj.MarshalTo(nil); n > 0 || err == nil {
+			t.Error("The err should not be nil")
 		}
 	}
 }
@@ -80,6 +86,9 @@ func TestRequestVoteResponse(t *testing.T) {
 		if !reflect.DeepEqual(obj, objCopy) {
 			t.Error()
 		}
+		if n, err := obj.MarshalTo(nil); n > 0 || err == nil {
+			t.Error("The err should not be nil")
+		}
 	}
 }
 
@@ -104,6 +113,9 @@ func TestAppendEntriesRequest(t *testing.T) {
 		c.Unmarshal(data, &objCopy)
 		if !reflect.DeepEqual(obj, objCopy) {
 			t.Error()
+		}
+		if n, err := obj.MarshalTo(nil); n > 0 || err == nil {
+			t.Error("The err should not be nil")
 		}
 	}
 }
@@ -130,6 +142,9 @@ func TestAppendEntriesResponse(t *testing.T) {
 		if !reflect.DeepEqual(obj, objCopy) {
 			t.Error()
 		}
+		if n, err := obj.MarshalTo(nil); n > 0 || err == nil {
+			t.Error("The err should not be nil")
+		}
 	}
 }
 
@@ -154,6 +169,9 @@ func TestInstallSnapshotRequest(t *testing.T) {
 		c.Unmarshal(data, &objCopy)
 		if !reflect.DeepEqual(obj, objCopy) {
 			t.Error()
+		}
+		if n, err := obj.MarshalTo(nil); n > 0 || err == nil {
+			t.Error("The err should not be nil")
 		}
 	}
 }
@@ -180,6 +198,9 @@ func TestInstallSnapshotResponse(t *testing.T) {
 		if !reflect.DeepEqual(obj, objCopy) {
 			t.Error()
 		}
+		if n, err := obj.MarshalTo(nil); n > 0 || err == nil {
+			t.Error("The err should not be nil")
+		}
 	}
 }
 
@@ -204,6 +225,9 @@ func TestNodeInfo(t *testing.T) {
 		c.Unmarshal(data, &objCopy)
 		if !reflect.DeepEqual(obj, objCopy) {
 			t.Error()
+		}
+		if n, err := obj.MarshalTo(nil); n > 0 || err == nil {
+			t.Error("The err should not be nil")
 		}
 	}
 }
@@ -230,6 +254,9 @@ func TestConfigurationStorage(t *testing.T) {
 		if !reflect.DeepEqual(obj, objCopy) {
 			t.Error()
 		}
+		if n, err := obj.MarshalTo(nil); n > 0 || err == nil {
+			t.Error("The err should not be nil")
+		}
 	}
 }
 
@@ -255,6 +282,9 @@ func TestAddPeerCommand(t *testing.T) {
 		if !reflect.DeepEqual(obj, objCopy) {
 			t.Error()
 		}
+		if n, err := obj.MarshalTo(nil); n > 0 || err == nil {
+			t.Error("The err should not be nil")
+		}
 	}
 }
 
@@ -279,6 +309,9 @@ func TestRemovePeerCommand(t *testing.T) {
 		c.Unmarshal(data, &objCopy)
 		if !reflect.DeepEqual(obj, objCopy) {
 			t.Error()
+		}
+		if n, err := obj.MarshalTo(nil); n > 0 || err == nil {
+			t.Error("The err should not be nil")
 		}
 	}
 }
@@ -377,6 +410,9 @@ func TestQueryLeaderResponse(t *testing.T) {
 		if !reflect.DeepEqual(obj, objCopy) {
 			t.Error()
 		}
+		if n, err := obj.MarshalTo(nil); n > 0 || err == nil {
+			t.Error("The err should not be nil")
+		}
 	}
 }
 
@@ -401,6 +437,9 @@ func TestAddPeerRequest(t *testing.T) {
 		c.Unmarshal(data, &objCopy)
 		if !reflect.DeepEqual(obj, objCopy) {
 			t.Error()
+		}
+		if n, err := obj.MarshalTo(nil); n > 0 || err == nil {
+			t.Error("The err should not be nil")
 		}
 	}
 }
@@ -427,6 +466,9 @@ func TestAddPeerResponse(t *testing.T) {
 		if !reflect.DeepEqual(obj, objCopy) {
 			t.Error()
 		}
+		if n, err := obj.MarshalTo(nil); n > 0 || err == nil {
+			t.Error("The err should not be nil")
+		}
 	}
 }
 
@@ -452,6 +494,9 @@ func TestRemovePeerRequest(t *testing.T) {
 		if !reflect.DeepEqual(obj, objCopy) {
 			t.Error()
 		}
+		if n, err := obj.MarshalTo(nil); n > 0 || err == nil {
+			t.Error("The err should not be nil")
+		}
 	}
 }
 
@@ -476,6 +521,9 @@ func TestRemovePeerResponse(t *testing.T) {
 		c.Unmarshal(data, &objCopy)
 		if !reflect.DeepEqual(obj, objCopy) {
 			t.Error()
+		}
+		if n, err := obj.MarshalTo(nil); n > 0 || err == nil {
+			t.Error("The err should not be nil")
 		}
 	}
 }
