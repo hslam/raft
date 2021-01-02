@@ -69,7 +69,6 @@ type node struct {
 	raft          Raft
 	cluster       Cluster
 	rpcs          *rpcs
-	server        *server
 	log           *waLog
 	readIndex     *readIndex
 	stateMachine  *stateMachine
@@ -115,10 +114,9 @@ type node struct {
 	codec     Codec
 	raftCodec Codec
 
-	context      interface{}
-	commands     *commands
-	pipeline     *pipeline
-	pipelineChan chan bool
+	context  interface{}
+	commands *commands
+	pipeline *pipeline
 
 	commiting int32
 
@@ -140,7 +138,7 @@ func NewNode(host string, port int, dataDir string, context interface{}, join bo
 		host:            host,
 		port:            port,
 		address:         address,
-		rpcs:            newRPCs(),
+		storage:         newStorage(dataDir),
 		peers:           make(map[string]*peer),
 		printTicker:     time.NewTicker(defaultNodeTracePrintTick),
 		detectTicker:    time.NewTicker(defaultDetectTick),
@@ -156,8 +154,9 @@ func NewNode(host string, port int, dataDir string, context interface{}, join bo
 		context:         context,
 		commands:        &commands{types: make(map[int32]*sync.Pool)},
 		nextIndex:       1,
+		currentTerm:     atomic.NewUint64(0),
+		votedFor:        atomic.NewString(""),
 	}
-	n.storage = newStorage(dataDir)
 	n.votes = newVotes(n)
 	n.readIndex = newReadIndex(n)
 	n.stateMachine = newStateMachine(n)
@@ -166,15 +165,10 @@ func NewNode(host string, port int, dataDir string, context interface{}, join bo
 	n.election = newElection(n, defaultElectionTimeout)
 	n.raft = newRaft(n)
 	n.cluster = newCluster(n)
-	n.server = newServer(n, fmt.Sprintf(":%d", port))
-	//n.currentTerm = newPersistentUint64(n, defaultTerm, 0, 0)
-	n.currentTerm = atomic.NewUint64(0)
+	n.rpcs = newRPCs(n, fmt.Sprintf(":%d", port))
 	n.commitIndex = newPersistentUint64(n, defaultCommitIndex, 0, time.Second)
-	//n.votedFor = newPersistentString(n, defaultVoteFor)
-	n.votedFor = atomic.NewString("")
 	n.state = newFollowerState(n)
 	n.pipeline = newPipeline(n)
-	n.pipelineChan = make(chan bool, defaultMaxConcurrency)
 	n.registerCommand(&NoOperationCommand{})
 	n.registerCommand(&AddPeerCommand{})
 	n.registerCommand(&RemovePeerCommand{})
@@ -206,7 +200,7 @@ func (n *node) Start() {
 		n.recover()
 		n.currentTerm.Store(n.lastLogTerm + 1)
 		n.checkLog()
-		n.server.listenAndServe()
+		go n.rpcs.ListenAndServe()
 		go n.run()
 	})
 	n.election.Reset()
@@ -287,8 +281,7 @@ func (n *node) Stop() {
 		n.stoped = true
 		n.running = false
 		n.commitIndex.Stop()
-		n.rpcs.Close()
-		n.server.Stop()
+		n.rpcs.Stop()
 		n.stateMachine.Stop()
 		n.pipeline.Stop()
 		n.readIndex.Stop()
@@ -911,14 +904,15 @@ func (n *node) load() {
 func (n *node) recover() error {
 	logger.Tracef("node.recover %s start", n.address)
 	n.load()
-	recoverApplyTicker := time.NewTicker(time.Second)
-	recoverApplyStop := make(chan bool, 1)
+	ticker := time.NewTicker(time.Second)
+	done := make(chan bool, 1)
 	go func() {
 		for {
 			select {
-			case <-recoverApplyTicker.C:
+			case <-ticker.C:
 				n.print()
-			case <-recoverApplyStop:
+			case <-done:
+				ticker.Stop()
 				goto endfor
 			}
 		}
@@ -928,7 +922,7 @@ func (n *node) recover() error {
 	n.print()
 	n.log.applyCommited()
 	n.print()
-	recoverApplyStop <- true
+	close(done)
 	logger.Tracef("node.recover %s finish", n.address)
 	return nil
 }
@@ -943,15 +937,9 @@ func (n *node) checkLog() error {
 	if n.storage.IsEmpty(defaultLastTarIndex) {
 		n.stateMachine.snapshotReadWriter.lastTarIndex.save()
 	}
-	//if n.storage.IsEmpty(defaultTerm) {
-	//	n.currentTerm.save()
-	//}
 	if n.storage.IsEmpty(defaultConfig) {
 		n.stateMachine.configuration.save()
 	}
-	//if n.storage.IsEmpty(defaultVoteFor) {
-	//	n.votedFor.save()
-	//}
 	if n.storage.IsEmpty(defaultSnapshot) && n.stateMachine.snapshot != nil {
 		n.stateMachine.SaveSnapshot()
 	} else if n.stateMachine.snapshot == nil {
@@ -1014,10 +1002,7 @@ func (n *node) commit() bool {
 	if n.votingsCount() == 1 {
 		index := n.lastLogIndex
 		if index > n.commitIndex.ID() {
-			//n.storage.Sync(n.log.name)
-			//n.storage.Sync(n.log.indexs.name)
 			n.commitIndex.Set(index)
-			//n.pipeline.commitIndex <- index
 			go n.pipeline.apply()
 			return true
 		}
@@ -1039,10 +1024,7 @@ func (n *node) commit() bool {
 	index := lastLogIndexs[len(lastLogIndexs)/2]
 	if index > n.commitIndex.ID() {
 		//logger.Tracef("node.commit %s sort after %v %d", n.address, lastLogIndexs, index)
-		//n.storage.Sync(n.log.name)
-		//n.storage.Sync(n.log.indexs.name)
 		n.commitIndex.Set(index)
-		//n.pipeline.commitIndex <- index
 		go n.pipeline.apply()
 		return true
 	}

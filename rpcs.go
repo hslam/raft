@@ -21,15 +21,6 @@ const (
 	removePeerName      = "L"
 )
 
-func listenAndServe(address string, s *server) {
-	service := new(service)
-	service.node = s.node
-	s.server = rpc.NewServer()
-	s.server.RegisterName(serviceName, service)
-	rpc.SetLogLevel(rpc.OffLogLevel)
-	logger.Errorln(s.server.Listen(network, address, codec))
-}
-
 type rpcs struct {
 	*rpc.Transport
 	appendEntriesServiceName   string
@@ -38,9 +29,12 @@ type rpcs struct {
 	queryLeaderServiceName     string
 	addPeerServiceName         string
 	removePeerServiceName      string
+	node                       *node
+	server                     *rpc.Server
+	addr                       string
 }
 
-func newRPCs() *rpcs {
+func newRPCs(n *node, addr string) *rpcs {
 	r := &rpcs{
 		Transport: &rpc.Transport{
 			MaxConnsPerHost:     maxConnsPerHost,
@@ -53,8 +47,24 @@ func newRPCs() *rpcs {
 		queryLeaderServiceName:     serviceName + "." + queryLeaderName,
 		addPeerServiceName:         serviceName + "." + addPeerName,
 		removePeerServiceName:      serviceName + "." + removePeerName,
+		node:                       n,
+		addr:                       addr,
 	}
 	return r
+}
+
+func (r *rpcs) ListenAndServe() {
+	service := new(service)
+	service.node = r.node
+	r.server = rpc.NewServer()
+	r.server.RegisterName(serviceName, service)
+	rpc.SetLogLevel(rpc.OffLogLevel)
+	logger.Errorln(r.server.Listen(network, r.addr, codec))
+}
+
+func (r *rpcs) Stop() error {
+	r.Transport.Close()
+	return r.server.Close()
 }
 
 func (r *rpcs) AppendEntriesServiceName() string {
