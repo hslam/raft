@@ -4,9 +4,6 @@
 package raft
 
 import (
-	"github.com/hslam/rpc"
-	"runtime"
-	"sync"
 	"time"
 )
 
@@ -22,8 +19,6 @@ type Cluster interface {
 
 type cluster struct {
 	node               *node
-	callPool           *sync.Pool
-	donePool           *sync.Pool
 	queryLeaderTimeout time.Duration
 	addPeerTimeout     time.Duration
 	removePeerTimeout  time.Duration
@@ -32,8 +27,6 @@ type cluster struct {
 func newCluster(n *node) Cluster {
 	return &cluster{
 		node:               n,
-		callPool:           &sync.Pool{New: func() interface{} { return &rpc.Call{} }},
-		donePool:           &sync.Pool{New: func() interface{} { return make(chan *rpc.Call, 10) }},
 		queryLeaderTimeout: defaultQueryLeaderTimeout,
 		addPeerTimeout:     defaultAddPeerTimeout,
 		removePeerTimeout:  defaultRemovePeerTimeout,
@@ -42,109 +35,40 @@ func newCluster(n *node) Cluster {
 
 func (c *cluster) CallQueryLeader(addr string) (term uint64, leaderID string, ok bool) {
 	var req = &QueryLeaderRequest{}
-	done := c.donePool.Get().(chan *rpc.Call)
-	call := c.callPool.Get().(*rpc.Call)
-	call.ServiceMethod = c.node.rpcs.QueryLeaderServiceName()
-	call.Args = req
-	call.Reply = &QueryLeaderResponse{}
-	call.Done = done
-	c.node.rpcs.RoundTrip(addr, call)
-	timer := time.NewTimer(c.queryLeaderTimeout)
-	runtime.Gosched()
-	select {
-	case call := <-done:
-		timer.Stop()
-		for len(done) > 0 {
-			<-done
-		}
-		c.donePool.Put(done)
-		if call.Error != nil {
-			logger.Tracef("raft.CallQueryLeader %s -> %s error %s", c.node.address, addr, call.Error.Error())
-			*call = rpc.Call{}
-			c.callPool.Put(call)
-			return 0, "", false
-		}
-		res := call.Reply.(*QueryLeaderResponse)
-		*call = rpc.Call{}
-		c.callPool.Put(call)
-		logger.Tracef("raft.CallQueryLeader %s -> %s LeaderId %s", c.node.address, addr, res.LeaderId)
-		return res.Term, res.LeaderId, true
-	case <-timer.C:
-		logger.Tracef("raft.CallQueryLeader %s -> %s time out", c.node.address, addr)
+	var res = &QueryLeaderResponse{}
+	err := c.node.rpcs.CallTimeout(addr, c.node.rpcs.QueryLeaderServiceName(), req, res, c.queryLeaderTimeout)
+	if err != nil {
+		logger.Tracef("raft.CallQueryLeader %s -> %s error %s", c.node.address, addr, err.Error())
+		return 0, "", false
 	}
-	return 0, "", false
+	logger.Tracef("raft.CallQueryLeader %s -> %s LeaderId %s", c.node.address, addr, res.LeaderId)
+	return res.Term, res.LeaderId, true
 }
 
 func (c *cluster) CallAddPeer(addr string, info *NodeInfo) (success bool, ok bool) {
 	var req = &AddPeerRequest{}
 	req.Node = info
-	done := c.donePool.Get().(chan *rpc.Call)
-	call := c.callPool.Get().(*rpc.Call)
-	call.ServiceMethod = c.node.rpcs.AddPeerServiceName()
-	call.Args = req
-	call.Reply = &AddPeerResponse{}
-	call.Done = done
-	c.node.rpcs.RoundTrip(addr, call)
-	timer := time.NewTimer(c.addPeerTimeout)
-	runtime.Gosched()
-	select {
-	case call := <-done:
-		timer.Stop()
-		for len(done) > 0 {
-			<-done
-		}
-		c.donePool.Put(done)
-		if call.Error != nil {
-			logger.Tracef("raft.CallAddPeer %s -> %s error %s", c.node.address, addr, call.Error.Error())
-			*call = rpc.Call{}
-			c.callPool.Put(call)
-			return false, false
-		}
-		res := call.Reply.(*AddPeerResponse)
-		*call = rpc.Call{}
-		c.callPool.Put(call)
-		logger.Tracef("raft.CallAddPeer %s -> %s Success %t", c.node.address, addr, res.Success)
-		return res.Success, true
-	case <-timer.C:
-		logger.Tracef("raft.CallAddPeer %s -> %s time out", c.node.address, addr)
+	var res = &AddPeerResponse{}
+	err := c.node.rpcs.CallTimeout(addr, c.node.rpcs.AddPeerServiceName(), req, res, c.addPeerTimeout)
+	if err != nil {
+		logger.Tracef("raft.CallAddPeer %s -> %s error %s", c.node.address, addr, err.Error())
+		return false, false
 	}
-	return false, false
+	logger.Tracef("raft.CallAddPeer %s -> %s Success %t", c.node.address, addr, res.Success)
+	return res.Success, true
 }
 
 func (c *cluster) CallRemovePeer(addr string, Address string) (success bool, ok bool) {
 	var req = &RemovePeerRequest{}
 	req.Address = Address
-	done := c.donePool.Get().(chan *rpc.Call)
-	call := c.callPool.Get().(*rpc.Call)
-	call.ServiceMethod = c.node.rpcs.RemovePeerServiceName()
-	call.Args = req
-	call.Reply = &RemovePeerResponse{}
-	call.Done = done
-	c.node.rpcs.RoundTrip(addr, call)
-	timer := time.NewTimer(c.removePeerTimeout)
-	runtime.Gosched()
-	select {
-	case call := <-done:
-		timer.Stop()
-		for len(done) > 0 {
-			<-done
-		}
-		c.donePool.Put(done)
-		if call.Error != nil {
-			logger.Tracef("raft.CallRemovePeer %s -> %s error %s", c.node.address, addr, call.Error.Error())
-			*call = rpc.Call{}
-			c.callPool.Put(call)
-			return false, false
-		}
-		res := call.Reply.(*RemovePeerResponse)
-		*call = rpc.Call{}
-		c.callPool.Put(call)
-		logger.Tracef("raft.CallRemovePeer %s -> %s Success %t", c.node.address, addr, res.Success)
-		return res.Success, true
-	case <-timer.C:
-		logger.Tracef("raft.CallRemovePeer %s -> %s time out", c.node.address, addr)
+	var res = &RemovePeerResponse{}
+	err := c.node.rpcs.CallTimeout(addr, c.node.rpcs.RemovePeerServiceName(), req, res, c.removePeerTimeout)
+	if err != nil {
+		logger.Tracef("raft.CallRemovePeer %s -> %s error %s", c.node.address, addr, err.Error())
+		return false, false
 	}
-	return false, false
+	logger.Tracef("raft.CallRemovePeer %s -> %s Success %t", c.node.address, addr, res.Success)
+	return res.Success, true
 }
 
 func (c *cluster) QueryLeader(req *QueryLeaderRequest, res *QueryLeaderResponse) error {

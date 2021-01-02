@@ -4,9 +4,6 @@
 package raft
 
 import (
-	"github.com/hslam/rpc"
-	"runtime"
-	"sync"
 	"time"
 )
 
@@ -22,8 +19,6 @@ type Raft interface {
 
 type raft struct {
 	node                   *node
-	callPool               *sync.Pool
-	donePool               *sync.Pool
 	hearbeatTimeout        time.Duration
 	requestVoteTimeout     time.Duration
 	appendEntriesTimeout   time.Duration
@@ -33,8 +28,6 @@ type raft struct {
 func newRaft(n *node) Raft {
 	return &raft{
 		node:                   n,
-		callPool:               &sync.Pool{New: func() interface{} { return &rpc.Call{} }},
-		donePool:               &sync.Pool{New: func() interface{} { return make(chan *rpc.Call, 10) }},
 		hearbeatTimeout:        defaultHearbeatTimeout,
 		requestVoteTimeout:     defaultRequestVoteTimeout,
 		appendEntriesTimeout:   defaultAppendEntriesTimeout,
@@ -48,47 +41,23 @@ func (r *raft) CallRequestVote(addr string) (ok bool) {
 	req.CandidateId = r.node.address
 	req.LastLogIndex = r.node.lastLogIndex
 	req.LastLogTerm = r.node.lastLogTerm
-	done := r.donePool.Get().(chan *rpc.Call)
-	call := r.callPool.Get().(*rpc.Call)
-	call.ServiceMethod = r.node.rpcs.RequestVoteServiceName()
-	call.Args = req
-	call.Reply = &RequestVoteResponse{}
-	call.Done = done
-	r.node.rpcs.RoundTrip(addr, call)
-	timer := time.NewTimer(r.requestVoteTimeout)
-	runtime.Gosched()
-	select {
-	case call := <-done:
-		timer.Stop()
-		for len(done) > 0 {
-			<-done
-		}
-		r.donePool.Put(done)
-		if call.Error != nil {
-			logger.Tracef("raft.CallRequestVote %s recv %s vote error %s", r.node.address, addr, call.Error.Error())
-			*call = rpc.Call{}
-			r.callPool.Put(call)
-			return false
-		}
-		res := call.Reply.(*RequestVoteResponse)
-		*call = rpc.Call{}
-		r.callPool.Put(call)
-		if res.Term > r.node.currentTerm.Load() {
-			r.node.currentTerm.Store(res.Term)
-			r.node.stepDown()
-		}
-		//logger.Tracef("raft.CallRequestVote %s recv %s vote %t",r.node.address,addr,res.VoteGranted)
-		if res.VoteGranted {
-			r.node.votes.vote <- newVote(addr, req.Term, 1)
-		} else {
-			r.node.votes.vote <- newVote(addr, req.Term, 0)
-		}
-		return true
-	case <-timer.C:
-		logger.Tracef("raft.CallRequestVote %s recv %s vote time out", r.node.address, addr)
+	var res = &RequestVoteResponse{}
+	err := r.node.rpcs.CallTimeout(addr, r.node.rpcs.RequestVoteServiceName(), req, res, r.requestVoteTimeout)
+	if err != nil {
+		logger.Tracef("raft.CallRequestVote %s recv %s vote error %s", r.node.address, addr, err.Error())
+		return false
+	}
+	if res.Term > r.node.currentTerm.Load() {
+		r.node.currentTerm.Store(res.Term)
+		r.node.stepDown()
+	}
+	//logger.Tracef("raft.CallRequestVote %s recv %s vote %t",r.node.address,addr,res.VoteGranted)
+	if res.VoteGranted {
+		r.node.votes.vote <- newVote(addr, req.Term, 1)
+	} else {
 		r.node.votes.vote <- newVote(addr, req.Term, 0)
 	}
-	return false
+	return true
 }
 
 func (r *raft) CallAppendEntries(addr string, prevLogIndex, prevLogTerm uint64, entries []*Entry) (nextIndex uint64, term uint64, success bool, ok bool) {
@@ -103,44 +72,21 @@ func (r *raft) CallAppendEntries(addr string, prevLogIndex, prevLogTerm uint64, 
 	if len(entries) == 0 {
 		timeout = r.hearbeatTimeout
 	}
-	done := r.donePool.Get().(chan *rpc.Call)
-	call := r.callPool.Get().(*rpc.Call)
-	call.ServiceMethod = r.node.rpcs.AppendEntriesServiceName()
-	call.Args = req
-	call.Reply = &AppendEntriesResponse{}
-	call.Done = done
-	r.node.rpcs.RoundTrip(addr, call)
-	timer := time.NewTimer(timeout)
-	runtime.Gosched()
-	select {
-	case call := <-done:
-		timer.Stop()
-		for len(done) > 0 {
-			<-done
-		}
-		r.donePool.Put(done)
-		if call.Error != nil {
-			logger.Tracef("raft.CallAppendEntries %s -> %s error %s", r.node.address, addr, call.Error.Error())
-			*call = rpc.Call{}
-			r.callPool.Put(call)
-			return 0, 0, false, false
-		}
-		res := call.Reply.(*AppendEntriesResponse)
-		*call = rpc.Call{}
-		r.callPool.Put(call)
-		if res.Term > r.node.currentTerm.Load() {
-			r.node.currentTerm.Store(res.Term)
-			r.node.stepDown()
-			if len(entries) > 0 {
-				return res.NextIndex, res.Term, false, true
-			}
-		}
-		//logger.Tracef("raft.CallAppendEntries %s -> %s",r.node.address,addr)
-		return res.NextIndex, res.Term, res.Success, true
-	case <-timer.C:
-		logger.Tracef("raft.CallAppendEntries %s -> %s time out", r.node.address, addr)
+	var res = &AppendEntriesResponse{}
+	err := r.node.rpcs.CallTimeout(addr, r.node.rpcs.AppendEntriesServiceName(), req, res, timeout)
+	if err != nil {
+		logger.Tracef("raft.CallAppendEntries %s -> %s error %s", r.node.address, addr, err.Error())
+		return 0, 0, false, false
 	}
-	return 0, 0, false, false
+	if res.Term > r.node.currentTerm.Load() {
+		r.node.currentTerm.Store(res.Term)
+		r.node.stepDown()
+		if len(entries) > 0 {
+			return res.NextIndex, res.Term, false, true
+		}
+	}
+	//logger.Tracef("raft.CallAppendEntries %s -> %s",r.node.address,addr)
+	return res.NextIndex, res.Term, res.Success, true
 }
 
 func (r *raft) CallInstallSnapshot(addr string, LastIncludedIndex, LastIncludedTerm, Offset uint64, Data []byte, Done bool) (offset uint64, nextIndex uint64, ok bool) {
@@ -152,41 +98,18 @@ func (r *raft) CallInstallSnapshot(addr string, LastIncludedIndex, LastIncludedT
 	req.Offset = Offset
 	req.Data = Data
 	req.Done = Done
-	done := r.donePool.Get().(chan *rpc.Call)
-	call := r.callPool.Get().(*rpc.Call)
-	call.ServiceMethod = r.node.rpcs.InstallSnapshotServiceName()
-	call.Args = req
-	call.Reply = &InstallSnapshotResponse{}
-	call.Done = done
-	r.node.rpcs.RoundTrip(addr, call)
-	timer := time.NewTimer(r.installSnapshotTimeout)
-	runtime.Gosched()
-	select {
-	case call := <-done:
-		timer.Stop()
-		for len(done) > 0 {
-			<-done
-		}
-		r.donePool.Put(done)
-		if call.Error != nil {
-			logger.Tracef("raft.CallInstallSnapshot %s -> %s error %s", r.node.address, addr, call.Error.Error())
-			*call = rpc.Call{}
-			r.callPool.Put(call)
-			return 0, 0, false
-		}
-		res := call.Reply.(*InstallSnapshotResponse)
-		*call = rpc.Call{}
-		r.callPool.Put(call)
-		if res.Term > r.node.currentTerm.Load() {
-			r.node.currentTerm.Store(res.Term)
-			r.node.stepDown()
-		}
-		//logger.Tracef("raft.CallInstallSnapshot %s -> %s offset %d",r.node.address,addr,res.Offset)
-		return res.Offset, res.NextIndex, true
-	case <-timer.C:
-		logger.Tracef("raft.CallInstallSnapshot %s -> %s time out", r.node.address, addr)
+	var res = &InstallSnapshotResponse{}
+	err := r.node.rpcs.CallTimeout(addr, r.node.rpcs.InstallSnapshotServiceName(), req, res, r.installSnapshotTimeout)
+	if err != nil {
+		logger.Tracef("raft.CallInstallSnapshot %s -> %s error %s", r.node.address, addr, err.Error())
+		return 0, 0, false
 	}
-	return 0, 0, false
+	if res.Term > r.node.currentTerm.Load() {
+		r.node.currentTerm.Store(res.Term)
+		r.node.stepDown()
+	}
+	//logger.Tracef("raft.CallInstallSnapshot %s -> %s offset %d",r.node.address,addr,res.Offset)
+	return res.Offset, res.NextIndex, true
 }
 
 func (r *raft) RequestVote(req *RequestVoteRequest, res *RequestVoteResponse) error {
