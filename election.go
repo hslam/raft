@@ -57,5 +57,5 @@ func (e *election) Timeout() bool {
 var random = rand.New(rand.NewSource(time.Now().UnixNano()))
 
 func randomDurationTime(maxRange time.Duration) time.Duration {
-	return maxRange * time.Duration((random.Intn(500) + 500)) / time.Duration(1000)
+	return maxRange * time.Duration((random.Intn(900) + 100)) / time.Duration(1000)
 }

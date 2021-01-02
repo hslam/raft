@@ -31,6 +31,7 @@ type votes struct {
 	node      *node
 	vote      chan *vote
 	voteDic   map[string]int
+	voteTotal int
 	voteCount int
 }
 
@@ -51,6 +52,7 @@ func (vs *votes) AddVote(v *vote) {
 	}
 	vs.voteDic[v.Key()] = v.vote
 	if v.term == vs.node.currentTerm.Load() {
+		vs.voteTotal++
 		vs.voteCount += v.vote
 	}
 	vs.mu.Unlock()
@@ -60,6 +62,7 @@ func (vs *votes) Clear() {
 	vs.mu.Lock()
 	clearVote(vs.vote)
 	vs.voteDic = make(map[string]int)
+	vs.voteTotal = 0
 	vs.voteCount = 0
 	vs.mu.Unlock()
 
@@ -82,6 +85,13 @@ func (vs *votes) Count() int {
 	voteCount := vs.voteCount
 	vs.mu.Unlock()
 	return voteCount
+}
+
+func (vs *votes) Total() int {
+	vs.mu.Lock()
+	voteTotal := vs.voteTotal
+	vs.mu.Unlock()
+	return voteTotal
 }
 
 func clearVote(v chan *vote) {
