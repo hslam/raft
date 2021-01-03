@@ -11,7 +11,7 @@ message Entry {
 
 message RequestVoteRequest {
     uint64      Term         = 1;
-    string      CandidateId  = 2;
+    string      CandidateID  = 2;
     uint64      LastLogIndex = 3;
     uint64      LastLogTerm  = 4;
 }
@@ -23,7 +23,7 @@ message RequestVoteResponse {
 
 message AppendEntriesRequest {
     uint64          Term            = 1;
-    string          LeaderId        = 2;
+    string          LeaderID        = 2;
     uint64          PrevLogIndex    = 3;
     uint64          PrevLogTerm     = 4;
     uint64          LeaderCommit    = 5;
@@ -38,7 +38,7 @@ message AppendEntriesResponse {
 
 message InstallSnapshotRequest {
     uint64  Term                = 1;
-    string  LeaderId            = 2;
+    string  LeaderID            = 2;
     uint64  LastIncludedIndex   = 3;
     uint64  LastIncludedTerm    = 4;
     uint64  Offset              = 5;
@@ -81,7 +81,7 @@ message QueryLeaderRequest {
 
 message QueryLeaderResponse {
     uint64  Term        = 1;
-    string  LeaderId    = 2;
+    string  LeaderID    = 2;
 }
 
 message AddPeerRequest {
@@ -90,7 +90,7 @@ message AddPeerRequest {
 
 message AddPeerResponse {
     bool    Success     = 1;
-    string  LeaderId    = 2;
+    string  LeaderID    = 2;
 }
 
 message RemovePeerRequest {
@@ -99,5 +99,5 @@ message RemovePeerRequest {
 
 message RemovePeerResponse {
     bool    Success     = 1;
-    string  LeaderId    = 2;
+    string  LeaderID    = 2;
 }
