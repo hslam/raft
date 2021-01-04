@@ -100,7 +100,7 @@ func (ctx *Context) Recover(r io.Reader) (int, error) {
 // Command implements the raft.Command interface.
 type Command struct{ Data string }
 
-func (c *Command) Type() int32 { return 1 }
+func (c *Command) Type() uint64 { return 1 }
 func (c *Command) Do(context interface{}) (interface{}, error) {
 	context.(*Context).Set(c.Data)
 	return nil, nil
