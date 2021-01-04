@@ -3,15 +3,15 @@ Package raft implements the Raft distributed consensus protocol based on [hslam/
 
 ## Features
 
-* Leader Election
-* Log Replication
-* Membership Changes
-* Log Compaction (Snapshotting)
+* Leader election
+* Log replication
+* Membership changes
+* Log compaction (snapshotting)
 * [RPC](https://github.com/hslam/rpc "rpc") transport
 * [WAL](https://github.com/hslam/wal "wal")
 * ReadIndex/LeaseRead
-* Non-Voting Members (The leader only replicates log entries to them)
-* Snapshot Policies (Never/EverySecond/CustomSync/Always)
+* Non-voting members (The leader only replicates log entries to them)
+* Snapshot policies (Never/EverySecond/CustomSync/Always)
 
 ## Get started
 
@@ -127,12 +127,12 @@ func parse(peers string) (infos []*raft.NodeInfo) {
 go build -o node main.go
 ```
 
-**one node**
+**One node**
 ```sh
 ./node -h=localhost -p=9001 -path="raft.example/node.1" -join=false
 ```
 
-**three nodes**
+**Three nodes**
 ```sh
 ./node -h=localhost -p=9001 -path="raft.example/node.hw.1" -join=false \
 -peers="localhost:9001;localhost:9002;localhost:9003"
@@ -144,7 +144,7 @@ go build -o node main.go
 -peers="localhost:9001;localhost:9002;localhost:9003"
 ```
 
-**non-voting**
+**Non-voting**
 ```sh
 ./node -h=localhost -p=9001 -path="raft.example/node.nv.1" -join=false \
 -peers="localhost:9001;localhost:9002;localhost:9003;localhost:9004,true"
@@ -159,7 +159,7 @@ go build -o node main.go
 -peers="localhost:9001;localhost:9002;localhost:9003;localhost:9004,true"
 ```
 
-**membership changes**
+**Membership changes**
 ```sh
 ./node -h=localhost -p=9001 -path="raft.example/node.mc.1" -join=false
 
