@@ -58,8 +58,6 @@ type node struct {
 	done    chan struct{}
 	stoped  bool
 
-	host    string
-	port    int
 	address string
 	leader  string
 
@@ -133,11 +131,8 @@ func NewNode(host string, port int, dataDir string, context interface{}, join bo
 	if dataDir == "" {
 		dataDir = defaultDataDir
 	}
-	address := fmt.Sprintf("%s:%d", host, port)
 	n := &node{
-		host:            host,
-		port:            port,
-		address:         address,
+		address:         Address(host, port),
 		storage:         newStorage(dataDir),
 		peers:           make(map[string]*peer),
 		printTicker:     time.NewTicker(defaultNodeTracePrintTick),

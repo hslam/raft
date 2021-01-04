@@ -3,6 +3,15 @@
 
 package raft
 
+import (
+	"fmt"
+)
+
+// Address returns a raft node address with the given host and port.
+func Address(host string, port int) string {
+	return fmt.Sprintf("%s:%d", host, port)
+}
+
 func minUint64(a, b uint64) uint64 {
 	if a < b {
 		return a
