@@ -156,9 +156,6 @@ func (s *stateMachine) SaveSnapshot() error {
 
 func (s *stateMachine) saveSnapshot() error {
 	if s.snapshot != nil {
-		if !s.node.storage.Exists(defaultSnapshot) && s.snapshotReadWriter.work {
-			s.snapshotReadWriter.lastIncludedIndex.Set(0)
-		}
 		if s.lastApplied > s.snapshotReadWriter.lastIncludedIndex.ID() && s.snapshotReadWriter.work {
 			logger.Tracef("stateMachine.saveSnapshot %s Start", s.node.address)
 			s.snapshotReadWriter.work = false
@@ -225,8 +222,6 @@ func (s *stateMachine) recover() error {
 	}
 	err := s.RecoverSnapshot()
 	if err != nil {
-		s.snapshotReadWriter.lastIncludedIndex.Set(0)
-		s.snapshotReadWriter.lastIncludedTerm.Set(0)
 		return err
 	}
 	if s.lastApplied < s.snapshotReadWriter.lastIncludedIndex.ID() {
