@@ -152,7 +152,7 @@ func (l *waLog) applyCommited() {
 	if lastLogIndex == 0 {
 		return
 	}
-	var startIndex = maxUint64(l.node.stateMachine.lastApplied+1, 1)
+	var startIndex = maxUint64(l.node.stateMachine.lastApplied+1, l.node.firstLogIndex)
 	var endIndex = minUint64(l.node.commitIndex.ID(), l.node.lastLogIndex)
 	l.applyCommitedRange(startIndex, endIndex)
 }
@@ -166,7 +166,7 @@ func (l *waLog) applyCommitedEnd(endIndex uint64) {
 	if lastLogIndex == 0 {
 		return
 	}
-	var startIndex = maxUint64(l.node.stateMachine.lastApplied+1, 1)
+	var startIndex = maxUint64(l.node.stateMachine.lastApplied+1, l.node.firstLogIndex)
 	endIndex = minUint64(minUint64(l.node.commitIndex.ID(), l.node.lastLogIndex), endIndex)
 	l.applyCommitedRange(startIndex, endIndex)
 }
