@@ -9,7 +9,7 @@ import (
 type Entry struct {
 	Index       uint64
 	Term        uint64
-	CommandType int32
+	CommandType int64
 	Command     []byte
 }
 
@@ -104,7 +104,7 @@ func (d *Entry) Unmarshal(data []byte) error {
 			}
 			var CommandType uint64
 			n = code.DecodeVarint(data[offset:], &CommandType)
-			d.CommandType = int32(CommandType)
+			d.CommandType = int64(CommandType)
 			offset += n
 		case 4:
 			if wireType != 2 {

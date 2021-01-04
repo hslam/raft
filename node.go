@@ -152,7 +152,7 @@ func NewNode(host string, port int, dataDir string, context interface{}, join bo
 		codec:           new(GOGOPBCodec),
 		raftCodec:       new(GOGOPBCodec),
 		context:         context,
-		commands:        &commands{types: make(map[int32]*sync.Pool)},
+		commands:        &commands{types: make(map[int64]*sync.Pool)},
 		nextIndex:       1,
 		currentTerm:     atomic.NewUint64(0),
 		votedFor:        atomic.NewString(""),

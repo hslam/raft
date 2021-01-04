@@ -5,7 +5,7 @@ package raft;
 message Entry {
     uint64      Index       = 1;
     uint64      Term        = 2;
-    int32       CommandType = 3;
+    int64       CommandType = 3;
     bytes       Command     = 4;
 }
 

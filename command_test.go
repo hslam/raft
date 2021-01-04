@@ -9,7 +9,7 @@ import (
 )
 
 func TestCommand(t *testing.T) {
-	commands := &commands{types: make(map[int32]*sync.Pool)}
+	commands := &commands{types: make(map[int64]*sync.Pool)}
 	if err := commands.register(&testCommand{}); err != nil {
 		t.Error()
 	}

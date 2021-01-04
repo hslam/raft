@@ -11,14 +11,14 @@ import (
 // Command represents a command.
 type Command interface {
 	// Type returns the command type. The type must be >= 0.
-	Type() int32
+	Type() int64
 	// Do does the command.
 	Do(context interface{}) (interface{}, error)
 }
 
 type commands struct {
 	mu    sync.RWMutex
-	types map[int32]*sync.Pool
+	types map[int64]*sync.Pool
 }
 
 func (c *commands) register(cmd Command) error {
@@ -35,7 +35,7 @@ func (c *commands) register(cmd Command) error {
 	return nil
 }
 
-func (c *commands) clone(Type int32) Command {
+func (c *commands) clone(Type int64) Command {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	if commandPool, ok := c.types[Type]; ok {
@@ -68,7 +68,7 @@ func newAddPeerCommand(nodeInfo *NodeInfo) Command {
 }
 
 // Type implements the Command Type method.
-func (c *AddPeerCommand) Type() int32 {
+func (c *AddPeerCommand) Type() int64 {
 	return commandTypeAddPeer
 }
 
@@ -88,7 +88,7 @@ func newNoOperationCommand() Command {
 }
 
 // Type implements the Command Type method.
-func (c *NoOperationCommand) Type() int32 {
+func (c *NoOperationCommand) Type() int64 {
 	return commandTypeNoOperation
 }
 
@@ -103,7 +103,7 @@ func newReconfigurationCommand() Command {
 }
 
 // Type implements the Command Type method.
-func (c *ReconfigurationCommand) Type() int32 {
+func (c *ReconfigurationCommand) Type() int64 {
 	return commandTypeReconfiguration
 }
 
@@ -122,7 +122,7 @@ func newRemovePeerCommand(address string) Command {
 }
 
 // Type implements the Command Type method.
-func (c *RemovePeerCommand) Type() int32 {
+func (c *RemovePeerCommand) Type() int64 {
 	return commandTypeRemovePeer
 }
 
