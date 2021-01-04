@@ -44,7 +44,7 @@ func (c *configuration) AddPeer(peer *NodeInfo) {
 	c.mu.Unlock()
 	c.save()
 	if c.node.memberChange != nil {
-		c.node.memberChange()
+		go c.node.memberChange()
 	}
 }
 
@@ -56,7 +56,7 @@ func (c *configuration) RemovePeer(addr string) {
 	c.mu.Unlock()
 	c.save()
 	if c.node.memberChange != nil {
-		c.node.memberChange()
+		go c.node.memberChange()
 	}
 }
 
