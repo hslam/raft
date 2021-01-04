@@ -201,7 +201,7 @@ func (l *waLog) applyCommitedBatch(startIndex uint64, endIndex uint64) {
 		//logger.Tracef("log.applyCommitedRange %s Index %d Type %d",l.node.address,entries[i].Index,entries[i].CommandType)
 		command := l.node.commands.clone(entries[i].CommandType)
 		var err error
-		if entries[i].CommandType >= 0 {
+		if entries[i].CommandType > 0 {
 			err = l.node.codec.Unmarshal(entries[i].Command, command)
 		} else {
 			err = l.node.raftCodec.Unmarshal(entries[i].Command, command)

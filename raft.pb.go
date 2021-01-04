@@ -9,7 +9,7 @@ import (
 type Entry struct {
 	Index       uint64
 	Term        uint64
-	CommandType int64
+	CommandType uint64
 	Command     []byte
 }
 
@@ -104,7 +104,7 @@ func (d *Entry) Unmarshal(data []byte) error {
 			}
 			var CommandType uint64
 			n = code.DecodeVarint(data[offset:], &CommandType)
-			d.CommandType = int64(CommandType)
+			d.CommandType = uint64(CommandType)
 			offset += n
 		case 4:
 			if wireType != 2 {
@@ -1009,20 +1009,24 @@ func (d *ConfigurationStorage) Unmarshal(data []byte) error {
 	return nil
 }
 
-// AddPeerCommand represents a command of adding peer.
-type AddPeerCommand struct {
-	NodeInfo *NodeInfo
+// DefaultCommand represents a operation command.
+type DefaultCommand struct {
+	Operation uint64
+	NodeInfo  *NodeInfo
 }
 
 // Size returns the size of the buffer required to represent the data when encoded.
-func (d *AddPeerCommand) Size() int {
+func (d *DefaultCommand) Size() int {
 	var size uint64
-	size += 11 + uint64(d.NodeInfo.Size())
+	size += 11
+	if d.NodeInfo != nil {
+		size += 11 + uint64(d.NodeInfo.Size())
+	}
 	return int(size)
 }
 
 // Marshal returns the encoded bytes.
-func (d *AddPeerCommand) Marshal() ([]byte, error) {
+func (d *DefaultCommand) Marshal() ([]byte, error) {
 	size := d.Size()
 	buf := make([]byte, size)
 	n, err := d.MarshalTo(buf[:size])
@@ -1030,7 +1034,7 @@ func (d *AddPeerCommand) Marshal() ([]byte, error) {
 }
 
 // MarshalTo marshals into buf and returns the number of bytes.
-func (d *AddPeerCommand) MarshalTo(buf []byte) (int, error) {
+func (d *DefaultCommand) MarshalTo(buf []byte) (int, error) {
 	var size = uint64(d.Size())
 	if uint64(cap(buf)) >= size {
 		buf = buf[:size]
@@ -1039,8 +1043,14 @@ func (d *AddPeerCommand) MarshalTo(buf []byte) (int, error) {
 	}
 	var offset uint64
 	var n uint64
+	if d.Operation != 0 {
+		buf[offset] = 1<<3 | 0
+		offset++
+		n = code.EncodeVarint(buf[offset:], d.Operation)
+		offset += n
+	}
 	if d.NodeInfo != nil {
-		buf[offset] = byte(1<<3 | 2)
+		buf[offset] = byte(2<<3 | 2)
 		offset++
 		s, err := d.NodeInfo.MarshalTo(buf[offset+10:])
 		if err != nil {
@@ -1057,7 +1067,7 @@ func (d *AddPeerCommand) MarshalTo(buf []byte) (int, error) {
 }
 
 // Unmarshal unmarshals from data.
-func (d *AddPeerCommand) Unmarshal(data []byte) error {
+func (d *DefaultCommand) Unmarshal(data []byte) error {
 	var length = uint64(len(data))
 	var offset uint64
 	var n uint64
@@ -1075,6 +1085,12 @@ func (d *AddPeerCommand) Unmarshal(data []byte) error {
 		wireType = uint8(tag & 0x7)
 		switch fieldNumber {
 		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Operation", wireType)
+			}
+			n = code.DecodeVarint(data[offset:], &d.Operation)
+			offset += n
+		case 2:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field NodeInfo", wireType)
 			}
@@ -1087,128 +1103,6 @@ func (d *AddPeerCommand) Unmarshal(data []byte) error {
 			offset += n
 		}
 	}
-	return nil
-}
-
-// RemovePeerCommand represents a command of removing peer.
-type RemovePeerCommand struct {
-	Address string
-}
-
-// Size returns the size of the buffer required to represent the data when encoded.
-func (d *RemovePeerCommand) Size() int {
-	var size uint64
-	size += 11 + uint64(len(d.Address))
-	return int(size)
-}
-
-// Marshal returns the encoded bytes.
-func (d *RemovePeerCommand) Marshal() ([]byte, error) {
-	size := d.Size()
-	buf := make([]byte, size)
-	n, err := d.MarshalTo(buf[:size])
-	return buf[:n], err
-}
-
-// MarshalTo marshals into buf and returns the number of bytes.
-func (d *RemovePeerCommand) MarshalTo(buf []byte) (int, error) {
-	var size = uint64(d.Size())
-	if uint64(cap(buf)) >= size {
-		buf = buf[:size]
-	} else {
-		return 0, fmt.Errorf("proto: buf is too short")
-	}
-	var offset uint64
-	var n uint64
-	if len(d.Address) > 0 {
-		buf[offset] = 1<<3 | 2
-		offset++
-		n = code.EncodeString(buf[offset:], d.Address)
-		offset += n
-	}
-	return int(offset), nil
-}
-
-// Unmarshal unmarshals from data.
-func (d *RemovePeerCommand) Unmarshal(data []byte) error {
-	var length = uint64(len(data))
-	var offset uint64
-	var n uint64
-	var tag uint64
-	var fieldNumber int
-	var wireType uint8
-	for {
-		if offset < length {
-			tag = uint64(data[offset])
-			offset++
-		} else {
-			break
-		}
-		fieldNumber = int(tag >> 3)
-		wireType = uint8(tag & 0x7)
-		switch fieldNumber {
-		case 1:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Address", wireType)
-			}
-			n = code.DecodeString(data[offset:], &d.Address)
-			offset += n
-		}
-	}
-	return nil
-}
-
-// NoOperationCommand represents a command of no operation.
-type NoOperationCommand struct {
-}
-
-// Size returns the size of the buffer required to represent the data when encoded.
-func (d *NoOperationCommand) Size() int {
-	return 0
-}
-
-// Marshal returns the encoded bytes.
-func (d *NoOperationCommand) Marshal() ([]byte, error) {
-	size := d.Size()
-	buf := make([]byte, size)
-	n, err := d.MarshalTo(buf[:size])
-	return buf[:n], err
-}
-
-// MarshalTo marshals into buf and returns the number of bytes.
-func (d *NoOperationCommand) MarshalTo(buf []byte) (int, error) {
-	return 0, nil
-}
-
-// Unmarshal unmarshals from data.
-func (d *NoOperationCommand) Unmarshal(data []byte) error {
-	return nil
-}
-
-// ReconfigurationCommand represents a command of reconfiguration.
-type ReconfigurationCommand struct {
-}
-
-// Size returns the size of the buffer required to represent the data when encoded.
-func (d *ReconfigurationCommand) Size() int {
-	return 0
-}
-
-// Marshal returns the encoded bytes.
-func (d *ReconfigurationCommand) Marshal() ([]byte, error) {
-	size := d.Size()
-	buf := make([]byte, size)
-	n, err := d.MarshalTo(buf[:size])
-	return buf[:n], err
-}
-
-// MarshalTo marshals into buf and returns the number of bytes.
-func (d *ReconfigurationCommand) MarshalTo(buf []byte) (int, error) {
-	return 0, nil
-}
-
-// Unmarshal unmarshals from data.
-func (d *ReconfigurationCommand) Unmarshal(data []byte) error {
 	return nil
 }
 

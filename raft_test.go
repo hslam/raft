@@ -53,7 +53,7 @@ type testCommand struct {
 	Data string
 }
 
-func (c *testCommand) Type() int64 {
+func (c *testCommand) Type() uint64 {
 	return 1
 }
 

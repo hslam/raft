@@ -84,7 +84,7 @@ func (c *cluster) AddPeer(req *AddPeerRequest, res *AddPeerResponse) error {
 	if c.node.IsLeader() {
 		_, err := c.node.do(newAddPeerCommand(req.Node), defaultCommandTimeout)
 		if err == nil {
-			_, err = c.node.do(newReconfigurationCommand(), defaultCommandTimeout)
+			_, err = c.node.do(reconfigurationCommand, defaultCommandTimeout)
 			if err == nil {
 				res.Success = true
 				return nil
@@ -101,7 +101,7 @@ func (c *cluster) RemovePeer(req *RemovePeerRequest, res *RemovePeerResponse) er
 	if c.node.IsLeader() {
 		_, err := c.node.do(newRemovePeerCommand(req.Address), defaultCommandTimeout)
 		if err == nil {
-			_, err = c.node.do(newReconfigurationCommand(), defaultCommandTimeout)
+			_, err = c.node.do(reconfigurationCommand, defaultCommandTimeout)
 			if err == nil {
 				res.Success = true
 				return nil

@@ -8,17 +8,24 @@ import (
 	"sync"
 )
 
+const (
+	noOperation              = 0x1
+	addPeerOperation         = 0x2
+	removePeerOperation      = 0x3
+	reconfigurationOperation = 0x4
+)
+
 // Command represents a command.
 type Command interface {
 	// Type returns the command type. The type must be >= 0.
-	Type() int64
+	Type() uint64
 	// Do does the command.
 	Do(context interface{}) (interface{}, error)
 }
 
 type commands struct {
 	mu    sync.RWMutex
-	types map[int64]*sync.Pool
+	types map[uint64]*sync.Pool
 }
 
 func (c *commands) register(cmd Command) error {
@@ -35,7 +42,7 @@ func (c *commands) register(cmd Command) error {
 	return nil
 }
 
-func (c *commands) clone(Type int64) Command {
+func (c *commands) clone(Type uint64) Command {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	if commandPool, ok := c.types[Type]; ok {
@@ -60,23 +67,30 @@ func (c *commands) exists(cmd Command) bool {
 	return ok
 }
 
-// NewAddPeerCommand returns a new AddPeerCommand.
-func newAddPeerCommand(nodeInfo *NodeInfo) Command {
-	return &AddPeerCommand{
-		NodeInfo: nodeInfo,
-	}
-}
-
 // Type implements the Command Type method.
-func (c *AddPeerCommand) Type() int64 {
-	return commandTypeAddPeer
+func (c *DefaultCommand) Type() uint64 {
+	return 0
 }
 
 // Do implements the Command Do method.
-func (c *AddPeerCommand) Do(context interface{}) (interface{}, error) {
-	n := context.(*node)
-	n.stateMachine.configuration.AddPeer(c.NodeInfo)
-	n.stateMachine.configuration.load()
+func (c *DefaultCommand) Do(context interface{}) (interface{}, error) {
+	switch c.Operation {
+	case noOperation:
+		return true, nil
+	case addPeerOperation:
+		n := context.(*node)
+		n.stateMachine.configuration.AddPeer(c.NodeInfo)
+		n.stateMachine.configuration.load()
+		return nil, nil
+	case removePeerOperation:
+		n := context.(*node)
+		n.stateMachine.configuration.RemovePeer(c.NodeInfo.Address)
+		return nil, nil
+	case reconfigurationOperation:
+		n := context.(*node)
+		n.stateMachine.configuration.reconfiguration()
+		return nil, nil
+	}
 	return nil, nil
 }
 
@@ -84,51 +98,32 @@ var noOperationCommand = newNoOperationCommand()
 
 // NewNoOperationCommand returns a new NoOperationCommand.
 func newNoOperationCommand() Command {
-	return &NoOperationCommand{}
+	return &DefaultCommand{
+		Operation: noOperation,
+	}
 }
 
-// Type implements the Command Type method.
-func (c *NoOperationCommand) Type() int64 {
-	return commandTypeNoOperation
-}
-
-// Do implements the Command Do method.
-func (c *NoOperationCommand) Do(context interface{}) (interface{}, error) {
-	return true, nil
-}
+var reconfigurationCommand = newReconfigurationCommand()
 
 // NewReconfigurationCommand returns a new ReconfigurationCommand.
 func newReconfigurationCommand() Command {
-	return &ReconfigurationCommand{}
+	return &DefaultCommand{
+		Operation: reconfigurationOperation,
+	}
 }
 
-// Type implements the Command Type method.
-func (c *ReconfigurationCommand) Type() int64 {
-	return commandTypeReconfiguration
-}
-
-// Do implements the Command Do method.
-func (c *ReconfigurationCommand) Do(context interface{}) (interface{}, error) {
-	n := context.(*node)
-	n.stateMachine.configuration.reconfiguration()
-	return nil, nil
+// NewAddPeerCommand returns a new AddPeerCommand.
+func newAddPeerCommand(nodeInfo *NodeInfo) Command {
+	return &DefaultCommand{
+		Operation: addPeerOperation,
+		NodeInfo:  nodeInfo,
+	}
 }
 
 // NewRemovePeerCommand returns a new RemovePeerCommand.
 func newRemovePeerCommand(address string) Command {
-	return &RemovePeerCommand{
-		Address: address,
+	return &DefaultCommand{
+		Operation: removePeerOperation,
+		NodeInfo:  &NodeInfo{Address: address},
 	}
-}
-
-// Type implements the Command Type method.
-func (c *RemovePeerCommand) Type() int64 {
-	return commandTypeRemovePeer
-}
-
-// Do implements the Command Do method.
-func (c *RemovePeerCommand) Do(context interface{}) (interface{}, error) {
-	n := context.(*node)
-	n.stateMachine.configuration.RemovePeer(c.Address)
-	return nil, nil
 }

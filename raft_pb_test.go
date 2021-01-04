@@ -260,12 +260,12 @@ func TestConfigurationStorage(t *testing.T) {
 	}
 }
 
-func TestAddPeerCommand(t *testing.T) {
+func TestDefaultCommand(t *testing.T) {
 	{
-		var obj = AddPeerCommand{NodeInfo: &NodeInfo{Address: "localhost:9001", NonVoting: true, Data: make([]byte, 512)}}
+		var obj = DefaultCommand{Operation: 1024, NodeInfo: &NodeInfo{Address: "localhost:9001", NonVoting: true, Data: make([]byte, 512)}}
 		var c = GOGOPBCodec{}
 		var buf = make([]byte, 10240)
-		var objCopy AddPeerCommand
+		var objCopy DefaultCommand
 		data, _ := c.Marshal(buf, &obj)
 		c.Unmarshal(data, &objCopy)
 		if !reflect.DeepEqual(obj, objCopy) {
@@ -273,10 +273,10 @@ func TestAddPeerCommand(t *testing.T) {
 		}
 	}
 	{
-		var obj = AddPeerCommand{NodeInfo: &NodeInfo{Address: "localhost:9001", NonVoting: true, Data: make([]byte, 512)}}
+		var obj = DefaultCommand{Operation: 1024, NodeInfo: &NodeInfo{Address: "localhost:9001", NonVoting: true, Data: make([]byte, 512)}}
 		var c = GOGOPBCodec{}
 		var buf = make([]byte, 0)
-		var objCopy AddPeerCommand
+		var objCopy DefaultCommand
 		data, _ := c.Marshal(buf, &obj)
 		c.Unmarshal(data, &objCopy)
 		if !reflect.DeepEqual(obj, objCopy) {
@@ -284,82 +284,6 @@ func TestAddPeerCommand(t *testing.T) {
 		}
 		if n, err := obj.MarshalTo(nil); n > 0 || err == nil {
 			t.Error("The err should not be nil")
-		}
-	}
-}
-
-func TestRemovePeerCommand(t *testing.T) {
-	{
-		var obj = RemovePeerCommand{Address: "localhost:9001"}
-		var c = GOGOPBCodec{}
-		var buf = make([]byte, 10240)
-		var objCopy RemovePeerCommand
-		data, _ := c.Marshal(buf, &obj)
-		c.Unmarshal(data, &objCopy)
-		if !reflect.DeepEqual(obj, objCopy) {
-			t.Error()
-		}
-	}
-	{
-		var obj = RemovePeerCommand{Address: "localhost:9001"}
-		var c = GOGOPBCodec{}
-		var buf = make([]byte, 0)
-		var objCopy RemovePeerCommand
-		data, _ := c.Marshal(buf, &obj)
-		c.Unmarshal(data, &objCopy)
-		if !reflect.DeepEqual(obj, objCopy) {
-			t.Error()
-		}
-		if n, err := obj.MarshalTo(nil); n > 0 || err == nil {
-			t.Error("The err should not be nil")
-		}
-	}
-}
-
-func TestNoOperationCommand(t *testing.T) {
-	{
-		var obj = NoOperationCommand{}
-		var c = GOGOPBCodec{}
-		var buf = make([]byte, 10240)
-		var objCopy NoOperationCommand
-		data, _ := c.Marshal(buf, &obj)
-		c.Unmarshal(data, &objCopy)
-		if !reflect.DeepEqual(obj, objCopy) {
-			t.Error()
-		}
-	}
-	{
-		var obj = NoOperationCommand{}
-		var c = GOGOPBCodec{}
-		var objCopy NoOperationCommand
-		data, _ := obj.Marshal()
-		c.Unmarshal(data, &objCopy)
-		if !reflect.DeepEqual(obj, objCopy) {
-			t.Error()
-		}
-	}
-}
-
-func TestReconfigurationCommand(t *testing.T) {
-	{
-		var obj = ReconfigurationCommand{}
-		var c = GOGOPBCodec{}
-		var buf = make([]byte, 10240)
-		var objCopy ReconfigurationCommand
-		data, _ := c.Marshal(buf, &obj)
-		c.Unmarshal(data, &objCopy)
-		if !reflect.DeepEqual(obj, objCopy) {
-			t.Error()
-		}
-	}
-	{
-		var obj = ReconfigurationCommand{}
-		var c = GOGOPBCodec{}
-		var objCopy ReconfigurationCommand
-		data, _ := obj.Marshal()
-		c.Unmarshal(data, &objCopy)
-		if !reflect.DeepEqual(obj, objCopy) {
-			t.Error()
 		}
 	}
 }

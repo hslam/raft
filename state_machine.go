@@ -59,7 +59,7 @@ func (s *stateMachine) apply(index uint64, command Command) (reply interface{}, 
 	if index != s.lastApplied+1 {
 		return nil, nil, errOrder
 	}
-	if command.Type() >= 0 {
+	if command.Type() > 0 {
 		reply, err = command.Do(s.node.context)
 	} else {
 		reply, err = command.Do(s.node)

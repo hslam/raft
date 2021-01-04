@@ -152,7 +152,7 @@ func NewNode(host string, port int, dataDir string, context interface{}, join bo
 		codec:           new(GOGOPBCodec),
 		raftCodec:       new(GOGOPBCodec),
 		context:         context,
-		commands:        &commands{types: make(map[int64]*sync.Pool)},
+		commands:        &commands{types: make(map[uint64]*sync.Pool)},
 		nextIndex:       1,
 		currentTerm:     atomic.NewUint64(0),
 		votedFor:        atomic.NewString(""),
@@ -169,10 +169,7 @@ func NewNode(host string, port int, dataDir string, context interface{}, join bo
 	n.commitIndex = newPersistentUint64(n, defaultCommitIndex, 0, time.Second)
 	n.state = newFollowerState(n)
 	n.pipeline = newPipeline(n)
-	n.registerCommand(&NoOperationCommand{})
-	n.registerCommand(&AddPeerCommand{})
-	n.registerCommand(&RemovePeerCommand{})
-	n.registerCommand(&ReconfigurationCommand{})
+	n.registerCommand(&DefaultCommand{})
 	if join {
 		n.majorities = false
 		go func() {
@@ -465,8 +462,8 @@ func (n *node) SetSyncTypes(saves []*SyncType) {
 func (n *node) RegisterCommand(command Command) error {
 	if command == nil {
 		return ErrCommandNil
-	} else if command.Type() < 0 {
-		return ErrCommandTypeMinus
+	} else if command.Type() == 0 {
+		return ErrCommandType
 	}
 	n.mu.Lock()
 	err := n.commands.register(command)
@@ -482,8 +479,8 @@ func (n *node) registerCommand(command Command) error {
 }
 
 func (n *node) Do(command Command) (interface{}, error) {
-	if command.Type() < 0 {
-		return nil, ErrCommandTypeMinus
+	if command.Type() == 0 {
+		return nil, ErrCommandType
 	}
 	return n.do(command, defaultCommandTimeout)
 }

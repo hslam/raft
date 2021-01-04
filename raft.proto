@@ -5,7 +5,7 @@ package raft;
 message Entry {
     uint64      Index       = 1;
     uint64      Term        = 2;
-    int64       CommandType = 3;
+    uint64      CommandType = 3;
     bytes       Command     = 4;
 }
 
@@ -62,18 +62,9 @@ message ConfigurationStorage {
     repeated NodeInfo Nodes       = 1;
 }
 
-message AddPeerCommand {
-    NodeInfo    NodeInfo    = 1;
-}
-
-message RemovePeerCommand {
-    string      Address     = 1;
-}
-
-message NoOperationCommand {
-}
-
-message ReconfigurationCommand {
+message DefaultCommand {
+    uint64      Operation   = 1;
+    NodeInfo    NodeInfo    = 2;
 }
 
 message QueryLeaderRequest {

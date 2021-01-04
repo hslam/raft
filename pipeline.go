@@ -128,7 +128,7 @@ func (p *pipeline) write(i *invoker) {
 	//logger.Tracef("pipeline.write concurrency-%d", concurrency)
 	var data []byte
 	var codec Codec
-	if i.Command.Type() >= 0 {
+	if i.Command.Type() > 0 {
 		codec = p.node.codec
 	} else {
 		codec = p.node.raftCodec

@@ -28,8 +28,8 @@ var (
 	ErrCommandNotRegistered = errors.New("Command is not registered")
 	// ErrCommandTypeExisted is returned when the command type is existed.
 	ErrCommandTypeExisted = errors.New("CommandType is existed")
-	// ErrCommandTypeMinus is returned when the command type < 0.
-	ErrCommandTypeMinus = errors.New("CommandType must be >=0")
+	// ErrCommandType is returned when the command type = 0.
+	ErrCommandType = errors.New("CommandType must be > 0")
 
 	// ErrSnapshotCodecNil is returned when the snapshotCodec is nil.
 	ErrSnapshotCodecNil = errors.New("SnapshotCodec can not be nil")
