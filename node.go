@@ -16,28 +16,22 @@ import (
 // Node is a raft node.
 type Node interface {
 	Start()
-	Running() bool
 	Stop()
-	Stoped() bool
 	State() string
 	Leader() string
-	Ready() bool
-	Lease() bool
-	LeaseRead() bool
 	IsLeader() bool
 	Address() string
+	Ready() bool
 	SetCodec(codec Codec)
 	SetContext(context interface{})
-	Context() interface{}
 	SetGzipSnapshot(gzip bool)
 	SetSnapshotPolicy(snapshotPolicy SnapshotPolicy)
 	SetSnapshot(snapshot Snapshot)
-	ClearSyncType()
-	AppendSyncType(seconds, changes int)
 	SetSyncTypes(saves []*SyncType)
 	RegisterCommand(command Command) error
 	Do(command Command) (interface{}, error)
 	ReadIndex() bool
+	LeaseRead() bool
 	Peers() []string
 	Join(info *NodeInfo) (success bool)
 	Leave(Address string) (success bool)
@@ -56,7 +50,6 @@ type node struct {
 
 	running bool
 	done    chan struct{}
-	stoped  bool
 
 	address string
 	leader  string
@@ -199,6 +192,18 @@ func (n *node) Start() {
 	n.running = true
 }
 
+func (n *node) Stop() {
+	n.onceStop.Do(func() {
+		close(n.done)
+		n.running = false
+		n.commitIndex.Stop()
+		n.rpcs.Stop()
+		n.stateMachine.Stop()
+		n.pipeline.Stop()
+		n.readIndex.Stop()
+	})
+}
+
 func (n *node) run() {
 	for {
 		runtime.Gosched()
@@ -260,33 +265,6 @@ endfor:
 	n.checkLogTicker.Stop()
 }
 
-func (n *node) Running() bool {
-	n.mu.RLock()
-	running := n.running
-	n.mu.RUnlock()
-	return running
-}
-
-func (n *node) Stop() {
-	n.onceStop.Do(func() {
-		close(n.done)
-		n.stoped = true
-		n.running = false
-		n.commitIndex.Stop()
-		n.rpcs.Stop()
-		n.stateMachine.Stop()
-		n.pipeline.Stop()
-		n.readIndex.Stop()
-	})
-}
-
-func (n *node) Stoped() bool {
-	n.mu.RLock()
-	stoped := n.stoped
-	n.mu.RUnlock()
-	return stoped
-}
-
 func (n *node) voting() bool {
 	return !n.nonVoting && n.majorities
 }
@@ -314,39 +292,23 @@ func (n *node) changeState(i int) {
 	}
 }
 
-func (n *node) State() string {
+func (n *node) State() (state string) {
 	n.mu.RLock()
-	defer n.mu.RUnlock()
 	if n.state == nil {
-		return ""
+		n.mu.RUnlock()
+		return
 	}
-	return n.state.String()
-}
-
-func (n *node) Term() uint64 {
-	n.mu.RLock()
-	term := n.term()
+	state = n.state.String()
 	n.mu.RUnlock()
-	return term
-}
-
-func (n *node) term() uint64 {
-	if !n.running {
-		return 0
-	}
-	return n.currentTerm.Load()
+	return
 }
 
 func (n *node) LeaderChange(leaderChange func()) {
-	n.mu.RLock()
 	n.leaderChange = leaderChange
-	n.mu.RUnlock()
 }
 
 func (n *node) MemberChange(memberChange func()) {
-	n.mu.RLock()
 	n.memberChange = memberChange
-	n.mu.RUnlock()
 }
 
 func (n *node) Leader() string {
@@ -356,35 +318,19 @@ func (n *node) Leader() string {
 	return leader
 }
 
+func (n *node) Address() string {
+	return n.address
+}
+
 func (n *node) Ready() bool {
 	n.mu.RLock()
-	ready := n.ready
+	ready := n.isReady()
 	n.mu.RUnlock()
 	return ready
 }
 
-func (n *node) Lease() bool {
-	n.mu.RLock()
-	lease := n.lease
-	n.mu.RUnlock()
-	return lease
-}
-
-func (n *node) LeaseRead() (ok bool) {
-	commitIndex := n.commitIndex.ID()
-	if atomic.LoadUint64(&n.stateMachine.lastApplied) < commitIndex {
-		timer := time.NewTimer(defaultCommandTimeout)
-		var done = make(chan struct{}, 1)
-		go n.waitApply(commitIndex, done)
-		select {
-		case <-done:
-			timer.Stop()
-		case <-timer.C:
-			ok = false
-			return
-		}
-	}
-	return n.Lease()
+func (n *node) isReady() bool {
+	return n.ready && n.isLeader()
 }
 
 func (n *node) IsLeader() bool {
@@ -404,30 +350,12 @@ func (n *node) isLeader() bool {
 	return false
 }
 
-func (n *node) Address() string {
-	n.mu.RLock()
-	address := n.address
-	n.mu.RUnlock()
-	return address
-}
-
 func (n *node) SetCodec(codec Codec) {
-	n.mu.RLock()
 	n.codec = codec
-	n.mu.RUnlock()
 }
 
 func (n *node) SetContext(context interface{}) {
-	n.mu.Lock()
 	n.context = context
-	n.mu.Unlock()
-}
-
-func (n *node) Context() interface{} {
-	n.mu.RLock()
-	context := n.context
-	n.mu.RUnlock()
-	return context
 }
 
 func (n *node) SetGzipSnapshot(gzip bool) {
@@ -440,14 +368,6 @@ func (n *node) SetSnapshotPolicy(snapshotPolicy SnapshotPolicy) {
 
 func (n *node) SetSnapshot(snapshot Snapshot) {
 	n.stateMachine.SetSnapshot(snapshot)
-}
-
-func (n *node) ClearSyncType() {
-	n.stateMachine.ClearSyncType()
-}
-
-func (n *node) AppendSyncType(seconds, changes int) {
-	n.stateMachine.AppendSyncType(seconds, changes)
 }
 
 func (n *node) SetSyncTypes(saves []*SyncType) {
@@ -528,16 +448,33 @@ func (n *node) put(command Command) *invoker {
 }
 
 func (n *node) ReadIndex() bool {
-	if !n.running {
-		return false
-	}
-	if !n.isLeader() {
-		return false
-	}
 	if !n.Ready() {
 		return false
 	}
-	return n.readIndex.Read()
+	return n.readIndex.Read() && n.Ready()
+}
+
+func (n *node) LeaseRead() (ok bool) {
+	if !n.Ready() {
+		return false
+	}
+	commitIndex := n.commitIndex.ID()
+	if atomic.LoadUint64(&n.stateMachine.lastApplied) < commitIndex {
+		timer := time.NewTimer(defaultCommandTimeout)
+		var done = make(chan struct{}, 1)
+		go n.waitApply(commitIndex, done)
+		select {
+		case <-done:
+			timer.Stop()
+		case <-timer.C:
+			ok = false
+			return
+		}
+	}
+	n.mu.RLock()
+	lease := n.lease && n.isReady()
+	n.mu.RUnlock()
+	return lease
 }
 
 func (n *node) waitApply(commitIndex uint64, done chan struct{}) {
@@ -579,7 +516,7 @@ func (n *node) membership() []string {
 func (n *node) Join(info *NodeInfo) (success bool) {
 	leader := n.Leader()
 	for leader != "" {
-		success, leaderID, ok := n.cluster.CallAddPeer(leader, info)
+		success, leaderID, ok := n.cluster.CallSetPeer(leader, info)
 		if success && ok {
 			return true
 		}
@@ -591,7 +528,7 @@ func (n *node) Join(info *NodeInfo) (success bool) {
 		if leaderID != "" && ok {
 			leader = leaderID
 			for leader != "" {
-				success, leaderID, ok := n.cluster.CallAddPeer(leader, info)
+				success, leaderID, ok := n.cluster.CallSetPeer(leader, info)
 				if success && ok {
 					return true
 				}

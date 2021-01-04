@@ -17,7 +17,7 @@ const (
 	appendEntriesName   = "A"
 	installSnapshotName = "I"
 	queryLeaderName     = "Q"
-	addPeerName         = "J"
+	setPeerName         = "J"
 	removePeerName      = "L"
 )
 
@@ -27,7 +27,7 @@ type rpcs struct {
 	requestVoteServiceName     string
 	installSnapshotServiceName string
 	queryLeaderServiceName     string
-	addPeerServiceName         string
+	setPeerServiceName         string
 	removePeerServiceName      string
 	node                       *node
 	server                     *rpc.Server
@@ -45,7 +45,7 @@ func newRPCs(n *node, addr string) *rpcs {
 		requestVoteServiceName:     serviceName + "." + requestVoteName,
 		installSnapshotServiceName: serviceName + "." + installSnapshotName,
 		queryLeaderServiceName:     serviceName + "." + queryLeaderName,
-		addPeerServiceName:         serviceName + "." + addPeerName,
+		setPeerServiceName:         serviceName + "." + setPeerName,
 		removePeerServiceName:      serviceName + "." + removePeerName,
 		node:                       n,
 		addr:                       addr,
@@ -83,8 +83,8 @@ func (r *rpcs) QueryLeaderServiceName() string {
 	return r.queryLeaderServiceName
 }
 
-func (r *rpcs) AddPeerServiceName() string {
-	return r.addPeerServiceName
+func (r *rpcs) SetPeerServiceName() string {
+	return r.setPeerServiceName
 }
 
 func (r *rpcs) RemovePeerServiceName() string {

@@ -10,7 +10,7 @@ import (
 
 const (
 	noOperation              = 0x1
-	addPeerOperation         = 0x2
+	setPeerOperation         = 0x2
 	removePeerOperation      = 0x3
 	reconfigurationOperation = 0x4
 )
@@ -77,7 +77,7 @@ func (c *DefaultCommand) Do(context interface{}) (interface{}, error) {
 	switch c.Operation {
 	case noOperation:
 		return true, nil
-	case addPeerOperation:
+	case setPeerOperation:
 		n := context.(*node)
 		n.stateMachine.configuration.AddPeer(c.NodeInfo)
 		n.stateMachine.configuration.load()
@@ -112,10 +112,10 @@ func newReconfigurationCommand() Command {
 	}
 }
 
-// NewAddPeerCommand returns a new AddPeerCommand.
-func newAddPeerCommand(nodeInfo *NodeInfo) Command {
+// newSetPeerCommand returns a new SetPeerCommand.
+func newSetPeerCommand(nodeInfo *NodeInfo) Command {
 	return &DefaultCommand{
-		Operation: addPeerOperation,
+		Operation: setPeerOperation,
 		NodeInfo:  nodeInfo,
 	}
 }

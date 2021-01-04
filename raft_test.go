@@ -208,8 +208,9 @@ func TestClusterMore(t *testing.T) {
 			node.SetSnapshotPolicy(EveryDay)
 			node.SetSnapshotPolicy(DefalutSync)
 			node.SetSnapshotPolicy(Never)
-			node.ClearSyncType()
-			node.AppendSyncType(1, 1)
+			node.SetSyncTypes([]*SyncType{
+				{Seconds: 1, Changes: 1},
+			})
 			node.SetGzipSnapshot(true)
 			node.MemberChange(func() {
 			})
@@ -245,9 +246,6 @@ func TestClusterMore(t *testing.T) {
 				node.log.applyCommitedEnd(node.commitIndex.ID())
 			}
 			node.Stop()
-			if !node.Stoped() {
-				t.Error()
-			}
 			if index >= 3 {
 				node.deleteNotPeers(nil)
 			}
@@ -295,8 +293,9 @@ func TestClusterState(t *testing.T) {
 			node.SetCodec(&JSONCodec{})
 			node.SetContext(ctx)
 			node.SetSnapshot(&testSnapshot{ctx: ctx})
-			node.ClearSyncType()
-			node.AppendSyncType(1, 1)
+			node.SetSyncTypes([]*SyncType{
+				{Seconds: 1, Changes: 1},
+			})
 			node.SetGzipSnapshot(true)
 			node.MemberChange(func() {
 			})
@@ -305,19 +304,10 @@ func TestClusterState(t *testing.T) {
 			node.Start()
 			time.Sleep(time.Second * 3)
 			if index < 3 && node.IsLeader() {
-				if !node.Running() {
-					t.Error()
-				}
 				if !node.Ready() {
 					t.Error()
 				}
-				if node.Term() == 0 {
-					t.Error()
-				}
 				if len(node.Address()) == 0 {
-					t.Error()
-				}
-				if _, ok := node.Context().(*testContext); !ok {
 					t.Error()
 				}
 				node.stepDown()

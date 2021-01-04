@@ -122,18 +122,6 @@ func (s *stateMachine) setSnapshotPolicy(snapshotPolicy SnapshotPolicy) {
 	}
 }
 
-func (s *stateMachine) ClearSyncType() {
-	s.mu.Lock()
-	s.saves = []*SyncType{}
-	s.mu.Unlock()
-}
-
-func (s *stateMachine) AppendSyncType(seconds, changes int) {
-	s.mu.Lock()
-	s.saves = append(s.saves, &SyncType{seconds, changes})
-	s.mu.Unlock()
-}
-
 func (s *stateMachine) SetSyncTypes(saves []*SyncType) {
 	s.mu.Lock()
 	s.saves = saves

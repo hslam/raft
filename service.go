@@ -20,8 +20,8 @@ func (s *service) InstallSnapshot(req *InstallSnapshotRequest, res *InstallSnaps
 func (s *service) QueryLeader(req *QueryLeaderRequest, res *QueryLeaderResponse) error {
 	return s.node.cluster.QueryLeader(req, res)
 }
-func (s *service) AddPeer(req *AddPeerRequest, res *AddPeerResponse) error {
-	return s.node.cluster.AddPeer(req, res)
+func (s *service) SetPeer(req *SetPeerRequest, res *SetPeerResponse) error {
+	return s.node.cluster.SetPeer(req, res)
 }
 func (s *service) RemovePeer(req *RemovePeerRequest, res *RemovePeerResponse) error {
 	return s.node.cluster.RemovePeer(req, res)
@@ -40,8 +40,8 @@ func (s *service) I(req *InstallSnapshotRequest, res *InstallSnapshotResponse) e
 func (s *service) Q(req *QueryLeaderRequest, res *QueryLeaderResponse) error {
 	return s.QueryLeader(req, res)
 }
-func (s *service) J(req *AddPeerRequest, res *AddPeerResponse) error {
-	return s.AddPeer(req, res)
+func (s *service) J(req *SetPeerRequest, res *SetPeerResponse) error {
+	return s.SetPeer(req, res)
 }
 func (s *service) L(req *RemovePeerRequest, res *RemovePeerResponse) error {
 	return s.RemovePeer(req, res)

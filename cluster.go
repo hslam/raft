@@ -10,10 +10,10 @@ import (
 // Cluster represents the cluster service.
 type Cluster interface {
 	CallQueryLeader(addr string) (term uint64, LeaderID string, ok bool)
-	CallAddPeer(addr string, info *NodeInfo) (success bool, LeaderID string, ok bool)
+	CallSetPeer(addr string, info *NodeInfo) (success bool, LeaderID string, ok bool)
 	CallRemovePeer(addr string, Address string) (success bool, LeaderID string, ok bool)
 	QueryLeader(req *QueryLeaderRequest, res *QueryLeaderResponse) error
-	AddPeer(req *AddPeerRequest, res *AddPeerResponse) error
+	SetPeer(req *SetPeerRequest, res *SetPeerResponse) error
 	RemovePeer(req *RemovePeerRequest, res *RemovePeerResponse) error
 }
 
@@ -45,16 +45,16 @@ func (c *cluster) CallQueryLeader(addr string) (term uint64, LeaderID string, ok
 	return res.Term, res.LeaderID, true
 }
 
-func (c *cluster) CallAddPeer(addr string, info *NodeInfo) (success bool, LeaderID string, ok bool) {
-	var req = &AddPeerRequest{}
+func (c *cluster) CallSetPeer(addr string, info *NodeInfo) (success bool, LeaderID string, ok bool) {
+	var req = &SetPeerRequest{}
 	req.Node = info
-	var res = &AddPeerResponse{}
-	err := c.node.rpcs.CallTimeout(addr, c.node.rpcs.AddPeerServiceName(), req, res, c.addPeerTimeout)
+	var res = &SetPeerResponse{}
+	err := c.node.rpcs.CallTimeout(addr, c.node.rpcs.SetPeerServiceName(), req, res, c.addPeerTimeout)
 	if err != nil {
-		logger.Tracef("raft.CallAddPeer %s -> %s error %s", c.node.address, addr, err.Error())
+		logger.Tracef("raft.CallSetPeer %s -> %s error %s", c.node.address, addr, err.Error())
 		return false, res.LeaderID, false
 	}
-	logger.Tracef("raft.CallAddPeer %s -> %s Success %t", c.node.address, addr, res.Success)
+	logger.Tracef("raft.CallSetPeer %s -> %s Success %t", c.node.address, addr, res.Success)
 	return res.Success, res.LeaderID, true
 }
 
@@ -74,15 +74,15 @@ func (c *cluster) CallRemovePeer(addr string, Address string) (success bool, Lea
 func (c *cluster) QueryLeader(req *QueryLeaderRequest, res *QueryLeaderResponse) error {
 	if c.node.leader != "" {
 		res.LeaderID = c.node.leader
-		res.Term = c.node.term()
+		res.Term = c.node.currentTerm.Load()
 		return nil
 	}
 	return ErrNotLeader
 }
 
-func (c *cluster) AddPeer(req *AddPeerRequest, res *AddPeerResponse) error {
+func (c *cluster) SetPeer(req *SetPeerRequest, res *SetPeerResponse) error {
 	if c.node.IsLeader() {
-		_, err := c.node.do(newAddPeerCommand(req.Node), defaultCommandTimeout)
+		_, err := c.node.do(newSetPeerCommand(req.Node), defaultCommandTimeout)
 		if err == nil {
 			_, err = c.node.do(reconfigurationCommand, defaultCommandTimeout)
 			if err == nil {

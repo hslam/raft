@@ -1215,20 +1215,20 @@ func (d *QueryLeaderResponse) Unmarshal(data []byte) error {
 	return nil
 }
 
-// AddPeerRequest represents a rpc request of adding peer.
-type AddPeerRequest struct {
+// SetPeerRequest represents a rpc request of adding peer.
+type SetPeerRequest struct {
 	Node *NodeInfo
 }
 
 // Size returns the size of the buffer required to represent the data when encoded.
-func (d *AddPeerRequest) Size() int {
+func (d *SetPeerRequest) Size() int {
 	var size uint64
 	size += 11 + uint64(d.Node.Size())
 	return int(size)
 }
 
 // Marshal returns the encoded bytes.
-func (d *AddPeerRequest) Marshal() ([]byte, error) {
+func (d *SetPeerRequest) Marshal() ([]byte, error) {
 	size := d.Size()
 	buf := make([]byte, size)
 	n, err := d.MarshalTo(buf[:size])
@@ -1236,7 +1236,7 @@ func (d *AddPeerRequest) Marshal() ([]byte, error) {
 }
 
 // MarshalTo marshals into buf and returns the number of bytes.
-func (d *AddPeerRequest) MarshalTo(buf []byte) (int, error) {
+func (d *SetPeerRequest) MarshalTo(buf []byte) (int, error) {
 	var size = uint64(d.Size())
 	if uint64(cap(buf)) >= size {
 		buf = buf[:size]
@@ -1263,7 +1263,7 @@ func (d *AddPeerRequest) MarshalTo(buf []byte) (int, error) {
 }
 
 // Unmarshal unmarshals from data.
-func (d *AddPeerRequest) Unmarshal(data []byte) error {
+func (d *SetPeerRequest) Unmarshal(data []byte) error {
 	var length = uint64(len(data))
 	var offset uint64
 	var n uint64
@@ -1296,14 +1296,14 @@ func (d *AddPeerRequest) Unmarshal(data []byte) error {
 	return nil
 }
 
-// AddPeerResponse represents a rpc response of adding peer.
-type AddPeerResponse struct {
+// SetPeerResponse represents a rpc response of adding peer.
+type SetPeerResponse struct {
 	Success  bool
 	LeaderID string
 }
 
 // Size returns the size of the buffer required to represent the data when encoded.
-func (d *AddPeerResponse) Size() int {
+func (d *SetPeerResponse) Size() int {
 	var size uint64
 	size += 11
 	size += 11 + uint64(len(d.LeaderID))
@@ -1311,7 +1311,7 @@ func (d *AddPeerResponse) Size() int {
 }
 
 // Marshal returns the encoded bytes.
-func (d *AddPeerResponse) Marshal() ([]byte, error) {
+func (d *SetPeerResponse) Marshal() ([]byte, error) {
 	size := d.Size()
 	buf := make([]byte, size)
 	n, err := d.MarshalTo(buf[:size])
@@ -1319,7 +1319,7 @@ func (d *AddPeerResponse) Marshal() ([]byte, error) {
 }
 
 // MarshalTo marshals into buf and returns the number of bytes.
-func (d *AddPeerResponse) MarshalTo(buf []byte) (int, error) {
+func (d *SetPeerResponse) MarshalTo(buf []byte) (int, error) {
 	var size = uint64(d.Size())
 	if uint64(cap(buf)) >= size {
 		buf = buf[:size]
@@ -1344,7 +1344,7 @@ func (d *AddPeerResponse) MarshalTo(buf []byte) (int, error) {
 }
 
 // Unmarshal unmarshals from data.
-func (d *AddPeerResponse) Unmarshal(data []byte) error {
+func (d *SetPeerResponse) Unmarshal(data []byte) error {
 	var length = uint64(len(data))
 	var offset uint64
 	var n uint64

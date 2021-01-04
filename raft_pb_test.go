@@ -340,12 +340,12 @@ func TestQueryLeaderResponse(t *testing.T) {
 	}
 }
 
-func TestAddPeerRequest(t *testing.T) {
+func TestSetPeerRequest(t *testing.T) {
 	{
-		var obj = AddPeerRequest{Node: &NodeInfo{Address: "localhost:9001", NonVoting: true, Data: make([]byte, 512)}}
+		var obj = SetPeerRequest{Node: &NodeInfo{Address: "localhost:9001", NonVoting: true, Data: make([]byte, 512)}}
 		var c = GOGOPBCodec{}
 		var buf = make([]byte, 10240)
-		var objCopy AddPeerRequest
+		var objCopy SetPeerRequest
 		data, _ := c.Marshal(buf, &obj)
 		c.Unmarshal(data, &objCopy)
 		if !reflect.DeepEqual(obj, objCopy) {
@@ -353,10 +353,10 @@ func TestAddPeerRequest(t *testing.T) {
 		}
 	}
 	{
-		var obj = AddPeerRequest{Node: &NodeInfo{Address: "localhost:9001", NonVoting: true, Data: make([]byte, 512)}}
+		var obj = SetPeerRequest{Node: &NodeInfo{Address: "localhost:9001", NonVoting: true, Data: make([]byte, 512)}}
 		var c = GOGOPBCodec{}
 		var buf = make([]byte, 0)
-		var objCopy AddPeerRequest
+		var objCopy SetPeerRequest
 		data, _ := c.Marshal(buf, &obj)
 		c.Unmarshal(data, &objCopy)
 		if !reflect.DeepEqual(obj, objCopy) {
@@ -368,12 +368,12 @@ func TestAddPeerRequest(t *testing.T) {
 	}
 }
 
-func TestAddPeerResponse(t *testing.T) {
+func TestSetPeerResponse(t *testing.T) {
 	{
-		var obj = AddPeerResponse{Success: true}
+		var obj = SetPeerResponse{Success: true}
 		var c = GOGOPBCodec{}
 		var buf = make([]byte, 10240)
-		var objCopy AddPeerResponse
+		var objCopy SetPeerResponse
 		data, _ := c.Marshal(buf, &obj)
 		c.Unmarshal(data, &objCopy)
 		if !reflect.DeepEqual(obj, objCopy) {
@@ -381,10 +381,10 @@ func TestAddPeerResponse(t *testing.T) {
 		}
 	}
 	{
-		var obj = AddPeerResponse{Success: true}
+		var obj = SetPeerResponse{Success: true}
 		var c = GOGOPBCodec{}
 		var buf = make([]byte, 0)
-		var objCopy AddPeerResponse
+		var objCopy SetPeerResponse
 		data, _ := c.Marshal(buf, &obj)
 		c.Unmarshal(data, &objCopy)
 		if !reflect.DeepEqual(obj, objCopy) {

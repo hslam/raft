@@ -75,11 +75,11 @@ message QueryLeaderResponse {
     string  LeaderID    = 2;
 }
 
-message AddPeerRequest {
+message SetPeerRequest {
     NodeInfo    Node        = 1;
 }
 
-message AddPeerResponse {
+message SetPeerResponse {
     bool    Success     = 1;
     string  LeaderID    = 2;
 }
