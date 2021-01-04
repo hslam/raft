@@ -17,10 +17,10 @@ const (
 
 // Command represents a command.
 type Command interface {
-	// Type returns the command type. The type must be >= 0.
+	// Type returns the command type. The type must be > 0.
 	Type() uint64
-	// Do does the command.
-	Do(context interface{}) (interface{}, error)
+	// Do executes the command with the context.
+	Do(context interface{}) (reply interface{}, err error)
 }
 
 type commands struct {
