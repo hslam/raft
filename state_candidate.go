@@ -21,7 +21,7 @@ func (s *candidateState) Start() {
 	s.node.election.Reset()
 	s.node.currentTerm.Add(1)
 	s.node.votedFor.Store(s.node.address)
-	s.node.leader = ""
+	s.node.leader.Store("")
 	s.node.requestVotes()
 	logger.Tracef("%s candidateState.Start Term :%d", s.node.address, s.node.currentTerm.Load())
 }

@@ -25,7 +25,7 @@ func newFollowerState(n *node) state {
 }
 
 func (s *followerState) Start() {
-	s.node.leader = ""
+	s.node.leader.Store("")
 	s.node.election.Random(true)
 	s.node.election.Reset()
 	logger.Tracef("%s followerState.Start Term :%d", s.node.address, s.node.currentTerm.Load())
@@ -60,7 +60,7 @@ func (s *followerState) Update() bool {
 
 func (s *followerState) FixedUpdate() {
 	if s.node.election.Timeout() {
-		s.node.leader = ""
+		s.node.leader.Store("")
 		s.node.votedFor.Store("")
 		logger.Tracef("%s followerState.FixedUpdate ElectionTimeout", s.node.address)
 		s.node.nextState()

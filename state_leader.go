@@ -37,7 +37,7 @@ func (s *leaderState) Start() {
 		}
 	}
 	s.node.pipeline.init(s.node.lastLogIndex)
-	s.node.leader = s.node.address
+	s.node.leader.Store(s.node.address)
 	s.node.lease = true
 	s.node.election.Random(false)
 	s.node.election.Reset()

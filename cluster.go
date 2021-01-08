@@ -72,8 +72,8 @@ func (c *cluster) CallRemovePeer(addr string, Address string) (success bool, Lea
 }
 
 func (c *cluster) QueryLeader(req *QueryLeaderRequest, res *QueryLeaderResponse) error {
-	if c.node.leader != "" {
-		res.LeaderID = c.node.leader
+	if c.node.leader.Load() != "" {
+		res.LeaderID = c.node.leader.Load()
 		res.Term = c.node.currentTerm.Load()
 		return nil
 	}
@@ -93,7 +93,7 @@ func (c *cluster) SetPeer(req *SetPeerRequest, res *SetPeerResponse) error {
 		}
 		return err
 	}
-	res.LeaderID = c.node.leader
+	res.LeaderID = c.node.leader.Load()
 	return ErrNotLeader
 }
 
@@ -110,6 +110,6 @@ func (c *cluster) RemovePeer(req *RemovePeerRequest, res *RemovePeerResponse) er
 		}
 		return err
 	}
-	res.LeaderID = c.node.leader
+	res.LeaderID = c.node.leader.Load()
 	return ErrNotLeader
 }

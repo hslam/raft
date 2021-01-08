@@ -52,7 +52,7 @@ type node struct {
 	done    chan struct{}
 
 	address string
-	leader  string
+	leader  *atomic.String
 
 	//config
 	heartbeatTick time.Duration
@@ -142,6 +142,7 @@ func NewNode(host string, port int, dataDir string, context interface{}, join bo
 		context:         context,
 		commands:        &commands{types: make(map[uint64]*sync.Pool)},
 		nextIndex:       1,
+		leader:          atomic.NewString(""),
 		currentTerm:     atomic.NewUint64(0),
 		votedFor:        atomic.NewString(""),
 	}
@@ -313,7 +314,7 @@ func (n *node) MemberChange(memberChange func()) {
 
 func (n *node) Leader() string {
 	n.mu.RLock()
-	leader := n.leader
+	leader := n.leader.Load()
 	n.mu.RUnlock()
 	return leader
 }
@@ -344,7 +345,7 @@ func (n *node) isLeader() bool {
 	if !n.running {
 		return false
 	}
-	if n.leader == n.address && n.state.String() == leader && n.lease {
+	if n.leader.Load() == n.address && n.state.String() == leader && n.lease {
 		return true
 	}
 	return false
