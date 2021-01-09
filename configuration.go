@@ -106,17 +106,12 @@ func (c *configuration) save() {
 }
 
 func (c *configuration) load() error {
-	if !c.node.storage.Exists(defaultConfig) {
-		return nil
-	}
 	b, err := c.node.storage.Load(defaultConfig)
 	if err != nil {
-		return nil
-	}
-	storage := &ConfigurationStorage{}
-	if err = json.Unmarshal(b, storage); err != nil {
 		return err
 	}
+	storage := &ConfigurationStorage{}
+	json.Unmarshal(b, storage)
 	c.mu.Lock()
 	for _, v := range storage.Nodes {
 		c.nodes[v.Address] = v
