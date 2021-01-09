@@ -87,9 +87,7 @@ func (c *cluster) SetPeer(req *SetPeerRequest, res *SetPeerResponse) error {
 			_, err = c.node.do(reconfigurationCommand, defaultCommandTimeout)
 			if err == nil {
 				res.Success = true
-				return nil
 			}
-			return err
 		}
 		return err
 	}
@@ -104,9 +102,7 @@ func (c *cluster) RemovePeer(req *RemovePeerRequest, res *RemovePeerResponse) er
 			_, err = c.node.do(reconfigurationCommand, defaultCommandTimeout)
 			if err == nil {
 				res.Success = true
-				return nil
 			}
-			return err
 		}
 		return err
 	}
