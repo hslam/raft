@@ -726,18 +726,7 @@ func (n *node) keepAliveNodes() error {
 	return nil
 }
 
-func (n *node) heartbeats() error {
-	n.nodesMut.RLock()
-	for _, v := range n.peers {
-		if v.alive {
-			go v.heartbeat()
-		}
-	}
-	n.nodesMut.RUnlock()
-	return nil
-}
-
-func (n *node) checkLeader() bool {
+func (n *node) heartbeats() bool {
 	n.nodesMut.RLock()
 	peers := n.peers
 	quorum := uint32(n.quorum())
@@ -771,7 +760,7 @@ func (n *node) checkLeader() bool {
 		return false
 	}
 	//logger.Tracef("node.checkLeader %s quorum-%v", n.address, quorum)
-	timer := time.NewTimer(defaultCommandTimeout)
+	timer := time.NewTimer(defaultHearbeatTimeout)
 	runtime.Gosched()
 	select {
 	case <-done:

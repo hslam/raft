@@ -33,25 +33,24 @@ func (s *followerState) Start() {
 
 func (s *followerState) Update() bool {
 	if s.node.commitIndex.ID() > 0 && s.node.commitIndex.ID() > s.node.stateMachine.lastApplied {
-		if !atomic.CompareAndSwapInt32(&s.applying, 0, 1) {
-			return true
-		}
-		defer atomic.StoreInt32(&s.applying, 0)
-		var ch = make(chan bool, 1)
-		go func(ch chan bool) {
-			//var lastApplied=state.node.stateMachine.lastApplied
-			s.node.log.applyCommited()
-			//logger.Tracef("followerState.Update %s lastApplied %d==>%d",state.node.address, lastApplied,state.node.stateMachine.lastApplied)
-			ch <- true
-		}(ch)
-		timer := time.NewTimer(defaultCommandTimeout)
-		runtime.Gosched()
-		select {
-		case <-ch:
-			timer.Stop()
-			close(ch)
-		case <-timer.C:
-			logger.Tracef("%s followerState.Update applyCommited time out", s.node.address)
+		if atomic.CompareAndSwapInt32(&s.applying, 0, 1) {
+			defer atomic.StoreInt32(&s.applying, 0)
+			var ch = make(chan bool, 1)
+			go func(ch chan bool) {
+				//var lastApplied=state.node.stateMachine.lastApplied
+				s.node.log.applyCommited()
+				//logger.Tracef("followerState.Update %s lastApplied %d==>%d",state.node.address, lastApplied,state.node.stateMachine.lastApplied)
+				ch <- true
+			}(ch)
+			timer := time.NewTimer(defaultCommandTimeout)
+			runtime.Gosched()
+			select {
+			case <-ch:
+				timer.Stop()
+				close(ch)
+			case <-timer.C:
+				//logger.Tracef("%s followerState.Update applyCommited time out", s.node.address)
+			}
 		}
 		return true
 	}
@@ -66,6 +65,7 @@ func (s *followerState) FixedUpdate() {
 		s.node.nextState()
 	}
 }
+
 func (s *followerState) String() string {
 	return follower
 }
@@ -75,6 +75,7 @@ func (s *followerState) StepDown() state {
 	s.Start()
 	return s
 }
+
 func (s *followerState) NextState() state {
 	if !s.node.voting() {
 		return s

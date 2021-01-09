@@ -105,6 +105,8 @@ func TestCluster(t *testing.T) {
 			node.SetSyncTypes([]*SyncType{
 				{Seconds: 1, Changes: 1},
 			})
+			node.MemberChange(func() {
+			})
 			node.LeaderChange(func() {
 				time.Sleep(time.Second * 2)
 				lookupLeader := node.LookupPeer(leader)
@@ -141,7 +143,7 @@ func TestCluster(t *testing.T) {
 			node.Start()
 			if index < 3 {
 				<-startJoin
-				time.Sleep(time.Second)
+				time.Sleep(time.Second * 3)
 				if node.IsLeader() {
 					if ok := node.Leave(infos[4].Address); !ok {
 						t.Error()
@@ -172,8 +174,6 @@ func TestClusterMore(t *testing.T) {
 	os.RemoveAll(dir)
 	infos := []*NodeInfo{{Address: "localhost:9001"}, {Address: "localhost:9002"}, {Address: "localhost:9003"}, {Address: "localhost:9004"}, {Address: "localhost:9005"}}
 	wg := sync.WaitGroup{}
-	al := sync.WaitGroup{}
-	al.Add(3)
 	for i := 0; i < len(infos); i++ {
 		address := infos[i].Address
 		index := i
@@ -226,22 +226,6 @@ func TestClusterMore(t *testing.T) {
 				}
 			}
 			time.Sleep(time.Second * 3)
-			if index < 3 {
-				time.Sleep(time.Second)
-				if node.IsLeader() {
-					if ok := node.Leave(infos[4].Address); !ok {
-						t.Error()
-					}
-					al.Done()
-				} else {
-					if ok := node.Leave(infos[3].Address); !ok {
-						t.Error()
-					}
-					al.Done()
-				}
-			}
-			al.Wait()
-			time.Sleep(time.Second * 3)
 			if node.isLeader() {
 				node.log.applyCommitedEnd(node.commitIndex.ID())
 			}
@@ -262,7 +246,7 @@ func TestClusterMore(t *testing.T) {
 func TestClusterState(t *testing.T) {
 	dir := "raft.test"
 	os.RemoveAll(dir)
-	infos := []*NodeInfo{{Address: "localhost:9001"}, {Address: "localhost:9002"}, {Address: "localhost:9003"}, {Address: "localhost:9004"}, {Address: "localhost:9005"}}
+	infos := []*NodeInfo{{Address: "localhost:9001"}, {Address: "localhost:9002"}, {Address: "localhost:9003"}, {Address: "localhost:9004", NonVoting: true}, {Address: "localhost:9005", NonVoting: true}}
 	wg := sync.WaitGroup{}
 	al := sync.WaitGroup{}
 	al.Add(3)
@@ -323,6 +307,74 @@ func TestClusterState(t *testing.T) {
 	wg.Wait()
 	os.RemoveAll(dir)
 	GetLogLevel()
+}
+
+func TestLeaderTimeout(t *testing.T) {
+	dir := "raft.test"
+	os.RemoveAll(dir)
+	infos := []*NodeInfo{{Address: "localhost:9001"}, {Address: "localhost:9002"}, {Address: "localhost:9003"}}
+	wg := sync.WaitGroup{}
+	al := sync.WaitGroup{}
+	al.Add(3)
+	stop := sync.WaitGroup{}
+	stop.Add(2)
+	count := int32(0)
+	for i := 0; i < len(infos); i++ {
+		address := infos[i].Address
+		index := i
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			ctx := &testContext{data: ""}
+			strs := strings.Split(address, ":")
+			port, _ := strconv.Atoi(strs[1])
+			var n Node
+			var err error
+			n, err = NewNode(strs[0], port, dir+"/node."+strconv.FormatInt(int64(index), 10), ctx, false, infos[:3])
+			if err != nil {
+				t.Error(err)
+			}
+			if index > 0 {
+				time.Sleep(time.Second * 5)
+			}
+			node := n.(*node)
+			node.RegisterCommand(&testCommand{})
+			node.SetCodec(&JSONCodec{})
+			node.SetContext(ctx)
+			node.SetSnapshot(&testSnapshot{ctx: ctx})
+			node.SetSyncTypes([]*SyncType{
+				{Seconds: 1, Changes: 1},
+			})
+			node.SetGzipSnapshot(true)
+			node.MemberChange(func() {
+			})
+			var start bool
+			node.LeaderChange(func() {
+				start = true
+			})
+			node.Start()
+			for {
+				time.Sleep(time.Second)
+				if start {
+					break
+				}
+			}
+			time.Sleep(time.Second * 3)
+			if node.IsLeader() {
+				stop.Wait()
+				time.Sleep(time.Second * 5)
+				node.Stop()
+			} else {
+				time.Sleep(time.Second * 8)
+				node.Stop()
+				if atomic.AddInt32(&count, 1) < 3 {
+					stop.Done()
+				}
+			}
+		}()
+	}
+	wg.Wait()
+	os.RemoveAll(dir)
 }
 
 func TestClusterNonVoting(t *testing.T) {
@@ -394,7 +446,7 @@ func TestSingle(t *testing.T) {
 		{Seconds: 1, Changes: 1},
 	})
 	node.LeaderChange(func() {
-		time.Sleep(time.Second * 2)
+		time.Sleep(time.Second * 3)
 		lookupLeader := node.LookupPeer(leader)
 		leader := node.Leader()
 		if lookupLeader != nil && lookupLeader.Address != leader {
@@ -407,7 +459,7 @@ func TestSingle(t *testing.T) {
 			}
 		}
 		<-startRead
-		time.Sleep(time.Second)
+		time.Sleep(time.Second * 3)
 		if ok := node.LeaseRead(); ok {
 			value := ctx.Get()
 			if value != "foobar" {

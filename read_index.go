@@ -138,7 +138,7 @@ func (r *readIndex) send() {
 				if r.node.IsLeader() {
 					go func(id uint64) {
 						start := time.Now().UnixNano()
-						ok := r.node.checkLeader()
+						ok := r.node.heartbeats()
 						go r.updateLatency(time.Now().UnixNano() - start)
 						r.reply(id, ok)
 					}(id)

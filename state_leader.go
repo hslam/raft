@@ -52,10 +52,6 @@ func (s *leaderState) Start() {
 				return
 			}
 		}
-		if n.currentTerm.Load() == term {
-			s.node.lease = false
-			s.node.stepDown()
-		}
 	}(s.node, s.node.currentTerm.Load())
 }
 
@@ -70,10 +66,6 @@ func (s *leaderState) FixedUpdate() {
 		s.node.stepDown()
 		logger.Tracef("%s leaderState.FixedUpdate ElectionTimeout", s.node.address)
 		return
-	}
-	if s.node.AliveCount() >= s.node.Quorum() {
-		s.node.lease = true
-		s.node.election.Reset()
 	}
 }
 
@@ -102,7 +94,14 @@ func (s *leaderState) run() {
 		runtime.Gosched()
 		select {
 		case <-s.heartbeatTicker.C:
-			s.node.heartbeats()
+			s.node.nodesMut.Lock()
+			votingsCount := s.node.votingsCount()
+			s.node.nodesMut.Unlock()
+			if votingsCount == 1 {
+				s.node.election.Reset()
+			} else if s.node.heartbeats() {
+				s.node.election.Reset()
+			}
 		case <-s.done:
 			s.heartbeatTicker.Stop()
 			return
