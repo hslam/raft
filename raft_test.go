@@ -448,7 +448,6 @@ func TestSingle(t *testing.T) {
 	dir := "raft.test"
 	os.RemoveAll(dir)
 	infos := []*NodeInfo{{Address: "localhost:9001"}}
-	wg := sync.WaitGroup{}
 	var readflag uint32
 	startRead := make(chan struct{})
 	var joinflag uint32
@@ -514,6 +513,139 @@ func TestSingle(t *testing.T) {
 	}
 	time.Sleep(time.Second * 3)
 	node.Stop()
-	wg.Wait()
+	os.RemoveAll(dir)
+}
+
+func TestStateMachine(t *testing.T) {
+	dir := "raft.test"
+	os.RemoveAll(dir)
+	infos := []*NodeInfo{{Address: "localhost:9001"}}
+	{
+		var readflag uint32
+		startRead := make(chan struct{})
+		var joinflag uint32
+		startJoin := make(chan struct{})
+
+		address := infos[0].Address
+		index := 0
+		ctx := &testContext{data: ""}
+		strs := strings.Split(address, ":")
+		port, _ := strconv.Atoi(strs[1])
+		var n Node
+		var err error
+		n, err = NewNode(strs[0], port, dir+"/node."+strconv.FormatInt(int64(index), 10), ctx, false, infos[:1])
+		if err != nil {
+			t.Error(err)
+		}
+		node := n.(*node)
+		node.RegisterCommand(&testCommand{})
+		node.SetCodec(&JSONCodec{})
+		node.SetContext(ctx)
+		node.SetSnapshot(&testSnapshot{ctx: ctx})
+		node.SetSyncTypes([]*SyncType{
+			{Seconds: 1, Changes: 1},
+		})
+		node.LeaderChange(func() {
+			time.Sleep(time.Second * 3)
+			lookupLeader := node.LookupPeer(leader)
+			leader := node.Leader()
+			if lookupLeader != nil && lookupLeader.Address != leader {
+				t.Error(lookupLeader.Address, leader)
+			}
+			node.Do(&testCommand{"foobar"})
+			if node.IsLeader() {
+				if atomic.CompareAndSwapUint32(&readflag, 0, 1) {
+					close(startRead)
+				}
+			}
+			<-startRead
+			time.Sleep(time.Second * 3)
+			if ok := node.LeaseRead(); ok {
+				value := ctx.Get()
+				if value != "foobar" {
+					t.Error(value)
+				}
+			}
+			if ok := node.ReadIndex(); ok {
+				value := ctx.Get()
+				if value != "foobar" {
+					t.Error(value)
+				}
+			}
+			if node.IsLeader() {
+				if atomic.CompareAndSwapUint32(&joinflag, 0, 1) {
+					close(startJoin)
+				}
+			}
+		})
+		node.Start()
+		<-startJoin
+		time.Sleep(time.Second * 3)
+		node.Stop()
+	}
+	time.Sleep(time.Second * 3)
+	{
+		var readflag uint32
+		startRead := make(chan struct{})
+		var joinflag uint32
+		startJoin := make(chan struct{})
+
+		address := infos[0].Address
+		index := 0
+		ctx := &testContext{data: ""}
+		strs := strings.Split(address, ":")
+		port, _ := strconv.Atoi(strs[1])
+		var n Node
+		var err error
+		n, err = NewNode(strs[0], port, dir+"/node."+strconv.FormatInt(int64(index), 10), ctx, false, infos[:1])
+		if err != nil {
+			t.Error(err)
+		}
+		node := n.(*node)
+		node.RegisterCommand(&testCommand{})
+		node.SetCodec(&JSONCodec{})
+		node.SetContext(ctx)
+		node.SetSnapshot(&testSnapshot{ctx: ctx})
+		node.SetSyncTypes([]*SyncType{
+			{Seconds: 1, Changes: 1},
+		})
+		node.LeaderChange(func() {
+			time.Sleep(time.Second * 3)
+			lookupLeader := node.LookupPeer(leader)
+			leader := node.Leader()
+			if lookupLeader != nil && lookupLeader.Address != leader {
+				t.Error(lookupLeader.Address, leader)
+			}
+			node.Do(&testCommand{"foobar"})
+			if node.IsLeader() {
+				if atomic.CompareAndSwapUint32(&readflag, 0, 1) {
+					close(startRead)
+				}
+			}
+			<-startRead
+			time.Sleep(time.Second * 3)
+			if ok := node.LeaseRead(); ok {
+				value := ctx.Get()
+				if value != "foobar" {
+					t.Error(value)
+				}
+			}
+			if ok := node.ReadIndex(); ok {
+				value := ctx.Get()
+				if value != "foobar" {
+					t.Error(value)
+				}
+			}
+			if node.IsLeader() {
+				if atomic.CompareAndSwapUint32(&joinflag, 0, 1) {
+					close(startJoin)
+				}
+			}
+		})
+		node.Start()
+		<-startJoin
+		time.Sleep(time.Second * 3)
+		node.Stop()
+	}
 	os.RemoveAll(dir)
 }
