@@ -70,7 +70,7 @@ type node struct {
 	printTicker     *time.Ticker
 	checkLogTicker  *time.Ticker
 	state           state
-	changeStateChan chan int
+	changeStateChan chan *stateChange
 	ticker          *time.Ticker
 	updateTicker    *time.Ticker
 	workTicker      *timer.Ticker
@@ -135,7 +135,7 @@ func NewNode(host string, port int, dataDir string, context interface{}, join bo
 		ticker:          time.NewTicker(defaultNodeTick),
 		updateTicker:    time.NewTicker(defaultUpdateTick),
 		done:            make(chan struct{}, 1),
-		changeStateChan: make(chan int, 1),
+		changeStateChan: make(chan *stateChange, 1),
 		heartbeatTick:   defaultHeartbeatTick,
 		codec:           new(GOGOPBCodec),
 		raftCodec:       new(GOGOPBCodec),
@@ -217,13 +217,19 @@ func (n *node) run() {
 				return
 			}
 			select {
-			case i := <-n.changeStateChan:
-				if i == 1 {
-					n.setState(n.state.NextState())
-				} else if i == -1 {
-					n.setState(n.state.StepDown())
-				} else if i == 0 {
-					n.state.Start()
+			case change, ok := <-n.changeStateChan:
+				if change != nil && ok {
+					switch change.flag {
+					case 1:
+						n.setState(n.state.NextState())
+						close(change.done)
+					case -1:
+						n.setState(n.state.StepDown())
+						close(change.done)
+					case 0:
+						n.state.Start()
+						close(change.done)
+					}
 				}
 			default:
 				n.state.FixedUpdate()
@@ -274,21 +280,27 @@ func (n *node) setState(s state) {
 }
 
 func (n *node) stepDown() {
-	n.changeState(-1)
+	done := make(chan struct{}, 1)
+	n.changeState(-1, done)
+	<-done
 }
 
 func (n *node) nextState() {
-	n.changeState(1)
+	done := make(chan struct{}, 1)
+	n.changeState(1, done)
 }
 
 func (n *node) stay() {
-	n.changeState(0)
+	done := make(chan struct{}, 1)
+	n.changeState(0, done)
 }
 
-func (n *node) changeState(i int) {
+func (n *node) changeState(flag int, done chan struct{}) {
+	change := &stateChange{flag: flag, done: done}
 	select {
-	case n.changeStateChan <- i:
+	case n.changeStateChan <- change:
 	default:
+		close(done)
 	}
 }
 
