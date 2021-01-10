@@ -673,23 +673,6 @@ func (n *node) votingsCount() int {
 	return cnt
 }
 
-func (n *node) AliveCount() int {
-	n.nodesMut.RLock()
-	aliveCount := n.aliveCount()
-	n.nodesMut.RUnlock()
-	return aliveCount
-}
-
-func (n *node) aliveCount() int {
-	cnt := 1
-	for _, v := range n.peers {
-		if v.alive == true && v.voting() {
-			cnt++
-		}
-	}
-	return cnt
-}
-
 func (n *node) requestVotes() error {
 	n.nodesMut.RLock()
 	n.votes.Clear()
@@ -809,22 +792,6 @@ func (n *node) minNextIndex() uint64 {
 	}
 	n.nodesMut.RUnlock()
 	return min
-}
-
-func (n *node) reset() {
-	n.recoverLogIndex = 0
-	n.lastPrintNextIndex = 1
-	n.lastPrintLastApplied = 0
-	n.lastPrintLastLogIndex = 0
-	n.lastPrintCommitIndex = 0
-	n.nextIndex = 1
-	n.lastLogIndex = 0
-	n.lastLogTerm = 0
-	n.commitIndex.Set(0)
-	n.stateMachine.lastApplied = 0
-	n.stateMachine.snapshotReadWriter.lastIncludedIndex.Set(0)
-	n.stateMachine.snapshotReadWriter.lastIncludedTerm.Set(0)
-	n.stateMachine.snapshotReadWriter.lastTarIndex.Set(0)
 }
 
 func (n *node) load() {

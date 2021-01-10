@@ -582,7 +582,9 @@ func TestStateMachine(t *testing.T) {
 		<-startJoin
 		time.Sleep(time.Second * 3)
 		node.Stop()
+		node.log.wal.Reset()
 	}
+	os.Remove(dir + "/node.1/commitindex")
 	time.Sleep(time.Second * 3)
 	{
 		var readflag uint32
