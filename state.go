@@ -17,3 +17,8 @@ type state interface {
 	StepDown() state
 	NextState() state
 }
+
+type stateChange struct {
+	flag int
+	done chan struct{}
+}
