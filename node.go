@@ -295,11 +295,9 @@ func (n *node) changeState(i int) {
 
 func (n *node) State() (state string) {
 	n.mu.RLock()
-	if n.state == nil {
-		n.mu.RUnlock()
-		return
+	if n.state != nil {
+		state = n.state.String()
 	}
-	state = n.state.String()
 	n.mu.RUnlock()
 	return
 }
