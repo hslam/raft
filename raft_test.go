@@ -326,7 +326,7 @@ func TestClusterState(t *testing.T) {
 				if len(node.Address()) == 0 {
 					t.Error()
 				}
-				node.stepDown()
+				node.stepDown(false)
 			}
 			time.Sleep(time.Second * 2)
 			if index < 3 && node.IsLeader() {

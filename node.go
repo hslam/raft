@@ -279,10 +279,14 @@ func (n *node) setState(s state) {
 	n.state = s
 }
 
-func (n *node) stepDown() {
-	done := make(chan struct{}, 1)
-	n.changeState(-1, done)
-	<-done
+func (n *node) stepDown(blocking bool) {
+	if blocking {
+		done := make(chan struct{}, 1)
+		n.changeState(-1, done)
+		<-done
+	} else {
+		n.changeState(-1, nil)
+	}
 }
 
 func (n *node) nextState() {

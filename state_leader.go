@@ -63,7 +63,7 @@ func (s *leaderState) Update() bool {
 func (s *leaderState) FixedUpdate() {
 	if s.node.election.Timeout() {
 		s.node.lease = false
-		s.node.stepDown()
+		s.node.stepDown(false)
 		logger.Tracef("%s leaderState.FixedUpdate ElectionTimeout", s.node.address)
 		return
 	}
