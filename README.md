@@ -144,6 +144,17 @@ go build -o node main.go
 -peers="localhost:9001;localhost:9002;localhost:9003"
 ```
 
+**Membership changes**
+```sh
+./node -h=localhost -p=9001 -path="raft.example/node.mc.1" -join=false
+
+./node -h=localhost -p=9002 -path="raft.example/node.mc.2" -join=true \
+-peers="localhost:9001;localhost:9002"
+
+./node -h=localhost -p=9003 -path="raft.example/node.mc.3" -join=true \
+-peers="localhost:9001;localhost:9002;localhost:9003"
+```
+
 **Non-voting**
 ```sh
 ./node -h=localhost -p=9001 -path="raft.example/node.nv.1" -join=false \
@@ -157,17 +168,6 @@ go build -o node main.go
 
 ./node -h=localhost -p=9004 -path="raft.example/node.nv.4" -join=false \
 -peers="localhost:9001;localhost:9002;localhost:9003;localhost:9004,true"
-```
-
-**Membership changes**
-```sh
-./node -h=localhost -p=9001 -path="raft.example/node.mc.1" -join=false
-
-./node -h=localhost -p=9002 -path="raft.example/node.mc.2" -join=true \
--peers="localhost:9001;localhost:9002"
-
-./node -h=localhost -p=9003 -path="raft.example/node.mc.3" -join=true \
--peers="localhost:9001;localhost:9002;localhost:9003"
 ```
 
 ## License
