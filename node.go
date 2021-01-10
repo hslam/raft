@@ -222,12 +222,12 @@ func (n *node) run() {
 					switch change.flag {
 					case 1:
 						n.setState(n.state.NextState())
-						close(change.done)
 					case -1:
 						n.setState(n.state.StepDown())
-						close(change.done)
 					case 0:
 						n.state.Start()
+					}
+					if change.done != nil {
 						close(change.done)
 					}
 				}
@@ -286,13 +286,11 @@ func (n *node) stepDown() {
 }
 
 func (n *node) nextState() {
-	done := make(chan struct{}, 1)
-	n.changeState(1, done)
+	n.changeState(1, nil)
 }
 
 func (n *node) stay() {
-	done := make(chan struct{}, 1)
-	n.changeState(0, done)
+	n.changeState(0, nil)
 }
 
 func (n *node) changeState(flag int, done chan struct{}) {
@@ -300,7 +298,9 @@ func (n *node) changeState(flag int, done chan struct{}) {
 	select {
 	case n.changeStateChan <- change:
 	default:
-		close(done)
+		if done != nil {
+			close(done)
+		}
 	}
 }
 
