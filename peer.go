@@ -82,6 +82,7 @@ func (p *peer) appendEntries(entries []*Entry) (nextIndex uint64, term uint64, s
 	} else if !ok {
 		p.alive = false
 	}
+	p.checkNextIndex()
 	return
 }
 
@@ -94,6 +95,7 @@ func (p *peer) installSnapshot(offset uint64, data []byte, Done bool) (recvOffse
 	if nextIndex > 0 {
 		p.nextIndex = nextIndex
 	}
+	p.checkNextIndex()
 	//logger.Debugf("Peer.installSnapshot %s %d %d %t",p.address,offset,len(data),Done)
 	return
 }
@@ -105,6 +107,12 @@ func (p *peer) ping() {
 		p.alive = true
 	}
 	//logger.Debugf("Peer.ping %s %t",p.address,p.alive)
+}
+
+func (p *peer) checkNextIndex() {
+	if p.nextIndex > p.node.nextIndex {
+		p.nextIndex = p.node.nextIndex
+	}
 }
 
 func (p *peer) voting() bool {
