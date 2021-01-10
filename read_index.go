@@ -87,17 +87,7 @@ func (r *readIndex) Read() (ok bool) {
 	runtime.Gosched()
 	select {
 	case ok = <-ch:
-		if atomic.LoadUint64(&r.node.stateMachine.lastApplied) >= commitIndex {
-			timer.Stop()
-			return
-		}
-		var done = make(chan struct{}, 1)
-		go r.node.waitApply(commitIndex, done)
-		runtime.Gosched()
-		select {
-		case <-done:
-			timer.Stop()
-		case <-timer.C:
+		if finish := r.node.waitApplyTimeout(commitIndex, timer); !finish {
 			ok = false
 		}
 	case <-timer.C:

@@ -126,6 +126,11 @@ func TestCluster(t *testing.T) {
 				if lookupLeader != nil && lookupLeader.Address != leader {
 					t.Error(lookupLeader.Address, leader)
 				}
+				if node.IsLeader() {
+					go node.waitApplyTimeout(node.commitIndex.ID()+1, time.NewTimer(time.Millisecond))
+					time.Sleep(time.Millisecond * 100)
+					go node.waitApplyTimeout(node.commitIndex.ID()+1, time.NewTimer(defaultCommandTimeout))
+				}
 				node.Do(&testCommand{"foobar"})
 				if node.IsLeader() {
 					if atomic.CompareAndSwapUint32(&readflag, 0, 1) {
@@ -247,7 +252,6 @@ func TestClusterMore(t *testing.T) {
 					break
 				}
 			}
-
 			time.Sleep(time.Second * 3)
 			if node.isLeader() {
 				node.put(nil)

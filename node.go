@@ -456,23 +456,32 @@ func (n *node) LeaseRead() (ok bool) {
 	if !n.Ready() {
 		return false
 	}
-	commitIndex := n.commitIndex.ID()
+	ok = n.waitApplyTimeout(n.commitIndex.ID(), time.NewTimer(defaultCommandTimeout))
+	if ok {
+		n.mu.RLock()
+		lease := n.lease && n.isReady()
+		n.mu.RUnlock()
+		ok = lease
+	}
+	return
+}
+
+func (n *node) waitApplyTimeout(commitIndex uint64, timer *time.Timer) (finish bool) {
 	if atomic.LoadUint64(&n.stateMachine.lastApplied) < commitIndex {
-		timer := time.NewTimer(defaultCommandTimeout)
 		var done = make(chan struct{}, 1)
 		go n.waitApply(commitIndex, done)
 		select {
 		case <-done:
 			timer.Stop()
+			finish = true
 		case <-timer.C:
-			ok = false
-			return
+			finish = false
 		}
+	} else {
+		timer.Stop()
+		finish = true
 	}
-	n.mu.RLock()
-	lease := n.lease && n.isReady()
-	n.mu.RUnlock()
-	return lease
+	return
 }
 
 func (n *node) waitApply(commitIndex uint64, done chan struct{}) {
