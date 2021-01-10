@@ -218,7 +218,6 @@ func TestClusterMore(t *testing.T) {
 			node.RegisterCommand(&DefaultCommand{})
 			node.registerCommand(nil)
 			node.Do(&DefaultCommand{})
-			node.put(nil)
 
 			node.RegisterCommand(&testCommand{})
 			node.SetCodec(&JSONCodec{})
@@ -251,6 +250,7 @@ func TestClusterMore(t *testing.T) {
 
 			time.Sleep(time.Second * 3)
 			if node.isLeader() {
+				node.put(nil)
 				invoker := node.put(&testCommand1{})
 				if invoker.Error != ErrCommandNotRegistered {
 					t.Error(invoker.Error)
