@@ -63,6 +63,18 @@ func (c *testCommand) Do(context interface{}) (interface{}, error) {
 	return nil, nil
 }
 
+type testCommand1 struct {
+	Data string
+}
+
+func (c *testCommand1) Type() uint64 {
+	return 2
+}
+
+func (c *testCommand1) Do(context interface{}) (interface{}, error) {
+	return nil, nil
+}
+
 func TestCluster(t *testing.T) {
 	dir := "raft.test"
 	os.RemoveAll(dir)
@@ -170,6 +182,8 @@ func TestCluster(t *testing.T) {
 }
 
 func TestClusterMore(t *testing.T) {
+	NewNode("localhost", 9001, "", nil, false, nil)
+	os.RemoveAll(defaultDataDir)
 	dir := "raft.test"
 	os.RemoveAll(dir)
 	infos := []*NodeInfo{{Address: "localhost:9001"}, {Address: "localhost:9002"}, {Address: "localhost:9003"}, {Address: "localhost:9004"}, {Address: "localhost:9005"}}
@@ -197,6 +211,15 @@ func TestClusterMore(t *testing.T) {
 				}
 			}
 			node := n.(*node)
+			if node.Address() != address {
+				t.Error()
+			}
+			node.RegisterCommand(nil)
+			node.RegisterCommand(&DefaultCommand{})
+			node.registerCommand(nil)
+			node.Do(&DefaultCommand{})
+			node.put(nil)
+
 			node.RegisterCommand(&testCommand{})
 			node.SetCodec(&JSONCodec{})
 			node.SetContext(ctx)
@@ -225,8 +248,13 @@ func TestClusterMore(t *testing.T) {
 					break
 				}
 			}
+
 			time.Sleep(time.Second * 3)
 			if node.isLeader() {
+				invoker := node.put(&testCommand1{})
+				if invoker.Error != ErrCommandNotRegistered {
+					t.Error(invoker.Error)
+				}
 				node.log.applyCommitedEnd(node.commitIndex.ID())
 			}
 			node.Stop()

@@ -163,14 +163,13 @@ func NewNode(host string, port int, dataDir string, context interface{}, join bo
 		n.majorities = false
 		go func() {
 			nodeInfo := n.stateMachine.configuration.LookupPeer(n.address)
-			if nodeInfo == nil {
-				return
-			}
-			for {
-				time.Sleep(time.Second)
-				if n.running {
-					if n.Join(nodeInfo) {
-						break
+			if nodeInfo != nil {
+				for {
+					time.Sleep(time.Second)
+					if n.running {
+						if n.Join(nodeInfo) {
+							break
+						}
 					}
 				}
 			}
