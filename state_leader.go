@@ -41,7 +41,7 @@ func (s *leaderState) Start() {
 	s.node.lease = true
 	s.node.election.Random(false)
 	s.node.election.Reset()
-	logger.Tracef("%s leaderState.Start Term:%d", s.node.address, s.node.currentTerm.Load())
+	s.node.logger.Tracef("%s leaderState.Start Term:%d", s.node.address, s.node.currentTerm.Load())
 	go func(n *node, term uint64) {
 		if ok, _ := n.do(noOperationCommand, defaultCommandTimeout); ok != nil {
 			if n.currentTerm.Load() == term {
@@ -64,7 +64,7 @@ func (s *leaderState) FixedUpdate() {
 	if s.node.election.Timeout() {
 		s.node.lease = false
 		s.node.stepDown(false)
-		logger.Tracef("%s leaderState.FixedUpdate ElectionTimeout", s.node.address)
+		s.node.logger.Tracef("%s leaderState.FixedUpdate ElectionTimeout", s.node.address)
 		return
 	}
 }
@@ -74,7 +74,7 @@ func (s *leaderState) String() string {
 }
 
 func (s *leaderState) StepDown() state {
-	logger.Tracef("%s leaderState.StepDown", s.node.address)
+	s.node.logger.Tracef("%s leaderState.StepDown", s.node.address)
 	if atomic.CompareAndSwapInt32(&s.closed, 0, 1) {
 		close(s.done)
 	}
@@ -82,7 +82,7 @@ func (s *leaderState) StepDown() state {
 }
 
 func (s *leaderState) NextState() state {
-	logger.Tracef("%s leaderState.NextState", s.node.address)
+	s.node.logger.Tracef("%s leaderState.NextState", s.node.address)
 	if atomic.CompareAndSwapInt32(&s.closed, 0, 1) {
 		close(s.done)
 	}

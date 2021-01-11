@@ -28,7 +28,7 @@ func (s *followerState) Start() {
 	s.node.leader.Store("")
 	s.node.election.Random(true)
 	s.node.election.Reset()
-	logger.Tracef("%s followerState.Start Term :%d", s.node.address, s.node.currentTerm.Load())
+	s.node.logger.Tracef("%s followerState.Start Term :%d", s.node.address, s.node.currentTerm.Load())
 }
 
 func (s *followerState) Update() bool {
@@ -39,7 +39,7 @@ func (s *followerState) Update() bool {
 			go func(ch chan bool) {
 				//var lastApplied=state.node.stateMachine.lastApplied
 				s.node.log.applyCommited()
-				//logger.Tracef("followerState.Update %s lastApplied %d==>%d",state.node.address, lastApplied,state.node.stateMachine.lastApplied)
+				//s.node.logger.Tracef("followerState.Update %s lastApplied %d==>%d",state.node.address, lastApplied,state.node.stateMachine.lastApplied)
 				ch <- true
 			}(ch)
 			timer := time.NewTimer(defaultCommandTimeout)
@@ -49,7 +49,7 @@ func (s *followerState) Update() bool {
 				timer.Stop()
 				close(ch)
 			case <-timer.C:
-				//logger.Tracef("%s followerState.Update applyCommited time out", s.node.address)
+				//s.node.logger.Tracef("%s followerState.Update applyCommited time out", s.node.address)
 			}
 		}
 		return true
@@ -61,7 +61,7 @@ func (s *followerState) FixedUpdate() {
 	if s.node.election.Timeout() {
 		s.node.leader.Store("")
 		s.node.votedFor.Store("")
-		logger.Tracef("%s followerState.FixedUpdate ElectionTimeout", s.node.address)
+		s.node.logger.Tracef("%s followerState.FixedUpdate ElectionTimeout", s.node.address)
 		s.node.nextState()
 	}
 }
@@ -71,7 +71,7 @@ func (s *followerState) String() string {
 }
 
 func (s *followerState) StepDown() state {
-	logger.Tracef("%s followerState.StepDown", s.node.address)
+	s.node.logger.Tracef("%s followerState.StepDown", s.node.address)
 	s.Start()
 	return s
 }
@@ -80,6 +80,6 @@ func (s *followerState) NextState() state {
 	if !s.node.voting() {
 		return s
 	}
-	logger.Tracef("%s followerState.NextState", s.node.address)
+	s.node.logger.Tracef("%s followerState.NextState", s.node.address)
 	return newCandidateState(s.node)
 }

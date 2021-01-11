@@ -23,7 +23,7 @@ func (s *candidateState) Start() {
 	s.node.votedFor.Store(s.node.address)
 	s.node.leader.Store("")
 	s.node.requestVotes()
-	logger.Tracef("%s candidateState.Start Term :%d", s.node.address, s.node.currentTerm.Load())
+	s.node.logger.Tracef("%s candidateState.Start Term :%d", s.node.address, s.node.currentTerm.Load())
 }
 
 func (s *candidateState) Update() bool {
@@ -32,10 +32,10 @@ func (s *candidateState) Update() bool {
 
 func (s *candidateState) FixedUpdate() {
 	if s.node.election.Timeout() {
-		logger.Tracef("%s candidateState.FixedUpdate ElectionTimeout Votes %d Quorum %d Term %d", s.node.address, s.node.votes.Count(), s.node.Quorum(), s.node.currentTerm.Load())
+		s.node.logger.Tracef("%s candidateState.FixedUpdate ElectionTimeout Votes %d Quorum %d Term %d", s.node.address, s.node.votes.Count(), s.node.Quorum(), s.node.currentTerm.Load())
 		s.node.stay()
 	} else if s.node.votes.Count() >= s.node.Quorum() {
-		logger.Tracef("%s candidateState.FixedUpdate request Enough Votes %d Quorum %d Term %d", s.node.address, s.node.votes.Count(), s.node.Quorum(), s.node.currentTerm.Load())
+		s.node.logger.Tracef("%s candidateState.FixedUpdate request Enough Votes %d Quorum %d Term %d", s.node.address, s.node.votes.Count(), s.node.Quorum(), s.node.currentTerm.Load())
 		s.node.nextState()
 	}
 }
@@ -45,11 +45,11 @@ func (s *candidateState) String() string {
 }
 
 func (s *candidateState) StepDown() state {
-	logger.Tracef("%s candidateState.StepDown", s.node.address)
+	s.node.logger.Tracef("%s candidateState.StepDown", s.node.address)
 	return newFollowerState(s.node)
 }
 
 func (s *candidateState) NextState() state {
-	logger.Tracef("%s candidateState.NextState", s.node.address)
+	s.node.logger.Tracef("%s candidateState.NextState", s.node.address)
 	return newLeaderState(s.node)
 }

@@ -48,7 +48,6 @@ func (c *commands) clone(Type uint64) Command {
 	if commandPool, ok := c.types[Type]; ok {
 		return commandPool.Get().(Command)
 	}
-	logger.Debugf("CommandType.clone Unregistered %d", Type)
 	return nil
 }
 

@@ -118,7 +118,7 @@ func (l *waLog) deleteBefore(index uint64) {
 	l.wal.Clean(index)
 	l.node.firstLogIndex, _ = l.wal.FirstIndex()
 	l.mu.Unlock()
-	logger.Tracef("log.clean %s index %d", l.node.address, index)
+	l.node.logger.Tracef("log.clean %s index %d", l.node.address, index)
 }
 
 func (l *waLog) startIndex(index uint64) uint64 {
@@ -209,24 +209,24 @@ func (l *waLog) applyCommitedBatch(startIndex uint64, endIndex uint64) {
 		if err == nil {
 			l.node.stateMachine.apply(entries[i].Index, command)
 		} else {
-			logger.Errorf("log.applyCommitedRange %s %d error %s", l.node.address, i, err)
+			l.node.logger.Errorf("log.applyCommitedRange %s %d error %s", l.node.address, i, err)
 		}
 		l.node.commands.put(command)
 	}
 	l.putEmtyEntries(entries)
-	//logger.Tracef("log.applyCommitedRange %s startIndex %d endIndex %d End %d",l.node.address,startIndex,endIndex,len(entries))
+	//l.node.logger.Tracef("log.applyCommitedRange %s startIndex %d endIndex %d End %d",l.node.address,startIndex,endIndex,len(entries))
 }
 
 func (l *waLog) read(index uint64) *Entry {
 	b, err := l.wal.Read(index)
 	if err != nil {
-		//logger.Errorf("log.read %s index %d firstIndex %d lastIndex %d, commit %d", l.node.address, index, l.node.firstLogIndex, l.node.lastLogIndex, l.node.commitIndex.ID())
+		//l.node.logger.Errorf("log.read %s index %d firstIndex %d lastIndex %d, commit %d", l.node.address, index, l.node.firstLogIndex, l.node.lastLogIndex, l.node.commitIndex.ID())
 		return nil
 	}
 	entry := l.getEmtyEntry()
 	err = l.node.codec.Unmarshal(b, entry)
 	if err != nil {
-		logger.Errorf("log.Decode %s", string(b))
+		l.node.logger.Errorf("log.Decode %s", string(b))
 		return nil
 	}
 	return entry
@@ -263,7 +263,7 @@ func (l *waLog) load() (err error) {
 		}
 	}
 	if l.node.lastLogIndex > lastLogIndex {
-		logger.Tracef("log.recover %s lastLogIndex %d", l.node.address, lastLogIndex)
+		l.node.logger.Tracef("log.recover %s lastLogIndex %d", l.node.address, lastLogIndex)
 	}
 	l.mu.Unlock()
 	return nil

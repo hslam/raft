@@ -7,6 +7,7 @@ package raft
 import (
 	"fmt"
 	"github.com/hslam/atomic"
+	"github.com/hslam/log"
 	"github.com/hslam/timer"
 	"runtime"
 	"sync"
@@ -47,6 +48,7 @@ type node struct {
 	waitGroup sync.WaitGroup
 	onceStart sync.Once
 	onceStop  sync.Once
+	logger    *log.Logger
 
 	running bool
 	done    chan struct{}
@@ -124,7 +126,11 @@ func NewNode(host string, port int, dataDir string, context interface{}, join bo
 	if dataDir == "" {
 		dataDir = defaultDataDir
 	}
+	var logger = log.New()
+	logger.SetPrefix(logPrefix)
+	logger.SetLevel(log.Level(InfoLogLevel))
 	n := &node{
+		logger:          logger,
 		address:         Address(host, port),
 		storage:         newStorage(dataDir),
 		peers:           make(map[string]*peer),
@@ -269,6 +275,16 @@ endfor:
 	n.keepAliveTicker.Stop()
 	n.detectTicker.Stop()
 	n.checkLogTicker.Stop()
+}
+
+//SetLogLevel sets log's level
+func (n *node) SetLogLevel(level LogLevel) {
+	n.logger.SetLevel(log.Level(level))
+}
+
+//GetLogLevel returns log's level
+func (n *node) GetLogLevel() LogLevel {
+	return LogLevel(n.logger.GetLevel())
 }
 
 func (n *node) voting() bool {
@@ -826,7 +842,7 @@ func (n *node) load() {
 }
 
 func (n *node) recover() error {
-	logger.Tracef("node.recover %s start", n.address)
+	n.logger.Tracef("node.recover %s start", n.address)
 	n.load()
 	ticker := time.NewTicker(time.Second)
 	done := make(chan bool, 1)
@@ -847,7 +863,7 @@ func (n *node) recover() error {
 	n.log.applyCommited()
 	n.print()
 	close(done)
-	logger.Tracef("node.recover %s finish", n.address)
+	n.logger.Tracef("node.recover %s finish", n.address)
 	return nil
 }
 
@@ -886,7 +902,7 @@ func (n *node) printPeers() {
 	defer n.nodesMut.RUnlock()
 	for _, v := range n.peers {
 		if v.nextIndex > v.lastPrintNextIndex {
-			logger.Tracef("node.printPeers %s nextIndex %d==>%d", v.address, v.lastPrintNextIndex, v.nextIndex)
+			n.logger.Tracef("node.printPeers %s nextIndex %d==>%d", v.address, v.lastPrintNextIndex, v.nextIndex)
 			v.lastPrintNextIndex = v.nextIndex
 		}
 	}
@@ -894,19 +910,19 @@ func (n *node) printPeers() {
 
 func (n *node) print() {
 	if n.firstLogIndex > n.lastPrintFirstLogIndex {
-		logger.Tracef("node.print %s firstLogIndex %d==>%d", n.address, n.lastPrintFirstLogIndex, n.firstLogIndex)
+		n.logger.Tracef("node.print %s firstLogIndex %d==>%d", n.address, n.lastPrintFirstLogIndex, n.firstLogIndex)
 		n.lastPrintFirstLogIndex = n.firstLogIndex
 	}
 	//if n.lastLogIndex > n.lastPrintLastLogIndex {
-	//	logger.Tracef("node.print %s lastLogIndex %d==>%d", n.address, n.lastPrintLastLogIndex, n.lastLogIndex)
+	//	n.logger.Tracef("node.print %s lastLogIndex %d==>%d", n.address, n.lastPrintLastLogIndex, n.lastLogIndex)
 	//	n.lastPrintLastLogIndex = n.lastLogIndex
 	//}
 	//if n.commitIndex > n.lastPrintCommitIndex {
-	//	logger.Tracef("node.print %s commitIndex %d==>%d", n.address, n.lastPrintCommitIndex, n.commitIndex)
+	//	n.logger.Tracef("node.print %s commitIndex %d==>%d", n.address, n.lastPrintCommitIndex, n.commitIndex)
 	//	n.lastPrintCommitIndex = n.commitIndex
 	//}
 	if n.stateMachine.lastApplied > n.lastPrintLastApplied {
-		logger.Tracef("node.print %s lastApplied %d==>%d", n.address, n.lastPrintLastApplied, n.stateMachine.lastApplied)
+		n.logger.Tracef("node.print %s lastApplied %d==>%d", n.address, n.lastPrintLastApplied, n.stateMachine.lastApplied)
 		n.lastPrintLastApplied = n.stateMachine.lastApplied
 	}
 	//if n.nextIndex > n.lastPrintNextIndex {
@@ -947,7 +963,7 @@ func (n *node) commit() bool {
 	quickSort(lastLogIndexs, -999, -999)
 	index := lastLogIndexs[len(lastLogIndexs)/2]
 	if index > n.commitIndex.ID() {
-		//logger.Tracef("node.commit %s sort after %v %d", n.address, lastLogIndexs, index)
+		//n.logger.Tracef("node.commit %s sort after %v %d", n.address, lastLogIndexs, index)
 		n.commitIndex.Set(index)
 		go n.pipeline.apply()
 		return true

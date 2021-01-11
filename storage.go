@@ -49,16 +49,12 @@ func (s *storage) Exists(fileName string) bool {
 }
 
 func (s *storage) MkDir(dirName string) {
-	if err := os.MkdirAll(dirName, 0744); err != nil {
-		logger.Errorf("Unable to create path: %v", err)
-	}
+	os.MkdirAll(dirName, 0744)
 }
 
 func (s *storage) Rm(fileName string) {
 	filePath := path.Join(s.dataDir, fileName)
-	if err := os.Remove(filePath); err != nil {
-		logger.Errorf("Unable to Rm path: %v", err)
-	}
+	os.Remove(filePath)
 }
 
 func (s *storage) SafeOverWrite(fileName string, data []byte) error {

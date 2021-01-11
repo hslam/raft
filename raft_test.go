@@ -268,11 +268,11 @@ func TestClusterMore(t *testing.T) {
 			node.log.deleteAfter(node.lastLogIndex)
 			node.log.deleteAfter(node.firstLogIndex)
 			node.log.deleteAfter(1)
+			node.SetLogLevel(node.GetLogLevel())
 		}()
 	}
 	wg.Wait()
 	os.RemoveAll(dir)
-	GetLogLevel()
 }
 
 func TestClusterState(t *testing.T) {
@@ -338,7 +338,6 @@ func TestClusterState(t *testing.T) {
 	}
 	wg.Wait()
 	os.RemoveAll(dir)
-	GetLogLevel()
 }
 
 func TestLeaderTimeout(t *testing.T) {
