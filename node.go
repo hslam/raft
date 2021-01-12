@@ -23,6 +23,8 @@ type Node interface {
 	IsLeader() bool
 	Address() string
 	Ready() bool
+	SetLogLevel(level LogLevel)
+	GetLogLevel() LogLevel
 	SetCodec(codec Codec)
 	SetContext(context interface{})
 	SetGzipSnapshot(gzip bool)
