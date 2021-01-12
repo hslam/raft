@@ -133,7 +133,9 @@ func (l *waLog) copyAfter(index uint64, max int) (entries []*Entry) {
 	l.mu.Lock()
 	startIndex := l.startIndex(index)
 	endIndex := l.endIndex(startIndex + uint64(max))
-	entries = l.copyRange(startIndex, endIndex)
+	if startIndex <= endIndex {
+		entries = l.copyRange(startIndex, endIndex)
+	}
 	l.mu.Unlock()
 	return
 }
@@ -233,6 +235,7 @@ func (l *waLog) read(index uint64) *Entry {
 }
 
 func (l *waLog) batchRead(startIndex uint64, endIndex uint64) []*Entry {
+
 	entries := make([]*Entry, 0, endIndex-startIndex+1)
 	for i := startIndex; i < endIndex+1; i++ {
 		entry := l.read(i)
