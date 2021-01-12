@@ -141,7 +141,7 @@ func (l *waLog) copyAfter(index uint64, max int) (entries []*Entry) {
 }
 
 func (l *waLog) copyRange(startIndex uint64, endIndex uint64) []*Entry {
-	//logger.Tracef("log.copyRange %s startIndex %d endIndex %d",l.node.address,metas[0].Index,metas[len(metas)-1].Index)
+	//l.node.logger.Tracef("log.copyRange %s startIndex %d endIndex %d",l.node.address,metas[0].Index,metas[len(metas)-1].Index)
 	return l.batchRead(startIndex, endIndex)
 }
 
@@ -193,14 +193,14 @@ func (l *waLog) applyCommitedRange(startIndex uint64, endIndex uint64) {
 }
 
 func (l *waLog) applyCommitedBatch(startIndex uint64, endIndex uint64) {
-	//logger.Tracef("log.applyCommitedRange %s startIndex %d endIndex %d Start", l.node.address, startIndex, endIndex)
+	//l.node.logger.Tracef("log.applyCommitedRange %s startIndex %d endIndex %d Start", l.node.address, startIndex, endIndex)
 	entries := l.copyRange(startIndex, endIndex)
 	if entries == nil || len(entries) == 0 {
 		return
 	}
-	//logger.Tracef("log.applyCommitedRange %s startIndex %d endIndex %d length %d",l.node.address,startIndex,endIndex,len(entries))
+	//l.node.logger.Tracef("log.applyCommitedRange %s startIndex %d endIndex %d length %d",l.node.address,startIndex,endIndex,len(entries))
 	for i := 0; i < len(entries); i++ {
-		//logger.Tracef("log.applyCommitedRange %s Index %d Type %d",l.node.address,entries[i].Index,entries[i].CommandType)
+		//l.node.logger.Tracef("log.applyCommitedRange %s Index %d Type %d",l.node.address,entries[i].Index,entries[i].CommandType)
 		command := l.node.commands.clone(entries[i].CommandType)
 		var err error
 		if entries[i].CommandType > 0 {
@@ -289,7 +289,7 @@ func (l *waLog) appendEntries(entries []*Entry) bool {
 	l.node.lastLogTerm = entries[len(entries)-1].Term
 	l.mu.Unlock()
 	l.putEmtyEntries(entries)
-	//logger.Tracef("log.appendEntries %s entries %d", l.node.address, len(entries))
+	//l.node.logger.Tracef("log.appendEntries %s entries %d", l.node.address, len(entries))
 	return true
 }
 
@@ -304,6 +304,6 @@ func (l *waLog) Write(entries []*Entry) (err error) {
 			return err
 		}
 	}
-	//logger.Tracef("log.Write %d", len(entries))
+	//l.node.logger.Tracef("log.Write %d", len(entries))
 	return l.wal.FlushAndSync()
 }
