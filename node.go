@@ -221,9 +221,6 @@ func (n *node) run() {
 				n.votes.AddVote(v)
 			}
 		case <-n.ticker.C:
-			if !n.running {
-				return
-			}
 			select {
 			case change, ok := <-n.changeStateChan:
 				if change != nil && ok {
@@ -243,9 +240,6 @@ func (n *node) run() {
 				n.state.FixedUpdate()
 			}
 		case <-n.updateTicker.C:
-			if !n.running {
-				return
-			}
 			if n.workTicker != nil && n.deferTime.Add(time.Duration(minLatency*10)).Before(time.Now()) {
 				n.workTicker.Stop()
 				n.workTicker = nil
@@ -267,16 +261,15 @@ func (n *node) run() {
 		case <-n.checkLogTicker.C:
 			n.checkLog()
 		case <-n.done:
-			goto endfor
+			n.ticker.Stop()
+			n.updateTicker.Stop()
+			n.printTicker.Stop()
+			n.keepAliveTicker.Stop()
+			n.detectTicker.Stop()
+			n.checkLogTicker.Stop()
+			return
 		}
 	}
-endfor:
-	n.ticker.Stop()
-	n.updateTicker.Stop()
-	n.printTicker.Stop()
-	n.keepAliveTicker.Stop()
-	n.detectTicker.Stop()
-	n.checkLogTicker.Stop()
 }
 
 //SetLogLevel sets log's level
