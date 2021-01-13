@@ -40,6 +40,7 @@ func (s *snapshotSync) run() {
 				s.stateMachine.SaveSnapshot()
 			}
 		case <-s.done:
+			s.ticker.Stop()
 			//logger.Tracef("snapshotSync.run Seconds-%d, Changes-%d", s.syncType.Seconds, s.syncType.Changes)
 			return
 		}
@@ -48,7 +49,6 @@ func (s *snapshotSync) run() {
 
 func (s *snapshotSync) Stop() {
 	if atomic.CompareAndSwapInt32(&s.closed, 0, 1) {
-		s.ticker.Stop()
 		close(s.done)
 	}
 }
