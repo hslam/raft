@@ -267,8 +267,5 @@ func (p *pipeline) apply() {
 func (p *pipeline) Stop() {
 	if atomic.CompareAndSwapInt32(&p.closed, 0, 1) {
 		close(p.done)
-		close(p.trigger)
-		close(p.readTrigger)
-		close(p.appendEntries)
 	}
 }
