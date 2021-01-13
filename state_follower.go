@@ -47,7 +47,6 @@ func (s *followerState) Update() bool {
 			select {
 			case <-ch:
 				timer.Stop()
-				close(ch)
 			case <-timer.C:
 				//s.node.logger.Tracef("%s followerState.Update applyCommited time out", s.node.address)
 			}
