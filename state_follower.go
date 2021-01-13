@@ -58,7 +58,7 @@ func (s *followerState) Update() bool {
 }
 
 func (s *followerState) FixedUpdate() {
-	if s.node.election.Timeout() {
+	if s.node.election.Timeout() && s.node.lastLogIndex >= s.node.commitIndex.ID() {
 		s.node.leader.Store("")
 		s.node.votedFor.Store("")
 		s.node.logger.Tracef("%s followerState.FixedUpdate ElectionTimeout", s.node.address)
