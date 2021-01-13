@@ -8,54 +8,39 @@ import (
 )
 
 const (
-	defaultStartWait              = 3 * 1000 * time.Millisecond
-	defaultNodeTick               = time.Millisecond * 100
-	defaultUpdateTick             = time.Millisecond * 100
-	defaultNodeTracePrintTick     = 1000 * time.Millisecond
-	defaultCompactionTick         = 60 * 1000 * time.Millisecond
-	defaultHeartbeatTick          = 100 * time.Millisecond
-	defaultDetectTick             = 100 * time.Millisecond
-	defaultKeepAliveTick          = 10000 * time.Millisecond
-	defaultCheckLogTick           = time.Second
-	defaultElectionTimeout        = 1000 * time.Millisecond
-	defaultHearbeatTimeout        = 100 * time.Millisecond
-	defaultRequestVoteTimeout     = 1000 * time.Millisecond
-	defaultAppendEntriesTimeout   = 10 * 1000 * time.Millisecond
-	defaultInstallSnapshotTimeout = 60 * 1000 * time.Millisecond
-	defaultQueryLeaderTimeout     = 60 * 1000 * time.Millisecond
-	defaultAddPeerTimeout         = 60 * 1000 * time.Millisecond
-	defaultRemovePeerTimeout      = 60 * 1000 * time.Millisecond
-	defaultCommandTimeout         = 60 * 1000 * time.Millisecond
-	defaultMaxConcurrencyRead     = 1024 * 1024
-	defaultMaxConcurrency         = 1024 * 1024
-	defaultMaxBatch               = 1024 * 1024
-	defaultTarTick                = time.Hour
-	defaultMaxDelay               = time.Millisecond
-	defaultDataDir                = "default.raft"
-	defaultConfig                 = "config"
-	defaultLog                    = "log"
-	defaultIndex                  = "index"
-	defaultTerm                   = "term"
-	defaultVoteFor                = "votefor"
-	defaultCommitIndex            = "commitindex"
-	defaultSnapshot               = "snapshot"
-	defaultLastIncludedIndex      = "lastincludedindex"
-	defaultLastIncludedTerm       = "lastincludedterm"
-	defaultLastTarIndex           = "lasttarindex"
-	defaultMd5                    = "md5"
-	defaultTar                    = "tar"
-	defaultTarGz                  = "tar.gz"
-	defaultTmp                    = ".tmp"
-	defaultFlush                  = ".flush"
-	defaultReadFileBufferSize     = 1 << 24
-
-	commandTypeNoOperation           = -1
-	commandTypeAddPeer               = -2
-	commandTypeRemovePeer            = -3
-	commandTypeReconfiguration       = -4
-	defaultNumInstallSnapshot        = 1 << 24
-	defaultMaxEntriesPerFile         = 1 << 27
-	defaultChunkSize           int64 = 1 << 24
+	defaultStartWait                    = 3 * 1000 * time.Millisecond
+	defaultNodeTick                     = time.Millisecond * 100
+	defaultUpdateTick                   = time.Millisecond * 100
+	defaultNodeTracePrintTick           = 1000 * time.Millisecond
+	defaultHeartbeatTick                = 100 * time.Millisecond
+	defaultDetectTick                   = 100 * time.Millisecond
+	defaultKeepAliveTick                = 10000 * time.Millisecond
+	defaultCheckLogTick                 = time.Second
+	defaultElectionTimeout              = 1000 * time.Millisecond
+	defaultHearbeatTimeout              = 100 * time.Millisecond
+	defaultRequestVoteTimeout           = 1000 * time.Millisecond
+	defaultAppendEntriesTimeout         = 10 * 1000 * time.Millisecond
+	defaultInstallSnapshotTimeout       = 60 * 1000 * time.Millisecond
+	defaultQueryLeaderTimeout           = 60 * 1000 * time.Millisecond
+	defaultAddPeerTimeout               = 60 * 1000 * time.Millisecond
+	defaultRemovePeerTimeout            = 60 * 1000 * time.Millisecond
+	defaultCommandTimeout               = 60 * 1000 * time.Millisecond
+	defaultMaxBatch                     = 1024 * 1024
+	defaultTarTick                      = time.Hour
+	defaultMaxDelay                     = time.Millisecond
+	defaultDataDir                      = "default.raft"
+	defaultConfig                       = "config"
+	defaultCommitIndex                  = "commitindex"
+	defaultSnapshot                     = "snapshot"
+	defaultLastIncludedIndex            = "lastincludedindex"
+	defaultLastIncludedTerm             = "lastincludedterm"
+	defaultLastTarIndex                 = "lasttarindex"
+	defaultTar                          = "tar"
+	defaultTarGz                        = "tar.gz"
+	defaultTmp                          = ".tmp"
+	defaultFlush                        = ".flush"
+	defaultNumInstallSnapshot           = 1 << 24
+	defaultChunkSize              int64 = 1 << 24
 )
 
 // SnapshotPolicy represents a snapshot policy type.
