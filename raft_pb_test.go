@@ -451,3 +451,55 @@ func TestRemovePeerResponse(t *testing.T) {
 		}
 	}
 }
+
+func TestGetMetaRequest(t *testing.T) {
+	{
+		var obj = GetMetaRequest{}
+		var c = GOGOPBCodec{}
+		var buf = make([]byte, 10240)
+		var objCopy GetMetaRequest
+		data, _ := c.Marshal(buf, &obj)
+		c.Unmarshal(data, &objCopy)
+		if !reflect.DeepEqual(obj, objCopy) {
+			t.Error()
+		}
+	}
+	{
+		var obj = GetMetaRequest{}
+		var c = GOGOPBCodec{}
+		var objCopy GetMetaRequest
+		data, _ := obj.Marshal()
+		c.Unmarshal(data, &objCopy)
+		if !reflect.DeepEqual(obj, objCopy) {
+			t.Error()
+		}
+	}
+}
+
+func TestQueryGetMetaResponse(t *testing.T) {
+	{
+		var obj = GetMetaResponse{Meta: []byte("localhost:9001")}
+		var c = GOGOPBCodec{}
+		var buf = make([]byte, 10240)
+		var objCopy GetMetaResponse
+		data, _ := c.Marshal(buf, &obj)
+		c.Unmarshal(data, &objCopy)
+		if !reflect.DeepEqual(obj, objCopy) {
+			t.Error()
+		}
+	}
+	{
+		var obj = GetMetaResponse{Meta: []byte("localhost:9001")}
+		var c = GOGOPBCodec{}
+		var buf = make([]byte, 0)
+		var objCopy GetMetaResponse
+		data, _ := c.Marshal(buf, &obj)
+		c.Unmarshal(data, &objCopy)
+		if !reflect.DeepEqual(obj, objCopy) {
+			t.Error()
+		}
+		if n, err := obj.MarshalTo(nil); n > 0 || err == nil {
+			t.Error("The err should not be nil")
+		}
+	}
+}
