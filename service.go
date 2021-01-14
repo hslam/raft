@@ -26,6 +26,12 @@ func (s *service) SetPeer(req *SetPeerRequest, res *SetPeerResponse) error {
 func (s *service) RemovePeer(req *RemovePeerRequest, res *RemovePeerResponse) error {
 	return s.node.cluster.RemovePeer(req, res)
 }
+func (s *service) SetMeta(req *SetMetaRequest, res *SetMetaResponse) error {
+	return s.node.cluster.SetMeta(req, res)
+}
+func (s *service) GetMeta(req *GetMetaRequest, res *GetMetaResponse) error {
+	return s.node.cluster.GetMeta(req, res)
+}
 
 //RPCShortMethodName
 func (s *service) R(req *RequestVoteRequest, res *RequestVoteResponse) error {
@@ -45,4 +51,10 @@ func (s *service) J(req *SetPeerRequest, res *SetPeerResponse) error {
 }
 func (s *service) L(req *RemovePeerRequest, res *RemovePeerResponse) error {
 	return s.RemovePeer(req, res)
+}
+func (s *service) S(req *SetMetaRequest, res *SetMetaResponse) error {
+	return s.SetMeta(req, res)
+}
+func (s *service) G(req *GetMetaRequest, res *GetMetaResponse) error {
+	return s.GetMeta(req, res)
 }
