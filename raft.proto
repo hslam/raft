@@ -55,7 +55,6 @@ message InstallSnapshotResponse {
 message NodeInfo {
     string          Address     = 1;
     bool            NonVoting   = 2;
-    bytes           Data        = 3;
 }
 
 message ConfigurationStorage {

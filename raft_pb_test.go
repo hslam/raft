@@ -206,7 +206,7 @@ func TestInstallSnapshotResponse(t *testing.T) {
 
 func TestNodeInfo(t *testing.T) {
 	{
-		var obj = NodeInfo{Address: "localhost:9001", NonVoting: true, Data: make([]byte, 512)}
+		var obj = NodeInfo{Address: "localhost:9001", NonVoting: true}
 		var c = GOGOPBCodec{}
 		var buf = make([]byte, 10240)
 		var objCopy NodeInfo
@@ -217,7 +217,7 @@ func TestNodeInfo(t *testing.T) {
 		}
 	}
 	{
-		var obj = NodeInfo{Address: "localhost:9001", NonVoting: true, Data: make([]byte, 512)}
+		var obj = NodeInfo{Address: "localhost:9001", NonVoting: true}
 		var c = GOGOPBCodec{}
 		var buf = make([]byte, 0)
 		var objCopy NodeInfo
@@ -234,7 +234,7 @@ func TestNodeInfo(t *testing.T) {
 
 func TestConfigurationStorage(t *testing.T) {
 	{
-		var obj = ConfigurationStorage{Nodes: []*NodeInfo{{Address: "localhost:9001", NonVoting: true, Data: make([]byte, 512)}}}
+		var obj = ConfigurationStorage{Nodes: []*NodeInfo{{Address: "localhost:9001", NonVoting: true}}}
 		var c = GOGOPBCodec{}
 		var buf = make([]byte, 10240)
 		var objCopy ConfigurationStorage
@@ -245,7 +245,7 @@ func TestConfigurationStorage(t *testing.T) {
 		}
 	}
 	{
-		var obj = ConfigurationStorage{Nodes: []*NodeInfo{{Address: "localhost:9001", NonVoting: true, Data: make([]byte, 512)}}}
+		var obj = ConfigurationStorage{Nodes: []*NodeInfo{{Address: "localhost:9001", NonVoting: true}}}
 		var c = GOGOPBCodec{}
 		var buf = make([]byte, 0)
 		var objCopy ConfigurationStorage
@@ -262,7 +262,7 @@ func TestConfigurationStorage(t *testing.T) {
 
 func TestDefaultCommand(t *testing.T) {
 	{
-		var obj = DefaultCommand{Operation: 1024, NodeInfo: &NodeInfo{Address: "localhost:9001", NonVoting: true, Data: make([]byte, 512)}}
+		var obj = DefaultCommand{Operation: 1024, NodeInfo: &NodeInfo{Address: "localhost:9001", NonVoting: true}}
 		var c = GOGOPBCodec{}
 		var buf = make([]byte, 10240)
 		var objCopy DefaultCommand
@@ -273,7 +273,7 @@ func TestDefaultCommand(t *testing.T) {
 		}
 	}
 	{
-		var obj = DefaultCommand{Operation: 1024, NodeInfo: &NodeInfo{Address: "localhost:9001", NonVoting: true, Data: make([]byte, 512)}}
+		var obj = DefaultCommand{Operation: 1024, NodeInfo: &NodeInfo{Address: "localhost:9001", NonVoting: true}}
 		var c = GOGOPBCodec{}
 		var buf = make([]byte, 0)
 		var objCopy DefaultCommand
@@ -342,7 +342,7 @@ func TestQueryLeaderResponse(t *testing.T) {
 
 func TestSetPeerRequest(t *testing.T) {
 	{
-		var obj = SetPeerRequest{Node: &NodeInfo{Address: "localhost:9001", NonVoting: true, Data: make([]byte, 512)}}
+		var obj = SetPeerRequest{Node: &NodeInfo{Address: "localhost:9001", NonVoting: true}}
 		var c = GOGOPBCodec{}
 		var buf = make([]byte, 10240)
 		var objCopy SetPeerRequest
@@ -353,7 +353,7 @@ func TestSetPeerRequest(t *testing.T) {
 		}
 	}
 	{
-		var obj = SetPeerRequest{Node: &NodeInfo{Address: "localhost:9001", NonVoting: true, Data: make([]byte, 512)}}
+		var obj = SetPeerRequest{Node: &NodeInfo{Address: "localhost:9001", NonVoting: true}}
 		var c = GOGOPBCodec{}
 		var buf = make([]byte, 0)
 		var objCopy SetPeerRequest

@@ -828,7 +828,6 @@ func (d *InstallSnapshotResponse) Unmarshal(data []byte) error {
 type NodeInfo struct {
 	Address   string
 	NonVoting bool
-	Data      []byte
 }
 
 // Size returns the size of the buffer required to represent the data when encoded.
@@ -836,7 +835,6 @@ func (d *NodeInfo) Size() int {
 	var size uint64
 	size += 11 + uint64(len(d.Address))
 	size += 11
-	size += 11 + uint64(len(d.Data))
 	return int(size)
 }
 
@@ -868,12 +866,6 @@ func (d *NodeInfo) MarshalTo(buf []byte) (int, error) {
 		buf[offset] = 2<<3 | 0
 		offset++
 		n = code.EncodeBool(buf[offset:], d.NonVoting)
-		offset += n
-	}
-	if len(d.Data) > 0 {
-		buf[offset] = 3<<3 | 2
-		offset++
-		n = code.EncodeBytes(buf[offset:], d.Data)
 		offset += n
 	}
 	return int(offset), nil
@@ -908,12 +900,6 @@ func (d *NodeInfo) Unmarshal(data []byte) error {
 				return fmt.Errorf("proto: wrong wireType = %d for field NonVoting", wireType)
 			}
 			n = code.DecodeBool(data[offset:], &d.NonVoting)
-			offset += n
-		case 3:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Data", wireType)
-			}
-			n = code.DecodeBytes(data[offset:], &d.Data)
 			offset += n
 		}
 	}
