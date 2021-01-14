@@ -24,6 +24,8 @@ const (
 	defaultQueryLeaderTimeout           = 60 * 1000 * time.Millisecond
 	defaultAddPeerTimeout               = 60 * 1000 * time.Millisecond
 	defaultRemovePeerTimeout            = 60 * 1000 * time.Millisecond
+	defaultSetMetaTimeout               = 60 * 1000 * time.Millisecond
+	defaultGetMetaTimeout               = 60 * 1000 * time.Millisecond
 	defaultCommandTimeout               = 60 * 1000 * time.Millisecond
 	defaultMaxBatch                     = 1024 * 1024
 	defaultTarTick                      = time.Hour

@@ -19,6 +19,8 @@ const (
 	queryLeaderName     = "Q"
 	setPeerName         = "J"
 	removePeerName      = "L"
+	setMetaName         = "S"
+	getMetaName         = "G"
 )
 
 type rpcs struct {
@@ -29,6 +31,8 @@ type rpcs struct {
 	queryLeaderServiceName     string
 	setPeerServiceName         string
 	removePeerServiceName      string
+	setMetaServiceName         string
+	getMetaServiceName         string
 	node                       *node
 	server                     *rpc.Server
 	addr                       string
@@ -47,6 +51,8 @@ func newRPCs(n *node, addr string) *rpcs {
 		queryLeaderServiceName:     serviceName + "." + queryLeaderName,
 		setPeerServiceName:         serviceName + "." + setPeerName,
 		removePeerServiceName:      serviceName + "." + removePeerName,
+		setMetaServiceName:         serviceName + "." + setMetaName,
+		getMetaServiceName:         serviceName + "." + getMetaName,
 		node:                       n,
 		addr:                       addr,
 	}
@@ -89,4 +95,12 @@ func (r *rpcs) SetPeerServiceName() string {
 
 func (r *rpcs) RemovePeerServiceName() string {
 	return r.removePeerServiceName
+}
+
+func (r *rpcs) SetMetaServiceName() string {
+	return r.setMetaServiceName
+}
+
+func (r *rpcs) GetMetaServiceName() string {
+	return r.getMetaServiceName
 }

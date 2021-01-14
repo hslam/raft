@@ -12,9 +12,13 @@ type Cluster interface {
 	CallQueryLeader(addr string) (term uint64, LeaderID string, ok bool)
 	CallSetPeer(addr string, info *NodeInfo) (success bool, LeaderID string, ok bool)
 	CallRemovePeer(addr string, Address string) (success bool, LeaderID string, ok bool)
+	CallSetMeta(addr string, meta []byte) (ok bool)
+	CallGetMeta(addr string) (meta []byte, ok bool)
 	QueryLeader(req *QueryLeaderRequest, res *QueryLeaderResponse) error
 	SetPeer(req *SetPeerRequest, res *SetPeerResponse) error
 	RemovePeer(req *RemovePeerRequest, res *RemovePeerResponse) error
+	SetMeta(req *SetMetaRequest, res *SetMetaResponse) error
+	GetMeta(req *GetMetaRequest, res *GetMetaResponse) error
 }
 
 type cluster struct {
@@ -22,6 +26,8 @@ type cluster struct {
 	queryLeaderTimeout time.Duration
 	addPeerTimeout     time.Duration
 	removePeerTimeout  time.Duration
+	setMetaTimeout     time.Duration
+	getMetaTimeout     time.Duration
 }
 
 func newCluster(n *node) Cluster {
@@ -30,6 +36,8 @@ func newCluster(n *node) Cluster {
 		queryLeaderTimeout: defaultQueryLeaderTimeout,
 		addPeerTimeout:     defaultAddPeerTimeout,
 		removePeerTimeout:  defaultRemovePeerTimeout,
+		setMetaTimeout:     defaultSetMetaTimeout,
+		getMetaTimeout:     defaultGetMetaTimeout,
 	}
 }
 
@@ -71,6 +79,30 @@ func (c *cluster) CallRemovePeer(addr string, Address string) (success bool, Lea
 	return res.Success, res.LeaderID, true
 }
 
+func (c *cluster) CallSetMeta(addr string, meta []byte) (ok bool) {
+	var req = &SetMetaRequest{}
+	var res = &SetMetaResponse{}
+	err := c.node.rpcs.CallTimeout(addr, c.node.rpcs.SetMetaServiceName(), req, res, c.setMetaTimeout)
+	if err != nil {
+		c.node.logger.Tracef("raft.CallSetMeta %s -> %s error %s", c.node.address, addr, err.Error())
+		return false
+	}
+	c.node.logger.Tracef("raft.CallSetMeta %s -> %s Success %t", c.node.address, addr, res.Success)
+	return res.Success
+}
+
+func (c *cluster) CallGetMeta(addr string) (meta []byte, ok bool) {
+	var req = &GetMetaRequest{}
+	var res = &GetMetaResponse{}
+	err := c.node.rpcs.CallTimeout(addr, c.node.rpcs.GetMetaServiceName(), req, res, c.getMetaTimeout)
+	if err != nil {
+		c.node.logger.Tracef("raft.CallGetMeta %s -> %s error %s", c.node.address, addr, err.Error())
+		return nil, false
+	}
+	c.node.logger.Tracef("raft.CallGetMeta %s -> %s Meta %v", c.node.address, addr, res.Meta)
+	return res.Meta, true
+}
+
 func (c *cluster) QueryLeader(req *QueryLeaderRequest, res *QueryLeaderResponse) error {
 	if c.node.leader.Load() != "" {
 		res.LeaderID = c.node.leader.Load()
@@ -108,4 +140,15 @@ func (c *cluster) RemovePeer(req *RemovePeerRequest, res *RemovePeerResponse) er
 	}
 	res.LeaderID = c.node.leader.Load()
 	return ErrNotLeader
+}
+
+func (c *cluster) SetMeta(req *SetMetaRequest, res *SetMetaResponse) error {
+	c.node.meta = req.Meta
+	res.Success = true
+	return nil
+}
+
+func (c *cluster) GetMeta(req *GetMetaRequest, res *GetMetaResponse) error {
+	res.Meta = c.node.meta
+	return nil
 }
