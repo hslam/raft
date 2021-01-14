@@ -22,6 +22,8 @@ type Node interface {
 	Leader() string
 	IsLeader() bool
 	Address() string
+	SetNodeMeta(address string, meta []byte) bool
+	GetNodeMeta(address string) ([]byte, bool)
 	Ready() bool
 	SetLogLevel(level LogLevel)
 	GetLogLevel() LogLevel
@@ -57,6 +59,7 @@ type node struct {
 
 	address string
 	leader  *atomic.String
+	meta    []byte
 
 	//config
 	heartbeatTick time.Duration
@@ -345,6 +348,30 @@ func (n *node) Leader() string {
 
 func (n *node) Address() string {
 	return n.address
+}
+
+func (n *node) SetNodeMeta(address string, meta []byte) (ok bool) {
+	if len(address) > 0 {
+		if address == n.address {
+			n.meta = meta
+			ok = true
+		} else {
+			ok = n.cluster.CallSetMeta(address, meta)
+		}
+	}
+	return
+}
+
+func (n *node) GetNodeMeta(address string) (meta []byte, ok bool) {
+	if len(address) > 0 {
+		if address == n.address {
+			meta = n.meta
+			ok = true
+		} else {
+			meta, ok = n.cluster.CallGetMeta(address)
+		}
+	}
+	return
 }
 
 func (n *node) Ready() bool {
