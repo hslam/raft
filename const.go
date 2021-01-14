@@ -41,7 +41,6 @@ const (
 	defaultTarGz                        = "tar.gz"
 	defaultTmp                          = ".tmp"
 	defaultFlush                        = ".flush"
-	defaultNumInstallSnapshot           = 1 << 24
 	defaultChunkSize              int64 = 1 << 24
 )
 
