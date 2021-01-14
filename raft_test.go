@@ -654,3 +654,51 @@ func TestStateMachine(t *testing.T) {
 	}
 	os.RemoveAll(dir)
 }
+
+func TestClusterMeta(t *testing.T) {
+	dir := "raft.test"
+	os.RemoveAll(dir)
+	infos := []*NodeInfo{{Address: "localhost:9001"}, {Address: "localhost:9002"}, {Address: "localhost:9003"}}
+	wg := sync.WaitGroup{}
+	for i := 0; i < len(infos); i++ {
+		address := infos[i].Address
+		index := i
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			ctx := &testContext{data: ""}
+			strs := strings.Split(address, ":")
+			port, _ := strconv.Atoi(strs[1])
+			var node Node
+			var err error
+			node, err = NewNode(strs[0], port, dir+"/node."+strconv.FormatInt(int64(index), 10), ctx, false, infos)
+			if err != nil {
+				t.Error(err)
+			}
+			node.RegisterCommand(&testCommand{})
+			node.SetCodec(&JSONCodec{})
+			node.SetContext(ctx)
+			node.SetSnapshot(&testSnapshot{ctx: ctx})
+			node.SetSnapshotPolicy(Always)
+			node.Start()
+			time.Sleep(time.Second * 5)
+			for j := 0; j < len(infos); j++ {
+				addr := infos[j].Address
+				ok := node.SetNodeMeta(addr, []byte(addr))
+				if !ok {
+					t.Error()
+				}
+				meta, ok := node.GetNodeMeta(addr)
+				if !ok {
+					t.Error()
+				} else if string(meta) != addr {
+					t.Error()
+				}
+			}
+			time.Sleep(time.Second * 5)
+			node.Stop()
+		}()
+	}
+	wg.Wait()
+	os.RemoveAll(dir)
+}
