@@ -65,8 +65,10 @@ func (p *peer) appendEntries(entries []*Entry) (nextIndex uint64, term uint64, s
 	} else {
 		entry := p.node.log.lookup(p.nextIndex - 1)
 		if entry == nil {
-			prevLogIndex = 0
-			prevLogTerm = 0
+			if p.node.stateMachine.snapshotReadWriter.lastIncludedIndex.ID() == p.nextIndex-1 {
+				prevLogIndex = p.node.stateMachine.snapshotReadWriter.lastIncludedIndex.ID()
+				prevLogTerm = p.node.stateMachine.snapshotReadWriter.lastIncludedTerm.ID()
+			}
 		} else {
 			prevLogIndex = p.nextIndex - 1
 			prevLogTerm = entry.Term
@@ -126,7 +128,7 @@ func (p *peer) check() {
 	defer atomic.StoreInt32(&p.checking, 0)
 	if p.node.lastLogIndex > p.nextIndex-1 && p.nextIndex > 0 {
 		if p.node.stateMachine.snapshot != nil &&
-			(((p.nextIndex == 1 || (p.nextIndex > 1 && p.nextIndex-1 < p.node.firstLogIndex)) && p.node.commitIndex.ID() > 1) ||
+			(((p.nextIndex == 1 || (p.nextIndex > 1 && p.nextIndex < p.node.firstLogIndex)) && p.node.commitIndex.ID() > 1) ||
 				p.node.lastLogIndex-(p.nextIndex-1) > defaultNumInstallSnapshot) {
 			if atomic.CompareAndSwapInt32(&p.installing, 0, 1) {
 				atomic.StoreInt32(&p.install, 1)
