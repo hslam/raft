@@ -18,11 +18,11 @@ func newCandidateState(n *node) state {
 
 func (s *candidateState) Start() {
 	s.node.ready = false
-	s.node.election.Random(true)
-	s.node.election.Reset()
+	s.node.leader.Store("")
 	s.node.currentTerm.Add(1)
 	s.node.votedFor.Store(s.node.address)
-	s.node.leader.Store("")
+	s.node.election.Random(true)
+	s.node.election.Reset()
 	s.node.requestVotes()
 	s.node.logger.Tracef("%s candidateState.Start Term :%d", s.node.address, s.node.currentTerm.Load())
 }
