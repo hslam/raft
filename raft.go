@@ -142,7 +142,8 @@ func (r *raft) AppendEntries(req *AppendEntriesRequest, res *AppendEntriesRespon
 		r.node.currentTerm.Store(req.Term)
 		r.node.stepDown(true)
 	}
-	if r.node.leader.Load() == "" && r.node.leader.Load() == r.node.votedFor.Load() {
+	if r.node.leader.Load() == "" {
+		r.node.votedFor.Store(req.LeaderID)
 		r.node.leader.Store(req.LeaderID)
 		r.node.logger.Tracef("raft.HandleAppendEntries %s State:%s leader-%s Term:%d", r.node.address, r.node.State(), r.node.leader.Load(), r.node.currentTerm.Load())
 		if r.node.leaderChange != nil {
