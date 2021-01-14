@@ -99,7 +99,7 @@ func (c *cluster) CallGetMeta(addr string) (meta []byte, ok bool) {
 		c.node.logger.Tracef("raft.CallGetMeta %s -> %s error %s", c.node.address, addr, err.Error())
 		return nil, false
 	}
-	c.node.logger.Tracef("raft.CallGetMeta %s -> %s Meta %v", c.node.address, addr, res.Meta)
+	c.node.logger.Tracef("raft.CallGetMeta %s -> %s Meta length %d", c.node.address, addr, len(res.Meta))
 	return res.Meta, true
 }
 
