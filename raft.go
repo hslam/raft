@@ -173,6 +173,7 @@ func (r *raft) AppendEntries(req *AppendEntriesRequest, res *AppendEntriesRespon
 			res.Success = false
 			return nil
 		}
+		r.node.ready = true
 	}
 
 	if req.LeaderCommit > r.node.commitIndex.ID() {
