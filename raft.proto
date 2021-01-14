@@ -92,3 +92,18 @@ message RemovePeerResponse {
     bool    Success     = 1;
     string  LeaderID    = 2;
 }
+
+message SetMetaRequest {
+    []byte  Meta    = 1;
+}
+
+message SetMetaResponse {
+    bool    Success     = 1;
+}
+
+message GetMetaRequest {
+}
+
+message GetMetaResponse {
+    []byte  Meta    = 1;
+}
