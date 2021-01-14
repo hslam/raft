@@ -80,7 +80,7 @@ func (c *cluster) CallRemovePeer(addr string, Address string) (success bool, Lea
 }
 
 func (c *cluster) CallSetMeta(addr string, meta []byte) (ok bool) {
-	var req = &SetMetaRequest{}
+	var req = &SetMetaRequest{Meta: meta}
 	var res = &SetMetaResponse{}
 	err := c.node.rpcs.CallTimeout(addr, c.node.rpcs.SetMetaServiceName(), req, res, c.setMetaTimeout)
 	if err != nil {
