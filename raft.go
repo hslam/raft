@@ -117,15 +117,14 @@ func (r *raft) RequestVote(req *RequestVoteRequest, res *RequestVoteResponse) er
 	if req.Term < r.node.currentTerm.Load() {
 		res.VoteGranted = false
 		return nil
-	} else if req.Term > r.node.currentTerm.Load() && req.LastLogIndex >= r.node.lastLogIndex && req.LastLogTerm >= r.node.lastLogTerm && r.node.state.String() != leader {
+	}
+	isUpToDate := req.LastLogIndex >= r.node.lastLogIndex && req.LastLogTerm >= r.node.lastLogTerm
+	if req.Term > r.node.currentTerm.Load() && isUpToDate {
 		r.node.currentTerm.Store(req.Term)
 		r.node.votedFor.Store("")
 		r.node.stepDown(true)
 	}
-	if r.node.state.String() == leader || r.node.state.String() == candidate || r.node.leader.Load() != "" {
-		res.VoteGranted = false
-		return nil
-	} else if (r.node.votedFor.Load() == "" || r.node.votedFor.Load() == req.CandidateID) && req.LastLogIndex >= r.node.lastLogIndex && req.LastLogTerm >= r.node.lastLogTerm {
+	if (r.node.votedFor.Load() == "" || r.node.votedFor.Load() == req.CandidateID) && isUpToDate {
 		res.VoteGranted = true
 		r.node.votedFor.Store(req.CandidateID)
 		r.node.stepDown(true)
