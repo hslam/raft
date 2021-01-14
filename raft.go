@@ -141,13 +141,8 @@ func (r *raft) AppendEntries(req *AppendEntriesRequest, res *AppendEntriesRespon
 	} else if req.Term > r.node.currentTerm.Load() {
 		r.node.currentTerm.Store(req.Term)
 		r.node.stepDown(true)
-		if r.node.state.String() == leader || r.node.state.String() == candidate {
-			res.Success = false
-			return nil
-		}
 	}
-	if r.node.leader.Load() == "" {
-		r.node.votedFor.Store(req.LeaderID)
+	if r.node.leader.Load() == "" && r.node.leader.Load() == r.node.votedFor.Load() {
 		r.node.leader.Store(req.LeaderID)
 		r.node.logger.Tracef("raft.HandleAppendEntries %s State:%s leader-%s Term:%d", r.node.address, r.node.State(), r.node.leader.Load(), r.node.currentTerm.Load())
 		if r.node.leaderChange != nil {
@@ -176,7 +171,7 @@ func (r *raft) AppendEntries(req *AppendEntriesRequest, res *AppendEntriesRespon
 
 	if req.LeaderCommit > r.node.commitIndex.ID() {
 		//var commitIndex=r.node.commitIndex
-		r.node.commitIndex.Set(req.LeaderCommit)
+		r.node.commitIndex.Set(minUint64(req.LeaderCommit, r.node.lastLogIndex))
 		//if r.node.commitIndex>commitIndex{
 		//	r.node.logger.Tracef("raft.HandleAppendEntries %s commitIndex %d==>%d",r.node.address, commitIndex,r.node.commitIndex)
 		//}
@@ -186,13 +181,11 @@ func (r *raft) AppendEntries(req *AppendEntriesRequest, res *AppendEntriesRespon
 		res.Success = true
 		return nil
 	}
-	if len(req.Entries) > 0 && req.PrevLogIndex == r.node.lastLogIndex {
-		if req.PrevLogIndex+1 == req.Entries[0].Index {
-			res.Success = r.node.log.appendEntries(req.Entries)
-			r.node.nextIndex = r.node.lastLogIndex + 1
-			res.NextIndex = r.node.nextIndex
-			return nil
-		}
+	if req.PrevLogIndex+1 == req.Entries[0].Index {
+		res.Success = r.node.log.appendEntries(req.Entries)
+		r.node.nextIndex = r.node.lastLogIndex + 1
+		res.NextIndex = r.node.nextIndex
+		return nil
 	}
 	res.Success = false
 	return nil
