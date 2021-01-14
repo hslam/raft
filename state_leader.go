@@ -36,6 +36,7 @@ func (s *leaderState) Start() {
 			//logger.Tracef("%s leaderState.Start %s nextIndex:%d", s.node.address, v.address, v.nextIndex)
 		}
 	}
+	s.node.ready = false
 	s.node.pipeline.init(s.node.lastLogIndex)
 	s.node.leader.Store(s.node.address)
 	s.node.lease = true

@@ -376,13 +376,9 @@ func (n *node) GetNodeMeta(address string) (meta []byte, ok bool) {
 
 func (n *node) Ready() bool {
 	n.mu.RLock()
-	ready := n.isReady()
+	ready := n.ready
 	n.mu.RUnlock()
 	return ready
-}
-
-func (n *node) isReady() bool {
-	return n.ready && n.isLeader()
 }
 
 func (n *node) IsLeader() bool {
@@ -513,7 +509,7 @@ func (n *node) LeaseRead() (ok bool) {
 	ok = n.waitApplyTimeout(n.commitIndex.ID(), time.NewTimer(defaultCommandTimeout))
 	if ok {
 		n.mu.RLock()
-		lease := n.lease && n.isReady()
+		lease := n.lease && n.ready
 		n.mu.RUnlock()
 		ok = lease
 	}

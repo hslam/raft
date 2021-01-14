@@ -17,6 +17,7 @@ func newCandidateState(n *node) state {
 }
 
 func (s *candidateState) Start() {
+	s.node.ready = false
 	s.node.election.Random(true)
 	s.node.election.Reset()
 	s.node.currentTerm.Add(1)

@@ -25,6 +25,7 @@ func newFollowerState(n *node) state {
 }
 
 func (s *followerState) Start() {
+	s.node.ready = false
 	s.node.leader.Store("")
 	s.node.election.Random(true)
 	s.node.election.Reset()
