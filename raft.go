@@ -117,13 +117,12 @@ func (r *raft) RequestVote(req *RequestVoteRequest, res *RequestVoteResponse) er
 	if req.Term < r.node.currentTerm.Load() {
 		res.VoteGranted = false
 		return nil
-	}
-	isUpToDate := req.LastLogIndex >= r.node.lastLogIndex && req.LastLogTerm >= r.node.lastLogTerm
-	if req.Term > r.node.currentTerm.Load() && isUpToDate {
+	} else if req.Term > r.node.currentTerm.Load() {
 		r.node.currentTerm.Store(req.Term)
 		r.node.votedFor.Store("")
 		r.node.stepDown(true)
 	}
+	isUpToDate := req.LastLogIndex >= r.node.lastLogIndex && req.LastLogTerm >= r.node.lastLogTerm
 	if (r.node.votedFor.Load() == "" || r.node.votedFor.Load() == req.CandidateID) && isUpToDate {
 		res.VoteGranted = true
 		r.node.votedFor.Store(req.CandidateID)
