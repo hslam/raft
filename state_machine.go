@@ -80,27 +80,22 @@ func (s *stateMachine) SetSnapshotPolicy(snapshotPolicy SnapshotPolicy) {
 func (s *stateMachine) setSnapshotPolicy(snapshotPolicy SnapshotPolicy) {
 	s.snapshotPolicy = snapshotPolicy
 	s.always = false
+	s.StopSnapshotSyncs()
 	switch s.snapshotPolicy {
 	case Never:
-		s.Stop()
 	case EverySecond:
-		s.Stop()
 		s.snapshotSyncs = append(s.snapshotSyncs, newSnapshotSync(s, &SyncType{1, 1}))
 		go s.run()
 	case EveryMinute:
-		s.Stop()
 		s.snapshotSyncs = append(s.snapshotSyncs, newSnapshotSync(s, &SyncType{60, 1}))
 		go s.run()
 	case EveryHour:
-		s.Stop()
 		s.snapshotSyncs = append(s.snapshotSyncs, newSnapshotSync(s, &SyncType{3600, 1}))
 		go s.run()
 	case EveryDay:
-		s.Stop()
 		s.snapshotSyncs = append(s.snapshotSyncs, newSnapshotSync(s, &SyncType{86400, 1}))
 		go s.run()
 	case DefalutSync:
-		s.Stop()
 		s.saves = []*SyncType{
 			{secondsSaveSnapshot1, changesSaveSnapshot1},
 			{secondsSaveSnapshot2, changesSaveSnapshot2},
@@ -111,13 +106,11 @@ func (s *stateMachine) setSnapshotPolicy(snapshotPolicy SnapshotPolicy) {
 		}
 		go s.run()
 	case CustomSync:
-		s.Stop()
 		for _, v := range s.saves {
 			s.snapshotSyncs = append(s.snapshotSyncs, newSnapshotSync(s, v))
 		}
 		go s.run()
 	case Always:
-		s.Stop()
 		s.always = true
 	}
 }
@@ -254,7 +247,7 @@ func (s *stateMachine) run() {
 	}
 }
 
-func (s *stateMachine) Stop() {
+func (s *stateMachine) StopSnapshotSyncs() {
 	//s.node.logger.Tracef("stateMachine.Stop %d", len(s.snapshotSyncs))
 	for _, snapshotSync := range s.snapshotSyncs {
 		if snapshotSync != nil {
@@ -263,5 +256,9 @@ func (s *stateMachine) Stop() {
 		}
 	}
 	s.snapshotSyncs = make([]*snapshotSync, 0)
+}
+
+func (s *stateMachine) Stop() {
+	s.StopSnapshotSyncs()
 	s.snapshotReadWriter.Stop()
 }
