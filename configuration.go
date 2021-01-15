@@ -12,47 +12,35 @@ import (
 )
 
 type configuration struct {
-	node  *node
-	mu    sync.Mutex
-	nodes map[string]*NodeInfo
+	node    *node
+	mu      sync.Mutex
+	members map[string]*Member
 }
 
 func newConfiguration(n *node) *configuration {
 	c := &configuration{
-		node:  n,
-		nodes: make(map[string]*NodeInfo),
+		node:    n,
+		members: make(map[string]*Member),
 	}
 	c.load()
-	if _, ok := c.nodes[c.node.address]; !ok {
-		c.AddPeer(&NodeInfo{Address: c.node.address})
+	if _, ok := c.members[c.node.address]; !ok {
+		c.AddMember(&Member{Address: c.node.address})
 	}
 	return c
 }
 
-func (c *configuration) SetNodes(nodes []*NodeInfo) {
+func (c *configuration) SetMembers(members []*Member) {
 	c.mu.Lock()
-	for _, v := range nodes {
-		c.nodes[v.Address] = v
+	for _, v := range members {
+		c.members[v.Address] = v
 	}
 	c.mu.Unlock()
 	c.save()
 }
 
-func (c *configuration) AddPeer(peer *NodeInfo) {
+func (c *configuration) AddMember(member *Member) {
 	c.mu.Lock()
-	c.nodes[peer.Address] = peer
-	c.mu.Unlock()
-	c.save()
-	if c.node.memberChange != nil {
-		go c.node.memberChange()
-	}
-}
-
-func (c *configuration) RemovePeer(addr string) {
-	c.mu.Lock()
-	if _, ok := c.nodes[addr]; ok {
-		delete(c.nodes, addr)
-	}
+	c.members[member.Address] = member
 	c.mu.Unlock()
 	c.save()
 	if c.node.memberChange != nil {
@@ -60,10 +48,22 @@ func (c *configuration) RemovePeer(addr string) {
 	}
 }
 
-func (c *configuration) LookupPeer(addr string) (nodeInfo *NodeInfo) {
+func (c *configuration) RemoveMember(addr string) {
 	c.mu.Lock()
-	if v, ok := c.nodes[addr]; ok {
-		nodeInfo = v
+	if _, ok := c.members[addr]; ok {
+		delete(c.members, addr)
+	}
+	c.mu.Unlock()
+	c.save()
+	if c.node.memberChange != nil {
+		go c.node.memberChange()
+	}
+}
+
+func (c *configuration) LookupMember(addr string) (member *Member) {
+	c.mu.Lock()
+	if v, ok := c.members[addr]; ok {
+		member = v
 	}
 	c.mu.Unlock()
 	return
@@ -71,8 +71,8 @@ func (c *configuration) LookupPeer(addr string) (nodeInfo *NodeInfo) {
 
 func (c *configuration) Peers() []string {
 	c.mu.Lock()
-	peers := make([]string, 0, len(c.nodes))
-	for _, v := range c.nodes {
+	peers := make([]string, 0, len(c.members))
+	for _, v := range c.members {
 		if v.Address != c.node.address {
 			peers = append(peers, v.Address)
 		}
@@ -81,11 +81,11 @@ func (c *configuration) Peers() []string {
 	return peers
 }
 
-func (c *configuration) Members() []*NodeInfo {
+func (c *configuration) Members() []*Member {
 	c.mu.Lock()
-	members := make([]*NodeInfo, 0, len(c.nodes))
-	for _, v := range c.nodes {
-		member := &NodeInfo{}
+	members := make([]*Member, 0, len(c.members))
+	for _, v := range c.members {
+		member := &Member{}
 		*member = *v
 		members = append(members, member)
 	}
@@ -95,8 +95,8 @@ func (c *configuration) Members() []*NodeInfo {
 
 func (c *configuration) membership() []string {
 	c.mu.Lock()
-	ms := make([]string, 0, len(c.nodes))
-	for _, v := range c.nodes {
+	ms := make([]string, 0, len(c.members))
+	for _, v := range c.members {
 		ms = append(ms, fmt.Sprintf("%s;%t", v.Address, v.NonVoting))
 	}
 	c.mu.Unlock()
@@ -106,11 +106,11 @@ func (c *configuration) membership() []string {
 func (c *configuration) save() {
 	n := nodes{}
 	c.mu.Lock()
-	for _, v := range c.nodes {
+	for _, v := range c.members {
 		n = append(n, v)
 	}
 	sort.Sort(n)
-	storage := &ConfigurationStorage{Nodes: n}
+	storage := &ConfigurationStorage{Members: n}
 	c.mu.Unlock()
 	b, _ := json.Marshal(storage)
 	c.node.storage.OverWrite(defaultConfig, b)
@@ -124,8 +124,8 @@ func (c *configuration) load() error {
 	storage := &ConfigurationStorage{}
 	json.Unmarshal(b, storage)
 	c.mu.Lock()
-	for _, v := range storage.Nodes {
-		c.nodes[v.Address] = v
+	for _, v := range storage.Members {
+		c.members[v.Address] = v
 	}
 	c.mu.Unlock()
 	if !c.membershipChanges() {
@@ -134,7 +134,7 @@ func (c *configuration) load() error {
 	}
 	lastNodesCount := c.node.NodesCount()
 	c.node.deleteNotPeers(c.Peers())
-	for _, v := range storage.Nodes {
+	for _, v := range storage.Members {
 		c.node.addNode(v)
 	}
 	nodesCount := c.node.NodesCount()
@@ -162,7 +162,7 @@ func (c *configuration) membershipChanges() bool {
 	return !reflect.DeepEqual(oldMembership, newMembership)
 }
 
-type nodes []*NodeInfo
+type nodes []*Member
 
 func (n nodes) Len() int           { return len(n) }
 func (n nodes) Less(i, j int) bool { return n[i].Address < n[j].Address }

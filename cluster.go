@@ -10,7 +10,7 @@ import (
 // Cluster represents the cluster service.
 type Cluster interface {
 	CallGetLeader(addr string) (term uint64, LeaderID string, ok bool)
-	CallAddMember(addr string, info *NodeInfo) (success bool, LeaderID string, ok bool)
+	CallAddMember(addr string, member *Member) (success bool, LeaderID string, ok bool)
 	CallRemoveMember(addr string, Address string) (success bool, LeaderID string, ok bool)
 	CallSetMeta(addr string, meta []byte) (ok bool)
 	CallGetMeta(addr string) (meta []byte, ok bool)
@@ -53,9 +53,9 @@ func (c *cluster) CallGetLeader(addr string) (term uint64, LeaderID string, ok b
 	return res.Term, res.LeaderID, true
 }
 
-func (c *cluster) CallAddMember(addr string, info *NodeInfo) (success bool, LeaderID string, ok bool) {
+func (c *cluster) CallAddMember(addr string, member *Member) (success bool, LeaderID string, ok bool) {
 	var req = &AddMemberRequest{}
-	req.Node = info
+	req.Member = member
 	var res = &AddMemberResponse{}
 	err := c.node.rpcs.CallTimeout(addr, c.node.rpcs.AddMemberServiceName(), req, res, c.addMemberTimeout)
 	if err != nil {
@@ -114,7 +114,7 @@ func (c *cluster) GetLeader(req *GetLeaderRequest, res *GetLeaderResponse) error
 
 func (c *cluster) AddMember(req *AddMemberRequest, res *AddMemberResponse) error {
 	if c.node.IsLeader() {
-		_, err := c.node.do(newSetPeerCommand(req.Node), defaultCommandTimeout)
+		_, err := c.node.do(newSetPeerCommand(req.Member), defaultCommandTimeout)
 		if err == nil {
 			_, err = c.node.do(reconfigurationCommand, defaultCommandTimeout)
 			if err == nil {

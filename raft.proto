@@ -52,18 +52,18 @@ message InstallSnapshotResponse {
     uint64  NextIndex   = 3;
 }
 
-message NodeInfo {
+message Member {
     string          Address     = 1;
     bool            NonVoting   = 2;
 }
 
 message ConfigurationStorage {
-    repeated NodeInfo Nodes       = 1;
+    repeated Member Members       = 1;
 }
 
 message DefaultCommand {
     uint64      Operation   = 1;
-    NodeInfo    NodeInfo    = 2;
+    Member      Member    = 2;
 }
 
 message GetLeaderRequest {
@@ -75,7 +75,7 @@ message GetLeaderResponse {
 }
 
 message AddMemberRequest {
-    NodeInfo    Node        = 1;
+    Member  Member        = 1;
 }
 
 message AddMemberResponse {

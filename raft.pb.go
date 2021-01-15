@@ -824,14 +824,14 @@ func (d *InstallSnapshotResponse) Unmarshal(data []byte) error {
 	return nil
 }
 
-// NodeInfo represents a node info.
-type NodeInfo struct {
+// Member represents a node info.
+type Member struct {
 	Address   string
 	NonVoting bool
 }
 
 // Size returns the size of the buffer required to represent the data when encoded.
-func (d *NodeInfo) Size() int {
+func (d *Member) Size() int {
 	var size uint64
 	size += 11 + uint64(len(d.Address))
 	size += 11
@@ -839,7 +839,7 @@ func (d *NodeInfo) Size() int {
 }
 
 // Marshal returns the encoded bytes.
-func (d *NodeInfo) Marshal() ([]byte, error) {
+func (d *Member) Marshal() ([]byte, error) {
 	size := d.Size()
 	buf := make([]byte, size)
 	n, err := d.MarshalTo(buf[:size])
@@ -847,7 +847,7 @@ func (d *NodeInfo) Marshal() ([]byte, error) {
 }
 
 // MarshalTo marshals into buf and returns the number of bytes.
-func (d *NodeInfo) MarshalTo(buf []byte) (int, error) {
+func (d *Member) MarshalTo(buf []byte) (int, error) {
 	var size = uint64(d.Size())
 	if uint64(cap(buf)) >= size {
 		buf = buf[:size]
@@ -872,7 +872,7 @@ func (d *NodeInfo) MarshalTo(buf []byte) (int, error) {
 }
 
 // Unmarshal unmarshals from data.
-func (d *NodeInfo) Unmarshal(data []byte) error {
+func (d *Member) Unmarshal(data []byte) error {
 	var length = uint64(len(data))
 	var offset uint64
 	var n uint64
@@ -908,15 +908,15 @@ func (d *NodeInfo) Unmarshal(data []byte) error {
 
 // ConfigurationStorage represents a configuration storage.
 type ConfigurationStorage struct {
-	Nodes []*NodeInfo
+	Members []*Member
 }
 
 // Size returns the size of the buffer required to represent the data when encoded.
 func (d *ConfigurationStorage) Size() int {
 	var size uint64
-	for i := range d.Nodes {
-		if d.Nodes[i] != nil {
-			size += 11 + uint64((d.Nodes[i]).Size())
+	for i := range d.Members {
+		if d.Members[i] != nil {
+			size += 11 + uint64((d.Members[i]).Size())
 		}
 	}
 	return int(size)
@@ -940,9 +940,9 @@ func (d *ConfigurationStorage) MarshalTo(buf []byte) (int, error) {
 	}
 	var offset uint64
 	var n uint64
-	if len(d.Nodes) > 0 {
+	if len(d.Members) > 0 {
 		tag := byte(1<<3 | 2)
-		for _, v := range d.Nodes {
+		for _, v := range d.Members {
 			buf[offset] = tag
 			offset++
 			s, err := v.MarshalTo(buf[offset+10:])
@@ -978,14 +978,14 @@ func (d *ConfigurationStorage) Unmarshal(data []byte) error {
 		switch fieldNumber {
 		case 1:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Nodes", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Members", wireType)
 			}
 			for {
 				var b []byte
 				n = code.DecodeBytes(data[offset:], &b)
-				var nodeInfo = &NodeInfo{}
-				nodeInfo.Unmarshal(b)
-				d.Nodes = append(d.Nodes, nodeInfo)
+				var member = &Member{}
+				member.Unmarshal(b)
+				d.Members = append(d.Members, member)
 				offset += n
 				if offset < length {
 					tmpTag := uint64(data[offset])
@@ -1004,15 +1004,15 @@ func (d *ConfigurationStorage) Unmarshal(data []byte) error {
 // DefaultCommand represents a operation command.
 type DefaultCommand struct {
 	Operation uint64
-	NodeInfo  *NodeInfo
+	Member    *Member
 }
 
 // Size returns the size of the buffer required to represent the data when encoded.
 func (d *DefaultCommand) Size() int {
 	var size uint64
 	size += 11
-	if d.NodeInfo != nil {
-		size += 11 + uint64(d.NodeInfo.Size())
+	if d.Member != nil {
+		size += 11 + uint64(d.Member.Size())
 	}
 	return int(size)
 }
@@ -1041,10 +1041,10 @@ func (d *DefaultCommand) MarshalTo(buf []byte) (int, error) {
 		n = code.EncodeVarint(buf[offset:], d.Operation)
 		offset += n
 	}
-	if d.NodeInfo != nil {
+	if d.Member != nil {
 		buf[offset] = byte(2<<3 | 2)
 		offset++
-		s, err := d.NodeInfo.MarshalTo(buf[offset+10:])
+		s, err := d.Member.MarshalTo(buf[offset+10:])
 		if err != nil {
 			return 0, err
 		} else if s == 0 {
@@ -1084,14 +1084,14 @@ func (d *DefaultCommand) Unmarshal(data []byte) error {
 			offset += n
 		case 2:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field NodeInfo", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Member", wireType)
 			}
 			var b []byte
 			n = code.DecodeBytes(data[offset:], &b)
-			if d.NodeInfo == nil {
-				d.NodeInfo = &NodeInfo{}
+			if d.Member == nil {
+				d.Member = &Member{}
 			}
-			d.NodeInfo.Unmarshal(b)
+			d.Member.Unmarshal(b)
 			offset += n
 		}
 	}
@@ -1209,13 +1209,13 @@ func (d *GetLeaderResponse) Unmarshal(data []byte) error {
 
 // AddMemberRequest represents a rpc request of adding peer.
 type AddMemberRequest struct {
-	Node *NodeInfo
+	Member *Member
 }
 
 // Size returns the size of the buffer required to represent the data when encoded.
 func (d *AddMemberRequest) Size() int {
 	var size uint64
-	size += 11 + uint64(d.Node.Size())
+	size += 11 + uint64(d.Member.Size())
 	return int(size)
 }
 
@@ -1237,10 +1237,10 @@ func (d *AddMemberRequest) MarshalTo(buf []byte) (int, error) {
 	}
 	var offset uint64
 	var n uint64
-	if d.Node != nil {
+	if d.Member != nil {
 		buf[offset] = byte(1<<3 | 2)
 		offset++
-		s, err := d.Node.MarshalTo(buf[offset+10:])
+		s, err := d.Member.MarshalTo(buf[offset+10:])
 		if err != nil {
 			return 0, err
 		} else if s == 0 {
@@ -1274,14 +1274,14 @@ func (d *AddMemberRequest) Unmarshal(data []byte) error {
 		switch fieldNumber {
 		case 1:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Node", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Member", wireType)
 			}
 			var b []byte
 			n = code.DecodeBytes(data[offset:], &b)
-			if d.Node == nil {
-				d.Node = &NodeInfo{}
+			if d.Member == nil {
+				d.Member = &Member{}
 			}
-			d.Node.Unmarshal(b)
+			d.Member.Unmarshal(b)
 			offset += n
 		}
 	}

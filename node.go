@@ -38,9 +38,9 @@ type Node interface {
 	ReadIndex() bool
 	LeaseRead() bool
 	Peers() []string
-	Join(info *NodeInfo) (success bool)
+	Join(member *Member) (success bool)
 	Leave(Address string) (success bool)
-	Members() []*NodeInfo
+	Members() []*Member
 	LeaderChange(leaderChange func())
 	MemberChange(memberChange func())
 }
@@ -127,7 +127,7 @@ type node struct {
 }
 
 // NewNode returns a new raft node.
-func NewNode(host string, port int, dataDir string, context interface{}, join bool, nodes []*NodeInfo) (Node, error) {
+func NewNode(host string, port int, dataDir string, context interface{}, join bool, members []*Member) (Node, error) {
 	if dataDir == "" {
 		dataDir = defaultDataDir
 	}
@@ -160,7 +160,7 @@ func NewNode(host string, port int, dataDir string, context interface{}, join bo
 	n.votes = newVotes(n)
 	n.readIndex = newReadIndex(n)
 	n.stateMachine = newStateMachine(n)
-	n.setNodes(nodes)
+	n.setMembers(members)
 	n.log = newLog(n)
 	n.election = newElection(n, defaultElectionTimeout)
 	n.raft = newRaft(n)
@@ -173,7 +173,7 @@ func NewNode(host string, port int, dataDir string, context interface{}, join bo
 	if join {
 		n.majorities = false
 		go func() {
-			nodeInfo := n.stateMachine.configuration.LookupPeer(n.address)
+			nodeInfo := n.stateMachine.configuration.LookupMember(n.address)
 			if nodeInfo != nil {
 				for {
 					time.Sleep(time.Second)
@@ -570,10 +570,10 @@ func (n *node) membership() []string {
 	return ms
 }
 
-func (n *node) Join(info *NodeInfo) (success bool) {
+func (n *node) Join(member *Member) (success bool) {
 	leader := n.Leader()
 	for leader != "" {
-		success, leaderID, ok := n.cluster.CallAddMember(leader, info)
+		success, leaderID, ok := n.cluster.CallAddMember(leader, member)
 		if success && ok {
 			return true
 		}
@@ -585,7 +585,7 @@ func (n *node) Join(info *NodeInfo) (success bool) {
 		if leaderID != "" && ok {
 			leader = leaderID
 			for leader != "" {
-				success, leaderID, ok := n.cluster.CallAddMember(leader, info)
+				success, leaderID, ok := n.cluster.CallAddMember(leader, member)
 				if success && ok {
 					return true
 				}
@@ -622,15 +622,15 @@ func (n *node) Leave(Address string) (success bool) {
 	return
 }
 
-func (n *node) Members() []*NodeInfo {
+func (n *node) Members() []*Member {
 	n.nodesMut.Lock()
 	member := n.stateMachine.configuration.Members()
 	n.nodesMut.Unlock()
 	return member
 }
 
-func (n *node) setNodes(nodes []*NodeInfo) {
-	n.stateMachine.configuration.SetNodes(nodes)
+func (n *node) setMembers(members []*Member) {
+	n.stateMachine.configuration.SetMembers(members)
 	n.stateMachine.configuration.load()
 	for _, v := range n.peers {
 		v.majorities = true
@@ -638,19 +638,19 @@ func (n *node) setNodes(nodes []*NodeInfo) {
 	n.resetVotes()
 }
 
-func (n *node) addNode(info *NodeInfo) {
+func (n *node) addNode(member *Member) {
 	n.nodesMut.Lock()
 	defer n.nodesMut.Unlock()
-	if _, ok := n.peers[info.Address]; ok {
-		n.peers[info.Address].nonVoting = info.NonVoting
+	if _, ok := n.peers[member.Address]; ok {
+		n.peers[member.Address].nonVoting = member.NonVoting
 		return
 	}
-	if n.address != info.Address {
-		peer := newPeer(n, info.Address)
-		peer.nonVoting = info.NonVoting
-		n.peers[info.Address] = peer
+	if n.address != member.Address {
+		peer := newPeer(n, member.Address)
+		peer.nonVoting = member.NonVoting
+		n.peers[member.Address] = peer
 	} else {
-		n.nonVoting = info.NonVoting
+		n.nonVoting = member.NonVoting
 	}
 	n.resetVotes()
 	return
@@ -666,7 +666,7 @@ func (n *node) resetVotes() {
 
 func (n *node) consideredForMajorities() {
 	n.nodesMut.Lock()
-	if n.stateMachine.configuration.LookupPeer(n.address) != nil {
+	if n.stateMachine.configuration.LookupMember(n.address) != nil {
 		n.majorities = true
 	}
 	for _, v := range n.peers {

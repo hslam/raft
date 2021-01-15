@@ -78,7 +78,7 @@ func (c *testCommand1) Do(context interface{}) (interface{}, error) {
 func TestCluster(t *testing.T) {
 	dir := "raft.test"
 	os.RemoveAll(dir)
-	infos := []*NodeInfo{{Address: "localhost:9001"}, {Address: "localhost:9002"}, {Address: "localhost:9003"}, {Address: "localhost:9004", NonVoting: true}, {Address: "localhost:9005", NonVoting: true}}
+	members := []*Member{{Address: "localhost:9001"}, {Address: "localhost:9002"}, {Address: "localhost:9003"}, {Address: "localhost:9004", NonVoting: true}, {Address: "localhost:9005", NonVoting: true}}
 	wg := sync.WaitGroup{}
 	var readflag uint32
 	startRead := make(chan struct{})
@@ -86,8 +86,8 @@ func TestCluster(t *testing.T) {
 	startJoin := make(chan struct{})
 	al := sync.WaitGroup{}
 	al.Add(3)
-	for i := 0; i < len(infos); i++ {
-		address := infos[i].Address
+	for i := 0; i < len(members); i++ {
+		address := members[i].Address
 		index := i
 		wg.Add(1)
 		go func() {
@@ -98,13 +98,13 @@ func TestCluster(t *testing.T) {
 			var n Node
 			var err error
 			if index < 3 {
-				n, err = NewNode(strs[0], port, dir+"/node."+strconv.FormatInt(int64(index), 10), ctx, false, infos[:3])
+				n, err = NewNode(strs[0], port, dir+"/node."+strconv.FormatInt(int64(index), 10), ctx, false, members[:3])
 				if err != nil {
 					t.Error(err)
 				}
 			} else {
 				<-startJoin
-				n, err = NewNode(strs[0], port, dir+"/node."+strconv.FormatInt(int64(index), 10), ctx, true, infos[:index+1])
+				n, err = NewNode(strs[0], port, dir+"/node."+strconv.FormatInt(int64(index), 10), ctx, true, members[:index+1])
 				if err != nil {
 					t.Error(err)
 				}
@@ -160,12 +160,12 @@ func TestCluster(t *testing.T) {
 				<-startJoin
 				time.Sleep(time.Second * 3)
 				if node.IsLeader() {
-					if ok := node.Leave(infos[4].Address); !ok {
+					if ok := node.Leave(members[4].Address); !ok {
 						t.Error()
 					}
 					al.Done()
 				} else {
-					if ok := node.Leave(infos[3].Address); !ok {
+					if ok := node.Leave(members[3].Address); !ok {
 						t.Error()
 					}
 					al.Done()
@@ -189,10 +189,10 @@ func TestClusterMore(t *testing.T) {
 	os.RemoveAll(defaultDataDir)
 	dir := "raft.test"
 	os.RemoveAll(dir)
-	infos := []*NodeInfo{{Address: "localhost:9001"}, {Address: "localhost:9002"}, {Address: "localhost:9003"}, {Address: "localhost:9004"}, {Address: "localhost:9005"}}
+	members := []*Member{{Address: "localhost:9001"}, {Address: "localhost:9002"}, {Address: "localhost:9003"}, {Address: "localhost:9004"}, {Address: "localhost:9005"}}
 	wg := sync.WaitGroup{}
-	for i := 0; i < len(infos); i++ {
-		address := infos[i].Address
+	for i := 0; i < len(members); i++ {
+		address := members[i].Address
 		index := i
 		wg.Add(1)
 		go func() {
@@ -203,12 +203,12 @@ func TestClusterMore(t *testing.T) {
 			var n Node
 			var err error
 			if index < 3 {
-				n, err = NewNode(strs[0], port, dir+"/node."+strconv.FormatInt(int64(index), 10), ctx, false, infos[:3])
+				n, err = NewNode(strs[0], port, dir+"/node."+strconv.FormatInt(int64(index), 10), ctx, false, members[:3])
 				if err != nil {
 					t.Error(err)
 				}
 			} else {
-				n, err = NewNode(strs[0], port, dir+"/node."+strconv.FormatInt(int64(index), 10), ctx, true, infos[:index+1])
+				n, err = NewNode(strs[0], port, dir+"/node."+strconv.FormatInt(int64(index), 10), ctx, true, members[:index+1])
 				if err != nil {
 					t.Error(err)
 				}
@@ -250,7 +250,7 @@ func TestClusterMore(t *testing.T) {
 					break
 				}
 			}
-			time.Sleep(time.Second * 3)
+			time.Sleep(time.Second * 5)
 			if node.isLeader() {
 				node.put(nil)
 				invoker := node.put(&testCommand1{})
@@ -276,12 +276,12 @@ func TestClusterMore(t *testing.T) {
 func TestClusterState(t *testing.T) {
 	dir := "raft.test"
 	os.RemoveAll(dir)
-	infos := []*NodeInfo{{Address: "localhost:9001"}, {Address: "localhost:9002"}, {Address: "localhost:9003"}, {Address: "localhost:9004", NonVoting: true}, {Address: "localhost:9005", NonVoting: true}}
+	members := []*Member{{Address: "localhost:9001"}, {Address: "localhost:9002"}, {Address: "localhost:9003"}, {Address: "localhost:9004", NonVoting: true}, {Address: "localhost:9005", NonVoting: true}}
 	wg := sync.WaitGroup{}
 	al := sync.WaitGroup{}
 	al.Add(3)
-	for i := 0; i < len(infos); i++ {
-		address := infos[i].Address
+	for i := 0; i < len(members); i++ {
+		address := members[i].Address
 		index := i
 		wg.Add(1)
 		go func() {
@@ -292,12 +292,12 @@ func TestClusterState(t *testing.T) {
 			var n Node
 			var err error
 			if index < 3 {
-				n, err = NewNode(strs[0], port, dir+"/node."+strconv.FormatInt(int64(index), 10), ctx, false, infos[:3])
+				n, err = NewNode(strs[0], port, dir+"/node."+strconv.FormatInt(int64(index), 10), ctx, false, members[:3])
 				if err != nil {
 					t.Error(err)
 				}
 			} else {
-				n, err = NewNode(strs[0], port, dir+"/node."+strconv.FormatInt(int64(index), 10), ctx, true, infos[:index+1])
+				n, err = NewNode(strs[0], port, dir+"/node."+strconv.FormatInt(int64(index), 10), ctx, true, members[:index+1])
 				if err != nil {
 					t.Error(err)
 				}
@@ -341,15 +341,15 @@ func TestClusterState(t *testing.T) {
 func TestLeaderTimeout(t *testing.T) {
 	dir := "raft.test"
 	os.RemoveAll(dir)
-	infos := []*NodeInfo{{Address: "localhost:9001"}, {Address: "localhost:9002"}, {Address: "localhost:9003"}}
+	members := []*Member{{Address: "localhost:9001"}, {Address: "localhost:9002"}, {Address: "localhost:9003"}}
 	wg := sync.WaitGroup{}
 	al := sync.WaitGroup{}
 	al.Add(3)
 	stop := sync.WaitGroup{}
 	stop.Add(2)
 	count := int32(0)
-	for i := 0; i < len(infos); i++ {
-		address := infos[i].Address
+	for i := 0; i < len(members); i++ {
+		address := members[i].Address
 		index := i
 		wg.Add(1)
 		go func() {
@@ -359,7 +359,7 @@ func TestLeaderTimeout(t *testing.T) {
 			port, _ := strconv.Atoi(strs[1])
 			var n Node
 			var err error
-			n, err = NewNode(strs[0], port, dir+"/node."+strconv.FormatInt(int64(index), 10), ctx, false, infos[:3])
+			n, err = NewNode(strs[0], port, dir+"/node."+strconv.FormatInt(int64(index), 10), ctx, false, members[:3])
 			if err != nil {
 				t.Error(err)
 			}
@@ -377,7 +377,7 @@ func TestLeaderTimeout(t *testing.T) {
 			node.SetGzipSnapshot(true)
 			node.MemberChange(func() {
 			})
-			if len(node.Members()) != len(infos) {
+			if len(node.Members()) != len(members) {
 				t.Error()
 			}
 			var start bool
@@ -412,12 +412,12 @@ func TestLeaderTimeout(t *testing.T) {
 func TestClusterNonVoting(t *testing.T) {
 	dir := "raft.test"
 	os.RemoveAll(dir)
-	infos := []*NodeInfo{{Address: "localhost:9001", NonVoting: true}, {Address: "localhost:9002", NonVoting: true}, {Address: "localhost:9003"}, {Address: "localhost:9004"}, {Address: "localhost:9005"}}
+	members := []*Member{{Address: "localhost:9001", NonVoting: true}, {Address: "localhost:9002", NonVoting: true}, {Address: "localhost:9003"}, {Address: "localhost:9004"}, {Address: "localhost:9005"}}
 	wg := sync.WaitGroup{}
 	al := sync.WaitGroup{}
 	al.Add(3)
-	for i := 0; i < len(infos); i++ {
-		address := infos[i].Address
+	for i := 0; i < len(members); i++ {
+		address := members[i].Address
 		index := i
 		wg.Add(1)
 		go func() {
@@ -427,7 +427,7 @@ func TestClusterNonVoting(t *testing.T) {
 			port, _ := strconv.Atoi(strs[1])
 			var node Node
 			var err error
-			node, err = NewNode(strs[0], port, dir+"/node."+strconv.FormatInt(int64(index), 10), ctx, false, infos)
+			node, err = NewNode(strs[0], port, dir+"/node."+strconv.FormatInt(int64(index), 10), ctx, false, members)
 			if err != nil {
 				t.Error(err)
 			}
@@ -451,20 +451,20 @@ func TestClusterNonVoting(t *testing.T) {
 func TestSingle(t *testing.T) {
 	dir := "raft.test"
 	os.RemoveAll(dir)
-	infos := []*NodeInfo{{Address: "localhost:9001"}}
+	members := []*Member{{Address: "localhost:9001"}}
 	var readflag uint32
 	startRead := make(chan struct{})
 	var joinflag uint32
 	startJoin := make(chan struct{})
 
-	address := infos[0].Address
+	address := members[0].Address
 	index := 0
 	ctx := &testContext{data: ""}
 	strs := strings.Split(address, ":")
 	port, _ := strconv.Atoi(strs[1])
 	var n Node
 	var err error
-	n, err = NewNode(strs[0], port, dir+"/node."+strconv.FormatInt(int64(index), 10), ctx, false, infos[:1])
+	n, err = NewNode(strs[0], port, dir+"/node."+strconv.FormatInt(int64(index), 10), ctx, false, members[:1])
 	if err != nil {
 		t.Error(err)
 	}
@@ -518,21 +518,21 @@ func TestSingle(t *testing.T) {
 func TestStateMachine(t *testing.T) {
 	dir := "raft.test"
 	os.RemoveAll(dir)
-	infos := []*NodeInfo{{Address: "localhost:9001"}}
+	members := []*Member{{Address: "localhost:9001"}}
 	{
 		var readflag uint32
 		startRead := make(chan struct{})
 		var joinflag uint32
 		startJoin := make(chan struct{})
 
-		address := infos[0].Address
+		address := members[0].Address
 		index := 0
 		ctx := &testContext{data: ""}
 		strs := strings.Split(address, ":")
 		port, _ := strconv.Atoi(strs[1])
 		var n Node
 		var err error
-		n, err = NewNode(strs[0], port, dir+"/node."+strconv.FormatInt(int64(index), 10), ctx, false, infos[:1])
+		n, err = NewNode(strs[0], port, dir+"/node."+strconv.FormatInt(int64(index), 10), ctx, false, members[:1])
 		if err != nil {
 			t.Error(err)
 		}
@@ -589,14 +589,14 @@ func TestStateMachine(t *testing.T) {
 		var joinflag uint32
 		startJoin := make(chan struct{})
 
-		address := infos[0].Address
+		address := members[0].Address
 		index := 0
 		ctx := &testContext{data: ""}
 		strs := strings.Split(address, ":")
 		port, _ := strconv.Atoi(strs[1])
 		var n Node
 		var err error
-		n, err = NewNode(strs[0], port, dir+"/node."+strconv.FormatInt(int64(index), 10), ctx, false, infos[:1])
+		n, err = NewNode(strs[0], port, dir+"/node."+strconv.FormatInt(int64(index), 10), ctx, false, members[:1])
 		if err != nil {
 			t.Error(err)
 		}
@@ -647,10 +647,10 @@ func TestStateMachine(t *testing.T) {
 func TestClusterMeta(t *testing.T) {
 	dir := "raft.test"
 	os.RemoveAll(dir)
-	infos := []*NodeInfo{{Address: "localhost:9001"}, {Address: "localhost:9002"}, {Address: "localhost:9003"}}
+	members := []*Member{{Address: "localhost:9001"}, {Address: "localhost:9002"}, {Address: "localhost:9003"}}
 	wg := sync.WaitGroup{}
-	for i := 0; i < len(infos); i++ {
-		address := infos[i].Address
+	for i := 0; i < len(members); i++ {
+		address := members[i].Address
 		index := i
 		wg.Add(1)
 		go func() {
@@ -660,7 +660,7 @@ func TestClusterMeta(t *testing.T) {
 			port, _ := strconv.Atoi(strs[1])
 			var node Node
 			var err error
-			node, err = NewNode(strs[0], port, dir+"/node."+strconv.FormatInt(int64(index), 10), ctx, false, infos)
+			node, err = NewNode(strs[0], port, dir+"/node."+strconv.FormatInt(int64(index), 10), ctx, false, members)
 			if err != nil {
 				t.Error(err)
 			}
@@ -671,8 +671,8 @@ func TestClusterMeta(t *testing.T) {
 			node.SetSnapshotPolicy(Always)
 			node.Start()
 			time.Sleep(time.Second * 5)
-			for j := 0; j < len(infos); j++ {
-				addr := infos[j].Address
+			for j := 0; j < len(members); j++ {
+				addr := members[j].Address
 				ok := node.SetNodeMeta(addr, []byte(addr))
 				if !ok {
 					t.Error()

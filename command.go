@@ -78,12 +78,12 @@ func (c *DefaultCommand) Do(context interface{}) (interface{}, error) {
 		return true, nil
 	case setPeerOperation:
 		n := context.(*node)
-		n.stateMachine.configuration.AddPeer(c.NodeInfo)
+		n.stateMachine.configuration.AddMember(c.Member)
 		n.stateMachine.configuration.load()
 		return nil, nil
 	case removePeerOperation:
 		n := context.(*node)
-		n.stateMachine.configuration.RemovePeer(c.NodeInfo.Address)
+		n.stateMachine.configuration.RemoveMember(c.Member.Address)
 		return nil, nil
 	case reconfigurationOperation:
 		n := context.(*node)
@@ -112,10 +112,10 @@ func newReconfigurationCommand() Command {
 }
 
 // newSetPeerCommand returns a new SetPeerCommand.
-func newSetPeerCommand(nodeInfo *NodeInfo) Command {
+func newSetPeerCommand(member *Member) Command {
 	return &DefaultCommand{
 		Operation: setPeerOperation,
-		NodeInfo:  nodeInfo,
+		Member:    member,
 	}
 }
 
@@ -123,6 +123,6 @@ func newSetPeerCommand(nodeInfo *NodeInfo) Command {
 func newRemovePeerCommand(address string) Command {
 	return &DefaultCommand{
 		Operation: removePeerOperation,
-		NodeInfo:  &NodeInfo{Address: address},
+		Member:    &Member{Address: address},
 	}
 }
