@@ -226,6 +226,7 @@ func (s *snapshotReadWriter) run() {
 				s.Tar()
 			}
 		case <-s.done:
+			s.ticker.Stop()
 			return
 		}
 	}
@@ -233,7 +234,6 @@ func (s *snapshotReadWriter) run() {
 
 func (s *snapshotReadWriter) Stop() {
 	if atomic.CompareAndSwapInt32(&s.closed, 0, 1) {
-		s.ticker.Stop()
 		close(s.done)
 	}
 }
