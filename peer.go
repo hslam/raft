@@ -15,6 +15,7 @@ type peer struct {
 	address            string
 	alive              bool
 	nextIndex          uint64
+	matchIndex         uint64
 	lastPrintNextIndex uint64
 	checking           int32
 	sending            int32
@@ -79,8 +80,10 @@ func (p *peer) appendEntries(entries []*Entry) (nextIndex uint64, term uint64, s
 	if success && ok {
 		//logger.Tracef("Peer.run %s nextIndex %d==>%d",p.address,p.nextIndex,nextIndex)
 		p.nextIndex = nextIndex
+		p.matchIndex = nextIndex - 1
 	} else if ok && term == p.node.currentTerm.Load() {
 		p.nextIndex = nextIndex
+		p.matchIndex = 0
 	} else if !ok {
 		p.alive = false
 	}
@@ -214,7 +217,7 @@ func (p *peer) check() {
 			}
 
 		} else {
-			if atomic.CompareAndSwapInt32(&p.sending, 0, 1) {
+			if p.matchIndex == p.nextIndex-1 && atomic.CompareAndSwapInt32(&p.sending, 0, 1) {
 				go func() {
 					entries := p.node.log.copyAfter(p.nextIndex, defaultMaxBatch)
 					if len(entries) > 0 {
