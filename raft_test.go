@@ -239,18 +239,18 @@ func TestClusterMore(t *testing.T) {
 			node.SetGzipSnapshot(true)
 			node.MemberChange(func() {
 			})
-			var start bool
+			var start uint32
 			node.LeaderChange(func() {
-				start = true
+				atomic.StoreUint32(&start, 1)
 			})
 			node.Start()
 			for {
 				time.Sleep(time.Second)
-				if start {
+				if atomic.LoadUint32(&start) > 0 {
 					break
 				}
 			}
-			time.Sleep(time.Second * 5)
+			time.Sleep(time.Second * 3)
 			if node.isLeader() {
 				node.put(nil)
 				invoker := node.put(&testCommand1{})
