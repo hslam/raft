@@ -17,14 +17,14 @@ func (s *service) AppendEntries(req *AppendEntriesRequest, res *AppendEntriesRes
 func (s *service) InstallSnapshot(req *InstallSnapshotRequest, res *InstallSnapshotResponse) error {
 	return s.node.raft.InstallSnapshot(req, res)
 }
-func (s *service) QueryLeader(req *QueryLeaderRequest, res *QueryLeaderResponse) error {
-	return s.node.cluster.QueryLeader(req, res)
+func (s *service) GetLeader(req *GetLeaderRequest, res *GetLeaderResponse) error {
+	return s.node.cluster.GetLeader(req, res)
 }
-func (s *service) SetPeer(req *SetPeerRequest, res *SetPeerResponse) error {
-	return s.node.cluster.SetPeer(req, res)
+func (s *service) AddMember(req *AddMemberRequest, res *AddMemberResponse) error {
+	return s.node.cluster.AddMember(req, res)
 }
-func (s *service) RemovePeer(req *RemovePeerRequest, res *RemovePeerResponse) error {
-	return s.node.cluster.RemovePeer(req, res)
+func (s *service) RemoveMember(req *RemoveMemberRequest, res *RemoveMemberResponse) error {
+	return s.node.cluster.RemoveMember(req, res)
 }
 func (s *service) SetMeta(req *SetMetaRequest, res *SetMetaResponse) error {
 	return s.node.cluster.SetMeta(req, res)
@@ -43,14 +43,14 @@ func (s *service) A(req *AppendEntriesRequest, res *AppendEntriesResponse) error
 func (s *service) I(req *InstallSnapshotRequest, res *InstallSnapshotResponse) error {
 	return s.InstallSnapshot(req, res)
 }
-func (s *service) Q(req *QueryLeaderRequest, res *QueryLeaderResponse) error {
-	return s.QueryLeader(req, res)
+func (s *service) Q(req *GetLeaderRequest, res *GetLeaderResponse) error {
+	return s.GetLeader(req, res)
 }
-func (s *service) J(req *SetPeerRequest, res *SetPeerResponse) error {
-	return s.SetPeer(req, res)
+func (s *service) J(req *AddMemberRequest, res *AddMemberResponse) error {
+	return s.AddMember(req, res)
 }
-func (s *service) L(req *RemovePeerRequest, res *RemovePeerResponse) error {
-	return s.RemovePeer(req, res)
+func (s *service) L(req *RemoveMemberRequest, res *RemoveMemberResponse) error {
+	return s.RemoveMember(req, res)
 }
 func (s *service) S(req *SetMetaRequest, res *SetMetaResponse) error {
 	return s.SetMeta(req, res)

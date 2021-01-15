@@ -9,73 +9,73 @@ import (
 
 // Cluster represents the cluster service.
 type Cluster interface {
-	CallQueryLeader(addr string) (term uint64, LeaderID string, ok bool)
-	CallSetPeer(addr string, info *NodeInfo) (success bool, LeaderID string, ok bool)
-	CallRemovePeer(addr string, Address string) (success bool, LeaderID string, ok bool)
+	CallGetLeader(addr string) (term uint64, LeaderID string, ok bool)
+	CallAddMember(addr string, info *NodeInfo) (success bool, LeaderID string, ok bool)
+	CallRemoveMember(addr string, Address string) (success bool, LeaderID string, ok bool)
 	CallSetMeta(addr string, meta []byte) (ok bool)
 	CallGetMeta(addr string) (meta []byte, ok bool)
-	QueryLeader(req *QueryLeaderRequest, res *QueryLeaderResponse) error
-	SetPeer(req *SetPeerRequest, res *SetPeerResponse) error
-	RemovePeer(req *RemovePeerRequest, res *RemovePeerResponse) error
+	GetLeader(req *GetLeaderRequest, res *GetLeaderResponse) error
+	AddMember(req *AddMemberRequest, res *AddMemberResponse) error
+	RemoveMember(req *RemoveMemberRequest, res *RemoveMemberResponse) error
 	SetMeta(req *SetMetaRequest, res *SetMetaResponse) error
 	GetMeta(req *GetMetaRequest, res *GetMetaResponse) error
 }
 
 type cluster struct {
-	node               *node
-	queryLeaderTimeout time.Duration
-	addPeerTimeout     time.Duration
-	removePeerTimeout  time.Duration
-	setMetaTimeout     time.Duration
-	getMetaTimeout     time.Duration
+	node                *node
+	getLeaderTimeout    time.Duration
+	addMemberTimeout    time.Duration
+	removeMemberTimeout time.Duration
+	setMetaTimeout      time.Duration
+	getMetaTimeout      time.Duration
 }
 
 func newCluster(n *node) Cluster {
 	return &cluster{
-		node:               n,
-		queryLeaderTimeout: defaultQueryLeaderTimeout,
-		addPeerTimeout:     defaultAddPeerTimeout,
-		removePeerTimeout:  defaultRemovePeerTimeout,
-		setMetaTimeout:     defaultSetMetaTimeout,
-		getMetaTimeout:     defaultGetMetaTimeout,
+		node:                n,
+		getLeaderTimeout:    defaultGetLeaderTimeout,
+		addMemberTimeout:    defaultAddMemberTimeout,
+		removeMemberTimeout: defaultRemoveMemberTimeout,
+		setMetaTimeout:      defaultSetMetaTimeout,
+		getMetaTimeout:      defaultGetMetaTimeout,
 	}
 }
 
-func (c *cluster) CallQueryLeader(addr string) (term uint64, LeaderID string, ok bool) {
-	var req = &QueryLeaderRequest{}
-	var res = &QueryLeaderResponse{}
-	err := c.node.rpcs.CallTimeout(addr, c.node.rpcs.QueryLeaderServiceName(), req, res, c.queryLeaderTimeout)
+func (c *cluster) CallGetLeader(addr string) (term uint64, LeaderID string, ok bool) {
+	var req = &GetLeaderRequest{}
+	var res = &GetLeaderResponse{}
+	err := c.node.rpcs.CallTimeout(addr, c.node.rpcs.GetLeaderServiceName(), req, res, c.getLeaderTimeout)
 	if err != nil {
-		c.node.logger.Tracef("raft.CallQueryLeader %s -> %s error %s", c.node.address, addr, err.Error())
+		c.node.logger.Tracef("raft.CallGetLeader %s -> %s error %s", c.node.address, addr, err.Error())
 		return 0, "", false
 	}
-	c.node.logger.Tracef("raft.CallQueryLeader %s -> %s LeaderID %s", c.node.address, addr, res.LeaderID)
+	c.node.logger.Tracef("raft.CallGetLeader %s -> %s LeaderID %s", c.node.address, addr, res.LeaderID)
 	return res.Term, res.LeaderID, true
 }
 
-func (c *cluster) CallSetPeer(addr string, info *NodeInfo) (success bool, LeaderID string, ok bool) {
-	var req = &SetPeerRequest{}
+func (c *cluster) CallAddMember(addr string, info *NodeInfo) (success bool, LeaderID string, ok bool) {
+	var req = &AddMemberRequest{}
 	req.Node = info
-	var res = &SetPeerResponse{}
-	err := c.node.rpcs.CallTimeout(addr, c.node.rpcs.SetPeerServiceName(), req, res, c.addPeerTimeout)
+	var res = &AddMemberResponse{}
+	err := c.node.rpcs.CallTimeout(addr, c.node.rpcs.AddMemberServiceName(), req, res, c.addMemberTimeout)
 	if err != nil {
-		c.node.logger.Tracef("raft.CallSetPeer %s -> %s error %s", c.node.address, addr, err.Error())
+		c.node.logger.Tracef("raft.CallAddMember %s -> %s error %s", c.node.address, addr, err.Error())
 		return false, res.LeaderID, false
 	}
-	c.node.logger.Tracef("raft.CallSetPeer %s -> %s Success %t", c.node.address, addr, res.Success)
+	c.node.logger.Tracef("raft.CallAddMember %s -> %s Success %t", c.node.address, addr, res.Success)
 	return res.Success, res.LeaderID, true
 }
 
-func (c *cluster) CallRemovePeer(addr string, Address string) (success bool, LeaderID string, ok bool) {
-	var req = &RemovePeerRequest{}
+func (c *cluster) CallRemoveMember(addr string, Address string) (success bool, LeaderID string, ok bool) {
+	var req = &RemoveMemberRequest{}
 	req.Address = Address
-	var res = &RemovePeerResponse{}
-	err := c.node.rpcs.CallTimeout(addr, c.node.rpcs.RemovePeerServiceName(), req, res, c.removePeerTimeout)
+	var res = &RemoveMemberResponse{}
+	err := c.node.rpcs.CallTimeout(addr, c.node.rpcs.RemoveMemberServiceName(), req, res, c.removeMemberTimeout)
 	if err != nil {
-		c.node.logger.Tracef("raft.CallRemovePeer %s -> %s error %s", c.node.address, addr, err.Error())
+		c.node.logger.Tracef("raft.CallRemoveMember %s -> %s error %s", c.node.address, addr, err.Error())
 		return false, res.LeaderID, false
 	}
-	c.node.logger.Tracef("raft.CallRemovePeer %s -> %s Success %t", c.node.address, addr, res.Success)
+	c.node.logger.Tracef("raft.CallRemoveMember %s -> %s Success %t", c.node.address, addr, res.Success)
 	return res.Success, res.LeaderID, true
 }
 
@@ -103,7 +103,7 @@ func (c *cluster) CallGetMeta(addr string) (meta []byte, ok bool) {
 	return res.Meta, true
 }
 
-func (c *cluster) QueryLeader(req *QueryLeaderRequest, res *QueryLeaderResponse) error {
+func (c *cluster) GetLeader(req *GetLeaderRequest, res *GetLeaderResponse) error {
 	if c.node.leader.Load() != "" {
 		res.LeaderID = c.node.leader.Load()
 		res.Term = c.node.currentTerm.Load()
@@ -112,7 +112,7 @@ func (c *cluster) QueryLeader(req *QueryLeaderRequest, res *QueryLeaderResponse)
 	return ErrNotLeader
 }
 
-func (c *cluster) SetPeer(req *SetPeerRequest, res *SetPeerResponse) error {
+func (c *cluster) AddMember(req *AddMemberRequest, res *AddMemberResponse) error {
 	if c.node.IsLeader() {
 		_, err := c.node.do(newSetPeerCommand(req.Node), defaultCommandTimeout)
 		if err == nil {
@@ -127,7 +127,7 @@ func (c *cluster) SetPeer(req *SetPeerRequest, res *SetPeerResponse) error {
 	return ErrNotLeader
 }
 
-func (c *cluster) RemovePeer(req *RemovePeerRequest, res *RemovePeerResponse) error {
+func (c *cluster) RemoveMember(req *RemoveMemberRequest, res *RemoveMemberResponse) error {
 	if c.node.IsLeader() {
 		_, err := c.node.do(newRemovePeerCommand(req.Address), defaultCommandTimeout)
 		if err == nil {

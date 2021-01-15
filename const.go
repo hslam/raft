@@ -21,9 +21,9 @@ const (
 	defaultRequestVoteTimeout           = 1000 * time.Millisecond
 	defaultAppendEntriesTimeout         = 10 * 1000 * time.Millisecond
 	defaultInstallSnapshotTimeout       = 60 * 1000 * time.Millisecond
-	defaultQueryLeaderTimeout           = 60 * 1000 * time.Millisecond
-	defaultAddPeerTimeout               = 60 * 1000 * time.Millisecond
-	defaultRemovePeerTimeout            = 60 * 1000 * time.Millisecond
+	defaultGetLeaderTimeout             = 60 * 1000 * time.Millisecond
+	defaultAddMemberTimeout             = 60 * 1000 * time.Millisecond
+	defaultRemoveMemberTimeout          = 60 * 1000 * time.Millisecond
 	defaultSetMetaTimeout               = 60 * 1000 * time.Millisecond
 	defaultGetMetaTimeout               = 60 * 1000 * time.Millisecond
 	defaultCommandTimeout               = 60 * 1000 * time.Millisecond

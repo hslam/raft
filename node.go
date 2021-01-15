@@ -573,7 +573,7 @@ func (n *node) membership() []string {
 func (n *node) Join(info *NodeInfo) (success bool) {
 	leader := n.Leader()
 	for leader != "" {
-		success, leaderID, ok := n.cluster.CallSetPeer(leader, info)
+		success, leaderID, ok := n.cluster.CallAddMember(leader, info)
 		if success && ok {
 			return true
 		}
@@ -581,11 +581,11 @@ func (n *node) Join(info *NodeInfo) (success bool) {
 	}
 	peers := n.Peers()
 	for i := 0; i < len(peers); i++ {
-		_, leaderID, ok := n.cluster.CallQueryLeader(peers[i])
+		_, leaderID, ok := n.cluster.CallGetLeader(peers[i])
 		if leaderID != "" && ok {
 			leader = leaderID
 			for leader != "" {
-				success, leaderID, ok := n.cluster.CallSetPeer(leader, info)
+				success, leaderID, ok := n.cluster.CallAddMember(leader, info)
 				if success && ok {
 					return true
 				}
@@ -599,7 +599,7 @@ func (n *node) Join(info *NodeInfo) (success bool) {
 func (n *node) Leave(Address string) (success bool) {
 	leader := n.Leader()
 	for leader != "" {
-		success, leaderID, ok := n.cluster.CallRemovePeer(leader, Address)
+		success, leaderID, ok := n.cluster.CallRemoveMember(leader, Address)
 		if success && ok {
 			return true
 		}
@@ -607,11 +607,11 @@ func (n *node) Leave(Address string) (success bool) {
 	}
 	peers := n.Peers()
 	for i := 0; i < len(peers); i++ {
-		_, leaderID, ok := n.cluster.CallQueryLeader(peers[i])
+		_, leaderID, ok := n.cluster.CallGetLeader(peers[i])
 		if leaderID != "" && ok {
 			leader = leaderID
 			for leader != "" {
-				success, leaderID, ok := n.cluster.CallRemovePeer(leader, Address)
+				success, leaderID, ok := n.cluster.CallRemoveMember(leader, Address)
 				if success && ok {
 					return true
 				}

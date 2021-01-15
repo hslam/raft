@@ -1098,17 +1098,17 @@ func (d *DefaultCommand) Unmarshal(data []byte) error {
 	return nil
 }
 
-// QueryLeaderRequest represents a rpc request of querying leader.
-type QueryLeaderRequest struct {
+// GetLeaderRequest represents a rpc request of getting leader.
+type GetLeaderRequest struct {
 }
 
 // Size returns the size of the buffer required to represent the data when encoded.
-func (d *QueryLeaderRequest) Size() int {
+func (d *GetLeaderRequest) Size() int {
 	return 0
 }
 
 // Marshal returns the encoded bytes.
-func (d *QueryLeaderRequest) Marshal() ([]byte, error) {
+func (d *GetLeaderRequest) Marshal() ([]byte, error) {
 	size := d.Size()
 	buf := make([]byte, size)
 	n, err := d.MarshalTo(buf[:size])
@@ -1116,23 +1116,23 @@ func (d *QueryLeaderRequest) Marshal() ([]byte, error) {
 }
 
 // MarshalTo marshals into buf and returns the number of bytes.
-func (d *QueryLeaderRequest) MarshalTo(buf []byte) (int, error) {
+func (d *GetLeaderRequest) MarshalTo(buf []byte) (int, error) {
 	return 0, nil
 }
 
 // Unmarshal unmarshals from data.
-func (d *QueryLeaderRequest) Unmarshal(data []byte) error {
+func (d *GetLeaderRequest) Unmarshal(data []byte) error {
 	return nil
 }
 
-// QueryLeaderResponse represents a rpc response of querying leader.
-type QueryLeaderResponse struct {
+// GetLeaderResponse represents a rpc response of getting leader.
+type GetLeaderResponse struct {
 	Term     uint64
 	LeaderID string
 }
 
 // Size returns the size of the buffer required to represent the data when encoded.
-func (d *QueryLeaderResponse) Size() int {
+func (d *GetLeaderResponse) Size() int {
 	var size uint64
 	size += 11
 	size += 11 + uint64(len(d.LeaderID))
@@ -1140,7 +1140,7 @@ func (d *QueryLeaderResponse) Size() int {
 }
 
 // Marshal returns the encoded bytes.
-func (d *QueryLeaderResponse) Marshal() ([]byte, error) {
+func (d *GetLeaderResponse) Marshal() ([]byte, error) {
 	size := d.Size()
 	buf := make([]byte, size)
 	n, err := d.MarshalTo(buf[:size])
@@ -1148,7 +1148,7 @@ func (d *QueryLeaderResponse) Marshal() ([]byte, error) {
 }
 
 // MarshalTo marshals into buf and returns the number of bytes.
-func (d *QueryLeaderResponse) MarshalTo(buf []byte) (int, error) {
+func (d *GetLeaderResponse) MarshalTo(buf []byte) (int, error) {
 	var size = uint64(d.Size())
 	if uint64(cap(buf)) >= size {
 		buf = buf[:size]
@@ -1173,7 +1173,7 @@ func (d *QueryLeaderResponse) MarshalTo(buf []byte) (int, error) {
 }
 
 // Unmarshal unmarshals from data.
-func (d *QueryLeaderResponse) Unmarshal(data []byte) error {
+func (d *GetLeaderResponse) Unmarshal(data []byte) error {
 	var length = uint64(len(data))
 	var offset uint64
 	var n uint64
@@ -1207,20 +1207,20 @@ func (d *QueryLeaderResponse) Unmarshal(data []byte) error {
 	return nil
 }
 
-// SetPeerRequest represents a rpc request of adding peer.
-type SetPeerRequest struct {
+// AddMemberRequest represents a rpc request of adding peer.
+type AddMemberRequest struct {
 	Node *NodeInfo
 }
 
 // Size returns the size of the buffer required to represent the data when encoded.
-func (d *SetPeerRequest) Size() int {
+func (d *AddMemberRequest) Size() int {
 	var size uint64
 	size += 11 + uint64(d.Node.Size())
 	return int(size)
 }
 
 // Marshal returns the encoded bytes.
-func (d *SetPeerRequest) Marshal() ([]byte, error) {
+func (d *AddMemberRequest) Marshal() ([]byte, error) {
 	size := d.Size()
 	buf := make([]byte, size)
 	n, err := d.MarshalTo(buf[:size])
@@ -1228,7 +1228,7 @@ func (d *SetPeerRequest) Marshal() ([]byte, error) {
 }
 
 // MarshalTo marshals into buf and returns the number of bytes.
-func (d *SetPeerRequest) MarshalTo(buf []byte) (int, error) {
+func (d *AddMemberRequest) MarshalTo(buf []byte) (int, error) {
 	var size = uint64(d.Size())
 	if uint64(cap(buf)) >= size {
 		buf = buf[:size]
@@ -1255,7 +1255,7 @@ func (d *SetPeerRequest) MarshalTo(buf []byte) (int, error) {
 }
 
 // Unmarshal unmarshals from data.
-func (d *SetPeerRequest) Unmarshal(data []byte) error {
+func (d *AddMemberRequest) Unmarshal(data []byte) error {
 	var length = uint64(len(data))
 	var offset uint64
 	var n uint64
@@ -1288,14 +1288,14 @@ func (d *SetPeerRequest) Unmarshal(data []byte) error {
 	return nil
 }
 
-// SetPeerResponse represents a rpc response of adding peer.
-type SetPeerResponse struct {
+// AddMemberResponse represents a rpc response of adding peer.
+type AddMemberResponse struct {
 	Success  bool
 	LeaderID string
 }
 
 // Size returns the size of the buffer required to represent the data when encoded.
-func (d *SetPeerResponse) Size() int {
+func (d *AddMemberResponse) Size() int {
 	var size uint64
 	size += 11
 	size += 11 + uint64(len(d.LeaderID))
@@ -1303,7 +1303,7 @@ func (d *SetPeerResponse) Size() int {
 }
 
 // Marshal returns the encoded bytes.
-func (d *SetPeerResponse) Marshal() ([]byte, error) {
+func (d *AddMemberResponse) Marshal() ([]byte, error) {
 	size := d.Size()
 	buf := make([]byte, size)
 	n, err := d.MarshalTo(buf[:size])
@@ -1311,7 +1311,7 @@ func (d *SetPeerResponse) Marshal() ([]byte, error) {
 }
 
 // MarshalTo marshals into buf and returns the number of bytes.
-func (d *SetPeerResponse) MarshalTo(buf []byte) (int, error) {
+func (d *AddMemberResponse) MarshalTo(buf []byte) (int, error) {
 	var size = uint64(d.Size())
 	if uint64(cap(buf)) >= size {
 		buf = buf[:size]
@@ -1336,7 +1336,7 @@ func (d *SetPeerResponse) MarshalTo(buf []byte) (int, error) {
 }
 
 // Unmarshal unmarshals from data.
-func (d *SetPeerResponse) Unmarshal(data []byte) error {
+func (d *AddMemberResponse) Unmarshal(data []byte) error {
 	var length = uint64(len(data))
 	var offset uint64
 	var n uint64
@@ -1370,20 +1370,20 @@ func (d *SetPeerResponse) Unmarshal(data []byte) error {
 	return nil
 }
 
-// RemovePeerRequest represents a rpc request of removing peer.
-type RemovePeerRequest struct {
+// RemoveMemberRequest represents a rpc request of removing peer.
+type RemoveMemberRequest struct {
 	Address string
 }
 
 // Size returns the size of the buffer required to represent the data when encoded.
-func (d *RemovePeerRequest) Size() int {
+func (d *RemoveMemberRequest) Size() int {
 	var size uint64
 	size += 11 + uint64(len(d.Address))
 	return int(size)
 }
 
 // Marshal returns the encoded bytes.
-func (d *RemovePeerRequest) Marshal() ([]byte, error) {
+func (d *RemoveMemberRequest) Marshal() ([]byte, error) {
 	size := d.Size()
 	buf := make([]byte, size)
 	n, err := d.MarshalTo(buf[:size])
@@ -1391,7 +1391,7 @@ func (d *RemovePeerRequest) Marshal() ([]byte, error) {
 }
 
 // MarshalTo marshals into buf and returns the number of bytes.
-func (d *RemovePeerRequest) MarshalTo(buf []byte) (int, error) {
+func (d *RemoveMemberRequest) MarshalTo(buf []byte) (int, error) {
 	var size = uint64(d.Size())
 	if uint64(cap(buf)) >= size {
 		buf = buf[:size]
@@ -1410,7 +1410,7 @@ func (d *RemovePeerRequest) MarshalTo(buf []byte) (int, error) {
 }
 
 // Unmarshal unmarshals from data.
-func (d *RemovePeerRequest) Unmarshal(data []byte) error {
+func (d *RemoveMemberRequest) Unmarshal(data []byte) error {
 	var length = uint64(len(data))
 	var offset uint64
 	var n uint64
@@ -1438,14 +1438,14 @@ func (d *RemovePeerRequest) Unmarshal(data []byte) error {
 	return nil
 }
 
-// RemovePeerResponse represents a rpc response of removing peer.
-type RemovePeerResponse struct {
+// RemoveMemberResponse represents a rpc response of removing peer.
+type RemoveMemberResponse struct {
 	Success  bool
 	LeaderID string
 }
 
 // Size returns the size of the buffer required to represent the data when encoded.
-func (d *RemovePeerResponse) Size() int {
+func (d *RemoveMemberResponse) Size() int {
 	var size uint64
 	size += 11
 	size += 11 + uint64(len(d.LeaderID))
@@ -1453,7 +1453,7 @@ func (d *RemovePeerResponse) Size() int {
 }
 
 // Marshal returns the encoded bytes.
-func (d *RemovePeerResponse) Marshal() ([]byte, error) {
+func (d *RemoveMemberResponse) Marshal() ([]byte, error) {
 	size := d.Size()
 	buf := make([]byte, size)
 	n, err := d.MarshalTo(buf[:size])
@@ -1461,7 +1461,7 @@ func (d *RemovePeerResponse) Marshal() ([]byte, error) {
 }
 
 // MarshalTo marshals into buf and returns the number of bytes.
-func (d *RemovePeerResponse) MarshalTo(buf []byte) (int, error) {
+func (d *RemoveMemberResponse) MarshalTo(buf []byte) (int, error) {
 	var size = uint64(d.Size())
 	if uint64(cap(buf)) >= size {
 		buf = buf[:size]
@@ -1486,7 +1486,7 @@ func (d *RemovePeerResponse) MarshalTo(buf []byte) (int, error) {
 }
 
 // Unmarshal unmarshals from data.
-func (d *RemovePeerResponse) Unmarshal(data []byte) error {
+func (d *RemoveMemberResponse) Unmarshal(data []byte) error {
 	var length = uint64(len(data))
 	var offset uint64
 	var n uint64

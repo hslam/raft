@@ -66,28 +66,28 @@ message DefaultCommand {
     NodeInfo    NodeInfo    = 2;
 }
 
-message QueryLeaderRequest {
+message GetLeaderRequest {
 }
 
-message QueryLeaderResponse {
+message GetLeaderResponse {
     uint64  Term        = 1;
     string  LeaderID    = 2;
 }
 
-message SetPeerRequest {
+message AddMemberRequest {
     NodeInfo    Node        = 1;
 }
 
-message SetPeerResponse {
+message AddMemberResponse {
     bool    Success     = 1;
     string  LeaderID    = 2;
 }
 
-message RemovePeerRequest {
+message RemoveMemberRequest {
     string      Address     = 1;
 }
 
-message RemovePeerResponse {
+message RemoveMemberResponse {
     bool    Success     = 1;
     string  LeaderID    = 2;
 }

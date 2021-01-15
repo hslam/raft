@@ -288,12 +288,12 @@ func TestDefaultCommand(t *testing.T) {
 	}
 }
 
-func TestQueryLeaderRequest(t *testing.T) {
+func TestGetLeaderRequest(t *testing.T) {
 	{
-		var obj = QueryLeaderRequest{}
+		var obj = GetLeaderRequest{}
 		var c = GOGOPBCodec{}
 		var buf = make([]byte, 10240)
-		var objCopy QueryLeaderRequest
+		var objCopy GetLeaderRequest
 		data, _ := c.Marshal(buf, &obj)
 		c.Unmarshal(data, &objCopy)
 		if !reflect.DeepEqual(obj, objCopy) {
@@ -301,9 +301,9 @@ func TestQueryLeaderRequest(t *testing.T) {
 		}
 	}
 	{
-		var obj = QueryLeaderRequest{}
+		var obj = GetLeaderRequest{}
 		var c = GOGOPBCodec{}
-		var objCopy QueryLeaderRequest
+		var objCopy GetLeaderRequest
 		data, _ := obj.Marshal()
 		c.Unmarshal(data, &objCopy)
 		if !reflect.DeepEqual(obj, objCopy) {
@@ -312,12 +312,12 @@ func TestQueryLeaderRequest(t *testing.T) {
 	}
 }
 
-func TestQueryLeaderResponse(t *testing.T) {
+func TestGetLeaderResponse(t *testing.T) {
 	{
-		var obj = QueryLeaderResponse{Term: 1024, LeaderID: "localhost:9001"}
+		var obj = GetLeaderResponse{Term: 1024, LeaderID: "localhost:9001"}
 		var c = GOGOPBCodec{}
 		var buf = make([]byte, 10240)
-		var objCopy QueryLeaderResponse
+		var objCopy GetLeaderResponse
 		data, _ := c.Marshal(buf, &obj)
 		c.Unmarshal(data, &objCopy)
 		if !reflect.DeepEqual(obj, objCopy) {
@@ -325,10 +325,10 @@ func TestQueryLeaderResponse(t *testing.T) {
 		}
 	}
 	{
-		var obj = QueryLeaderResponse{Term: 1024, LeaderID: "localhost:9001"}
+		var obj = GetLeaderResponse{Term: 1024, LeaderID: "localhost:9001"}
 		var c = GOGOPBCodec{}
 		var buf = make([]byte, 0)
-		var objCopy QueryLeaderResponse
+		var objCopy GetLeaderResponse
 		data, _ := c.Marshal(buf, &obj)
 		c.Unmarshal(data, &objCopy)
 		if !reflect.DeepEqual(obj, objCopy) {
@@ -340,12 +340,12 @@ func TestQueryLeaderResponse(t *testing.T) {
 	}
 }
 
-func TestSetPeerRequest(t *testing.T) {
+func TestAddMemberRequest(t *testing.T) {
 	{
-		var obj = SetPeerRequest{Node: &NodeInfo{Address: "localhost:9001", NonVoting: true}}
+		var obj = AddMemberRequest{Node: &NodeInfo{Address: "localhost:9001", NonVoting: true}}
 		var c = GOGOPBCodec{}
 		var buf = make([]byte, 10240)
-		var objCopy SetPeerRequest
+		var objCopy AddMemberRequest
 		data, _ := c.Marshal(buf, &obj)
 		c.Unmarshal(data, &objCopy)
 		if !reflect.DeepEqual(obj, objCopy) {
@@ -353,10 +353,10 @@ func TestSetPeerRequest(t *testing.T) {
 		}
 	}
 	{
-		var obj = SetPeerRequest{Node: &NodeInfo{Address: "localhost:9001", NonVoting: true}}
+		var obj = AddMemberRequest{Node: &NodeInfo{Address: "localhost:9001", NonVoting: true}}
 		var c = GOGOPBCodec{}
 		var buf = make([]byte, 0)
-		var objCopy SetPeerRequest
+		var objCopy AddMemberRequest
 		data, _ := c.Marshal(buf, &obj)
 		c.Unmarshal(data, &objCopy)
 		if !reflect.DeepEqual(obj, objCopy) {
@@ -368,12 +368,12 @@ func TestSetPeerRequest(t *testing.T) {
 	}
 }
 
-func TestSetPeerResponse(t *testing.T) {
+func TestAddMemberResponse(t *testing.T) {
 	{
-		var obj = SetPeerResponse{Success: true}
+		var obj = AddMemberResponse{Success: true}
 		var c = GOGOPBCodec{}
 		var buf = make([]byte, 10240)
-		var objCopy SetPeerResponse
+		var objCopy AddMemberResponse
 		data, _ := c.Marshal(buf, &obj)
 		c.Unmarshal(data, &objCopy)
 		if !reflect.DeepEqual(obj, objCopy) {
@@ -381,10 +381,10 @@ func TestSetPeerResponse(t *testing.T) {
 		}
 	}
 	{
-		var obj = SetPeerResponse{Success: true}
+		var obj = AddMemberResponse{Success: true}
 		var c = GOGOPBCodec{}
 		var buf = make([]byte, 0)
-		var objCopy SetPeerResponse
+		var objCopy AddMemberResponse
 		data, _ := c.Marshal(buf, &obj)
 		c.Unmarshal(data, &objCopy)
 		if !reflect.DeepEqual(obj, objCopy) {
@@ -396,12 +396,12 @@ func TestSetPeerResponse(t *testing.T) {
 	}
 }
 
-func TestRemovePeerRequest(t *testing.T) {
+func TestRemoveMemberRequest(t *testing.T) {
 	{
-		var obj = RemovePeerRequest{Address: "localhost:9001"}
+		var obj = RemoveMemberRequest{Address: "localhost:9001"}
 		var c = GOGOPBCodec{}
 		var buf = make([]byte, 10240)
-		var objCopy RemovePeerRequest
+		var objCopy RemoveMemberRequest
 		data, _ := c.Marshal(buf, &obj)
 		c.Unmarshal(data, &objCopy)
 		if !reflect.DeepEqual(obj, objCopy) {
@@ -409,10 +409,10 @@ func TestRemovePeerRequest(t *testing.T) {
 		}
 	}
 	{
-		var obj = RemovePeerRequest{Address: "localhost:9001"}
+		var obj = RemoveMemberRequest{Address: "localhost:9001"}
 		var c = GOGOPBCodec{}
 		var buf = make([]byte, 0)
-		var objCopy RemovePeerRequest
+		var objCopy RemoveMemberRequest
 		data, _ := c.Marshal(buf, &obj)
 		c.Unmarshal(data, &objCopy)
 		if !reflect.DeepEqual(obj, objCopy) {
@@ -424,12 +424,12 @@ func TestRemovePeerRequest(t *testing.T) {
 	}
 }
 
-func TestRemovePeerResponse(t *testing.T) {
+func TestRemoveMemberResponse(t *testing.T) {
 	{
-		var obj = RemovePeerResponse{Success: true}
+		var obj = RemoveMemberResponse{Success: true}
 		var c = GOGOPBCodec{}
 		var buf = make([]byte, 10240)
-		var objCopy RemovePeerResponse
+		var objCopy RemoveMemberResponse
 		data, _ := c.Marshal(buf, &obj)
 		c.Unmarshal(data, &objCopy)
 		if !reflect.DeepEqual(obj, objCopy) {
@@ -437,10 +437,10 @@ func TestRemovePeerResponse(t *testing.T) {
 		}
 	}
 	{
-		var obj = RemovePeerResponse{Success: true}
+		var obj = RemoveMemberResponse{Success: true}
 		var c = GOGOPBCodec{}
 		var buf = make([]byte, 0)
-		var objCopy RemovePeerResponse
+		var objCopy RemoveMemberResponse
 		data, _ := c.Marshal(buf, &obj)
 		c.Unmarshal(data, &objCopy)
 		if !reflect.DeepEqual(obj, objCopy) {

@@ -16,9 +16,9 @@ const (
 	requestVoteName     = "R"
 	appendEntriesName   = "A"
 	installSnapshotName = "I"
-	queryLeaderName     = "Q"
-	setPeerName         = "J"
-	removePeerName      = "L"
+	getLeaderName       = "Q"
+	addMemberName       = "J"
+	removeMemberName    = "L"
 	setMetaName         = "S"
 	getMetaName         = "G"
 )
@@ -28,9 +28,9 @@ type rpcs struct {
 	appendEntriesServiceName   string
 	requestVoteServiceName     string
 	installSnapshotServiceName string
-	queryLeaderServiceName     string
-	setPeerServiceName         string
-	removePeerServiceName      string
+	getLeaderServiceName       string
+	addMemberServiceName       string
+	removeMemberServiceName    string
 	setMetaServiceName         string
 	getMetaServiceName         string
 	node                       *node
@@ -48,9 +48,9 @@ func newRPCs(n *node, addr string) *rpcs {
 		appendEntriesServiceName:   serviceName + "." + appendEntriesName,
 		requestVoteServiceName:     serviceName + "." + requestVoteName,
 		installSnapshotServiceName: serviceName + "." + installSnapshotName,
-		queryLeaderServiceName:     serviceName + "." + queryLeaderName,
-		setPeerServiceName:         serviceName + "." + setPeerName,
-		removePeerServiceName:      serviceName + "." + removePeerName,
+		getLeaderServiceName:       serviceName + "." + getLeaderName,
+		addMemberServiceName:       serviceName + "." + addMemberName,
+		removeMemberServiceName:    serviceName + "." + removeMemberName,
 		setMetaServiceName:         serviceName + "." + setMetaName,
 		getMetaServiceName:         serviceName + "." + getMetaName,
 		node:                       n,
@@ -85,16 +85,16 @@ func (r *rpcs) InstallSnapshotServiceName() string {
 	return r.installSnapshotServiceName
 }
 
-func (r *rpcs) QueryLeaderServiceName() string {
-	return r.queryLeaderServiceName
+func (r *rpcs) GetLeaderServiceName() string {
+	return r.getLeaderServiceName
 }
 
-func (r *rpcs) SetPeerServiceName() string {
-	return r.setPeerServiceName
+func (r *rpcs) AddMemberServiceName() string {
+	return r.addMemberServiceName
 }
 
-func (r *rpcs) RemovePeerServiceName() string {
-	return r.removePeerServiceName
+func (r *rpcs) RemoveMemberServiceName() string {
+	return r.removeMemberServiceName
 }
 
 func (r *rpcs) SetMetaServiceName() string {
