@@ -261,7 +261,6 @@ func (l *waLog) load() (err error) {
 		entry := l.read(l.node.lastLogIndex)
 		if entry != nil {
 			l.node.lastLogTerm = entry.Term
-			l.node.recoverLogIndex = l.node.lastLogIndex
 			l.node.nextIndex = l.node.lastLogIndex + 1
 		}
 	}

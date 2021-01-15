@@ -215,6 +215,7 @@ func (r *raft) InstallSnapshot(req *InstallSnapshotRequest, res *InstallSnapshot
 		if r.node.leader.Load() != req.LeaderID {
 			r.node.leader.Store(req.LeaderID)
 		}
+		r.node.reset()
 		r.node.stateMachine.snapshotReadWriter.finish = true
 		r.node.stateMachine.snapshotReadWriter.lastIncludedIndex.Set(req.LastIncludedIndex)
 		r.node.stateMachine.snapshotReadWriter.lastIncludedTerm.Set(req.LastIncludedTerm)

@@ -94,7 +94,6 @@ type node struct {
 	nextIndex     uint64
 
 	//init
-	recoverLogIndex        uint64
 	lastPrintFirstLogIndex uint64
 	lastPrintLastLogIndex  uint64
 	lastPrintCommitIndex   uint64
@@ -881,6 +880,22 @@ func (n *node) recover() error {
 	close(done)
 	n.logger.Tracef("node.recover %s finish", n.address)
 	return nil
+}
+
+func (n *node) reset() {
+	n.lastPrintNextIndex = 1
+	n.lastPrintLastApplied = 0
+	n.lastPrintLastLogIndex = 0
+	n.lastPrintCommitIndex = 0
+	n.nextIndex = 1
+	n.lastLogIndex = 0
+	n.lastLogTerm = 0
+	n.commitIndex.Set(0)
+	n.stateMachine.lastApplied = 0
+	n.stateMachine.snapshotReadWriter.lastIncludedIndex.Set(0)
+	n.stateMachine.snapshotReadWriter.lastIncludedTerm.Set(0)
+	n.stateMachine.snapshotReadWriter.lastTarIndex.Set(0)
+	n.log.wal.Reset()
 }
 
 func (n *node) checkLog() error {
