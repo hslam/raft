@@ -60,14 +60,13 @@ func (c *configuration) RemovePeer(addr string) {
 	}
 }
 
-func (c *configuration) LookupPeer(addr string) *NodeInfo {
+func (c *configuration) LookupPeer(addr string) (nodeInfo *NodeInfo) {
 	c.mu.Lock()
 	if v, ok := c.nodes[addr]; ok {
-		c.mu.Unlock()
-		return v
+		nodeInfo = v
 	}
 	c.mu.Unlock()
-	return nil
+	return
 }
 
 func (c *configuration) Peers() []string {
@@ -80,6 +79,18 @@ func (c *configuration) Peers() []string {
 	}
 	c.mu.Unlock()
 	return peers
+}
+
+func (c *configuration) Members() []*NodeInfo {
+	c.mu.Lock()
+	members := make([]*NodeInfo, 0, len(c.nodes))
+	for _, v := range c.nodes {
+		member := &NodeInfo{}
+		*member = *v
+		members = append(members, member)
+	}
+	c.mu.Unlock()
+	return members
 }
 
 func (c *configuration) membership() []string {

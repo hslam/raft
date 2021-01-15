@@ -40,7 +40,7 @@ type Node interface {
 	Peers() []string
 	Join(info *NodeInfo) (success bool)
 	Leave(Address string) (success bool)
-	LookupPeer(addr string) *NodeInfo
+	Members() []*NodeInfo
 	LeaderChange(leaderChange func())
 	MemberChange(memberChange func())
 }
@@ -622,6 +622,13 @@ func (n *node) Leave(Address string) (success bool) {
 	return
 }
 
+func (n *node) Members() []*NodeInfo {
+	n.nodesMut.Lock()
+	member := n.stateMachine.configuration.Members()
+	n.nodesMut.Unlock()
+	return member
+}
+
 func (n *node) setNodes(nodes []*NodeInfo) {
 	n.stateMachine.configuration.SetNodes(nodes)
 	n.stateMachine.configuration.load()
@@ -661,8 +668,6 @@ func (n *node) consideredForMajorities() {
 	n.nodesMut.Lock()
 	if n.stateMachine.configuration.LookupPeer(n.address) != nil {
 		n.majorities = true
-	} else {
-		n.majorities = false
 	}
 	for _, v := range n.peers {
 		v.majorities = true
@@ -692,13 +697,6 @@ func (n *node) clearPeers() {
 	n.nodesMut.Lock()
 	n.peers = make(map[string]*peer)
 	n.nodesMut.Unlock()
-}
-
-func (n *node) LookupPeer(addr string) *NodeInfo {
-	n.nodesMut.Lock()
-	nodeInfo := n.stateMachine.configuration.LookupPeer(addr)
-	n.nodesMut.Unlock()
-	return nodeInfo
 }
 
 func (n *node) NodesCount() int {

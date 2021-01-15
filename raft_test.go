@@ -121,12 +121,10 @@ func TestCluster(t *testing.T) {
 			})
 			node.LeaderChange(func() {
 				time.Sleep(time.Second * 2)
-				lookupLeader := node.LookupPeer(leader)
-				leader := node.Leader()
-				if lookupLeader != nil && lookupLeader.Address != leader {
-					t.Error(lookupLeader.Address, leader)
-				}
 				if node.IsLeader() {
+					if node.Leader() != node.leader.Load() {
+						t.Error()
+					}
 					go node.waitApplyTimeout(node.commitIndex.ID()+1, time.NewTimer(time.Millisecond))
 					time.Sleep(time.Millisecond * 100)
 					go node.waitApplyTimeout(node.commitIndex.ID()+1, time.NewTimer(defaultCommandTimeout))
@@ -379,6 +377,9 @@ func TestLeaderTimeout(t *testing.T) {
 			node.SetGzipSnapshot(true)
 			node.MemberChange(func() {
 			})
+			if len(node.Members()) != len(infos) {
+				t.Error()
+			}
 			var start bool
 			node.LeaderChange(func() {
 				start = true
@@ -477,11 +478,6 @@ func TestSingle(t *testing.T) {
 	})
 	node.LeaderChange(func() {
 		time.Sleep(time.Second * 3)
-		lookupLeader := node.LookupPeer(leader)
-		leader := node.Leader()
-		if lookupLeader != nil && lookupLeader.Address != leader {
-			t.Error(lookupLeader.Address, leader)
-		}
 		node.Do(&testCommand{"foobar"})
 		if node.IsLeader() {
 			if atomic.CompareAndSwapUint32(&readflag, 0, 1) {
@@ -550,10 +546,8 @@ func TestStateMachine(t *testing.T) {
 		})
 		node.LeaderChange(func() {
 			time.Sleep(time.Second * 3)
-			lookupLeader := node.LookupPeer(leader)
-			leader := node.Leader()
-			if lookupLeader != nil && lookupLeader.Address != leader {
-				t.Error(lookupLeader.Address, leader)
+			if len(node.Leader()) == 0 {
+				t.Error()
 			}
 			node.Do(&testCommand{"foobar"})
 			if node.IsLeader() {
@@ -616,11 +610,6 @@ func TestStateMachine(t *testing.T) {
 		})
 		node.LeaderChange(func() {
 			time.Sleep(time.Second * 3)
-			lookupLeader := node.LookupPeer(leader)
-			leader := node.Leader()
-			if lookupLeader != nil && lookupLeader.Address != leader {
-				t.Error(lookupLeader.Address, leader)
-			}
 			node.Do(&testCommand{"foobar"})
 			if node.IsLeader() {
 				if atomic.CompareAndSwapUint32(&readflag, 0, 1) {
