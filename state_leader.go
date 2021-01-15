@@ -33,6 +33,7 @@ func (s *leaderState) Start() {
 	if len(s.node.peers) > 0 {
 		for _, v := range s.node.peers {
 			v.nextIndex = 0
+			v.matchIndex = 0
 			//logger.Tracef("%s leaderState.Start %s nextIndex:%d", s.node.address, v.address, v.nextIndex)
 		}
 	}
