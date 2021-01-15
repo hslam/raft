@@ -120,7 +120,9 @@ func (r *raft) RequestVote(req *RequestVoteRequest, res *RequestVoteResponse) er
 	} else if req.Term > r.node.currentTerm.Load() {
 		r.node.currentTerm.Store(req.Term)
 		r.node.votedFor.Store("")
-		r.node.stepDown(true)
+		if r.node.state.String() != follower {
+			r.node.stepDown(true)
+		}
 	}
 	isUpToDate := req.LastLogIndex >= r.node.lastLogIndex && req.LastLogTerm >= r.node.lastLogTerm
 	if (r.node.votedFor.Load() == "" || r.node.votedFor.Load() == req.CandidateID) && isUpToDate {
@@ -140,7 +142,9 @@ func (r *raft) AppendEntries(req *AppendEntriesRequest, res *AppendEntriesRespon
 		return nil
 	} else if req.Term > r.node.currentTerm.Load() {
 		r.node.currentTerm.Store(req.Term)
-		r.node.stepDown(true)
+		if r.node.state.String() != follower {
+			r.node.stepDown(true)
+		}
 	}
 	if r.node.leader.Load() == "" {
 		r.node.votedFor.Store(req.LeaderID)
@@ -155,7 +159,7 @@ func (r *raft) AppendEntries(req *AppendEntriesRequest, res *AppendEntriesRespon
 		r.node.stepDown(true)
 		return nil
 	}
-	if r.node.state.String() == leader || r.node.state.String() == candidate {
+	if r.node.state.String() == candidate {
 		r.node.stepDown(true)
 		r.node.logger.Tracef("raft.HandleAppendEntries %s State:%s Term:%d", r.node.address, r.node.State(), r.node.currentTerm.Load())
 	}
@@ -198,7 +202,9 @@ func (r *raft) InstallSnapshot(req *InstallSnapshotRequest, res *InstallSnapshot
 		return nil
 	} else if req.Term > r.node.currentTerm.Load() {
 		r.node.currentTerm.Store(req.Term)
-		r.node.stepDown(true)
+		if r.node.state.String() != follower {
+			r.node.stepDown(true)
+		}
 	}
 	r.node.logger.Tracef("raft.HandleInstallSnapshot offset %d len %d done %t", req.Offset, len(req.Data), req.Done)
 	if req.Offset == 0 {
