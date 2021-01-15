@@ -31,10 +31,8 @@ func newLeaderState(n *node) state {
 func (s *leaderState) Start() {
 	//logger.Tracef("%s leaderState.Start %s nextIndex:%d", s.node.address, s.node.address, s.node.nextIndex)
 	if len(s.node.peers) > 0 {
-		for _, v := range s.node.peers {
-			v.nextIndex = 0
-			v.matchIndex = 0
-			//logger.Tracef("%s leaderState.Start %s nextIndex:%d", s.node.address, v.address, v.nextIndex)
+		for _, peer := range s.node.peers {
+			peer.init()
 		}
 	}
 	s.node.ready = false

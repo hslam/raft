@@ -7,6 +7,7 @@ import (
 	"math"
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
 type peer struct {
@@ -28,6 +29,7 @@ type peer struct {
 	offset             uint64
 	chunk              int
 	chunkNum           int
+	lastMatchTime      time.Time
 }
 
 func newPeer(n *node, address string) *peer {
@@ -37,6 +39,12 @@ func newPeer(n *node, address string) *peer {
 		nextIndex: 0,
 	}
 	return p
+}
+
+func (p *peer) init() {
+	p.nextIndex = 0
+	p.matchIndex = 0
+	p.lastMatchTime = time.Now()
 }
 
 func (p *peer) heartbeat() bool {
@@ -81,9 +89,14 @@ func (p *peer) appendEntries(entries []*Entry) (nextIndex uint64, term uint64, s
 		//logger.Tracef("Peer.run %s nextIndex %d==>%d",p.address,p.nextIndex,nextIndex)
 		p.nextIndex = nextIndex
 		p.matchIndex = nextIndex - 1
+		p.lastMatchTime = time.Now()
 	} else if ok && term == p.node.currentTerm.Load() {
 		p.nextIndex = nextIndex
 		p.matchIndex = 0
+		if p.lastMatchTime.Add(defaultMatchTimeout).Before(time.Now()) {
+			p.matchIndex = 0
+			p.nextIndex = 1
+		}
 	} else if !ok {
 		p.alive = false
 	}
