@@ -133,16 +133,14 @@ func (s *snapshotReadWriter) Read(p []byte) (n int, err error) {
 	return n, nil
 }
 
-func (s *snapshotReadWriter) load() error {
+func (s *snapshotReadWriter) load() (err error) {
 	s.lastIncludedIndex.load()
 	s.lastIncludedTerm.load()
-	if !s.node.storage.Exists(s.name) {
-		if s.node.storage.Exists(s.tmpName) {
-			return s.node.storage.Rename(s.tmpName, s.name)
-		}
-		return errors.New(s.name + " file is not existed")
+	if s.node.storage.Exists(s.tmpName) {
+		err = s.node.storage.Rename(s.tmpName, s.name)
+		s.node.storage.Rm(s.flushName)
 	}
-	return nil
+	return err
 }
 
 func (s *snapshotReadWriter) Tar() error {
