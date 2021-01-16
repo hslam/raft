@@ -230,7 +230,10 @@ func (p *peer) check() {
 			}
 
 		} else {
-			if p.matchIndex == p.nextIndex-1 && atomic.CompareAndSwapInt32(&p.sending, 0, 1) {
+			if p.matchIndex != p.nextIndex-1 {
+				return
+			}
+			if atomic.CompareAndSwapInt32(&p.sending, 0, 1) {
 				go func() {
 					entries := p.node.log.copyAfter(p.nextIndex, defaultMaxBatch)
 					if len(entries) > 0 {
