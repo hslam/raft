@@ -90,6 +90,12 @@ func (s *snapshotReadWriter) Reset(lastIncludedIndex, lastIncludedTerm uint64) {
 	s.readRet = 0
 }
 
+func (s *snapshotReadWriter) clearTar() {
+	s.lastTarIndex.Set(0)
+	s.node.storage.Rm(s.tarName)
+	s.node.storage.Rm(s.tarGzName)
+}
+
 func (s *snapshotReadWriter) Write(p []byte) (n int, err error) {
 	err = s.node.storage.SeekWrite(s.flushName, s.ret, p)
 	if err != nil {

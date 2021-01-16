@@ -20,6 +20,7 @@ func newFollowerState(n *node) state {
 		node: n,
 	}
 	s.node.votedFor.Store("")
+	s.node.stateMachine.snapshotReadWriter.clearTar()
 	s.Start()
 	return s
 }
