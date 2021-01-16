@@ -205,6 +205,16 @@ func (s *stateMachine) recover() error {
 	if err != nil {
 		return err
 	}
+	if s.node.lastLogIndex < s.snapshotReadWriter.lastIncludedIndex.ID() {
+		var lastLogIndex = s.node.lastLogIndex
+		s.node.lastLogIndex = s.snapshotReadWriter.lastIncludedIndex.ID()
+		s.node.logger.Tracef("stateMachine.recover %s lastLogIndex %d==>%d", s.node.address, lastLogIndex, s.node.lastLogIndex)
+	}
+	if s.node.lastLogTerm < s.snapshotReadWriter.lastIncludedTerm.ID() {
+		var lastLogTerm = s.node.lastLogTerm
+		s.node.lastLogTerm = s.snapshotReadWriter.lastIncludedTerm.ID()
+		s.node.logger.Tracef("stateMachine.recover %s lastLogTerm %d==>%d", s.node.address, lastLogTerm, s.node.lastLogTerm)
+	}
 	if s.lastApplied < s.snapshotReadWriter.lastIncludedIndex.ID() {
 		var lastApplied = s.lastApplied
 		s.lastApplied = s.snapshotReadWriter.lastIncludedIndex.ID()
@@ -214,11 +224,6 @@ func (s *stateMachine) recover() error {
 		var commitIndex = s.node.commitIndex.ID()
 		s.node.commitIndex.Set(s.snapshotReadWriter.lastIncludedIndex.ID())
 		s.node.logger.Tracef("stateMachine.recover %s commitIndex %d==>%d", s.node.address, commitIndex, s.node.commitIndex.ID())
-	}
-	if s.node.lastLogTerm < s.snapshotReadWriter.lastIncludedTerm.ID() {
-		var lastLogTerm = s.node.lastLogTerm
-		s.node.lastLogTerm = s.snapshotReadWriter.lastIncludedTerm.ID()
-		s.node.logger.Tracef("stateMachine.recover %s lastLogTerm %d==>%d", s.node.address, lastLogTerm, s.node.lastLogTerm)
 	}
 	if s.node.nextIndex < s.snapshotReadWriter.lastIncludedIndex.ID()+1 {
 		var nextIndex = s.node.nextIndex
@@ -231,9 +236,17 @@ func (s *stateMachine) recover() error {
 	return nil
 }
 
+func (s *stateMachine) Reset() {
+	s.lastApplied = 0
+	s.snapshotReadWriter.Reset(0, 0)
+	s.snapshotReadWriter.lastTarIndex.Set(0)
+	s.configuration.reset()
+}
+
 func (s *stateMachine) load() {
 	s.snapshotReadWriter.load()
 	s.configuration.load()
+	s.configuration.reconfiguration()
 }
 
 func (s *stateMachine) append(offset uint64, p []byte) {

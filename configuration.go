@@ -144,6 +144,13 @@ func (c *configuration) load() error {
 	return nil
 }
 
+func (c *configuration) reset() {
+	c.mu.Lock()
+	c.node.storage.Truncate(defaultConfig, 0)
+	c.members = make(map[string]*Member)
+	c.mu.Unlock()
+}
+
 func (c *configuration) reconfiguration() error {
 	lastVotingsCount := c.node.votingsCount()
 	c.node.consideredForMajorities()

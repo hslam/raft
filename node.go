@@ -891,10 +891,7 @@ func (n *node) reset() {
 	n.lastLogIndex = 0
 	n.lastLogTerm = 0
 	n.commitIndex.Set(0)
-	n.stateMachine.lastApplied = 0
-	n.stateMachine.snapshotReadWriter.lastIncludedIndex.Set(0)
-	n.stateMachine.snapshotReadWriter.lastIncludedTerm.Set(0)
-	n.stateMachine.snapshotReadWriter.lastTarIndex.Set(0)
+	n.stateMachine.Reset()
 	n.log.wal.Reset()
 }
 

@@ -85,7 +85,7 @@ func (s *snapshotReadWriter) FileName() string {
 func (s *snapshotReadWriter) Reset(lastIncludedIndex, lastIncludedTerm uint64) {
 	s.lastIncludedIndex.Set(lastIncludedIndex)
 	s.lastIncludedTerm.Set(lastIncludedTerm)
-	s.node.storage.Truncate(s.flushName, 0)
+	s.node.storage.Rm(s.flushName)
 	s.ret = 0
 	s.readRet = 0
 }
