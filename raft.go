@@ -4,6 +4,7 @@
 package raft
 
 import (
+	"context"
 	"time"
 )
 
@@ -42,7 +43,9 @@ func (r *raft) CallRequestVote(addr string) (ok bool) {
 	req.LastLogIndex = r.node.lastLogIndex
 	req.LastLogTerm = r.node.lastLogTerm
 	var res = &RequestVoteResponse{}
-	err := r.node.rpcs.CallTimeout(addr, r.node.rpcs.RequestVoteServiceName(), req, res, r.requestVoteTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), r.requestVoteTimeout)
+	defer cancel()
+	err := r.node.rpcs.CallWithContext(ctx, addr, r.node.rpcs.RequestVoteServiceName(), req, res)
 	if err != nil {
 		r.node.logger.Tracef("raft.CallRequestVote %s recv %s vote error %s", r.node.address, addr, err.Error())
 		return false
@@ -73,7 +76,9 @@ func (r *raft) CallAppendEntries(addr string, prevLogIndex, prevLogTerm uint64, 
 		timeout = r.hearbeatTimeout
 	}
 	var res = &AppendEntriesResponse{}
-	err := r.node.rpcs.CallTimeout(addr, r.node.rpcs.AppendEntriesServiceName(), req, res, timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	err := r.node.rpcs.CallWithContext(ctx, addr, r.node.rpcs.AppendEntriesServiceName(), req, res)
 	if err != nil {
 		r.node.logger.Tracef("raft.CallAppendEntries %s -> %s error %s", r.node.address, addr, err.Error())
 		return 0, 0, false, false
@@ -99,7 +104,9 @@ func (r *raft) CallInstallSnapshot(addr string, LastIncludedIndex, LastIncludedT
 	req.Data = Data
 	req.Done = Done
 	var res = &InstallSnapshotResponse{}
-	err := r.node.rpcs.CallTimeout(addr, r.node.rpcs.InstallSnapshotServiceName(), req, res, r.installSnapshotTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), r.installSnapshotTimeout)
+	defer cancel()
+	err := r.node.rpcs.CallWithContext(ctx, addr, r.node.rpcs.InstallSnapshotServiceName(), req, res)
 	if err != nil {
 		r.node.logger.Tracef("raft.CallInstallSnapshot %s -> %s error %s", r.node.address, addr, err.Error())
 		return 0, 0, false

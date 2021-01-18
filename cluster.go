@@ -4,6 +4,7 @@
 package raft
 
 import (
+	"context"
 	"time"
 )
 
@@ -44,7 +45,9 @@ func newCluster(n *node) Cluster {
 func (c *cluster) CallGetLeader(addr string) (term uint64, LeaderID string, ok bool) {
 	var req = &GetLeaderRequest{}
 	var res = &GetLeaderResponse{}
-	err := c.node.rpcs.CallTimeout(addr, c.node.rpcs.GetLeaderServiceName(), req, res, c.getLeaderTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), c.getLeaderTimeout)
+	defer cancel()
+	err := c.node.rpcs.CallWithContext(ctx, addr, c.node.rpcs.GetLeaderServiceName(), req, res)
 	if err != nil {
 		c.node.logger.Tracef("raft.CallGetLeader %s -> %s error %s", c.node.address, addr, err.Error())
 		return 0, "", false
@@ -57,7 +60,9 @@ func (c *cluster) CallAddMember(addr string, member *Member) (success bool, Lead
 	var req = &AddMemberRequest{}
 	req.Member = member
 	var res = &AddMemberResponse{}
-	err := c.node.rpcs.CallTimeout(addr, c.node.rpcs.AddMemberServiceName(), req, res, c.addMemberTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), c.addMemberTimeout)
+	defer cancel()
+	err := c.node.rpcs.CallWithContext(ctx, addr, c.node.rpcs.AddMemberServiceName(), req, res)
 	if err != nil {
 		c.node.logger.Tracef("raft.CallAddMember %s -> %s error %s", c.node.address, addr, err.Error())
 		return false, res.LeaderID, false
@@ -70,7 +75,9 @@ func (c *cluster) CallRemoveMember(addr string, Address string) (success bool, L
 	var req = &RemoveMemberRequest{}
 	req.Address = Address
 	var res = &RemoveMemberResponse{}
-	err := c.node.rpcs.CallTimeout(addr, c.node.rpcs.RemoveMemberServiceName(), req, res, c.removeMemberTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), c.removeMemberTimeout)
+	defer cancel()
+	err := c.node.rpcs.CallWithContext(ctx, addr, c.node.rpcs.RemoveMemberServiceName(), req, res)
 	if err != nil {
 		c.node.logger.Tracef("raft.CallRemoveMember %s -> %s error %s", c.node.address, addr, err.Error())
 		return false, res.LeaderID, false
@@ -82,7 +89,9 @@ func (c *cluster) CallRemoveMember(addr string, Address string) (success bool, L
 func (c *cluster) CallSetMeta(addr string, meta []byte) (ok bool) {
 	var req = &SetMetaRequest{Meta: meta}
 	var res = &SetMetaResponse{}
-	err := c.node.rpcs.CallTimeout(addr, c.node.rpcs.SetMetaServiceName(), req, res, c.setMetaTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), c.setMetaTimeout)
+	defer cancel()
+	err := c.node.rpcs.CallWithContext(ctx, addr, c.node.rpcs.SetMetaServiceName(), req, res)
 	if err != nil {
 		c.node.logger.Tracef("raft.CallSetMeta %s -> %s error %s", c.node.address, addr, err.Error())
 		return false
@@ -94,7 +103,9 @@ func (c *cluster) CallSetMeta(addr string, meta []byte) (ok bool) {
 func (c *cluster) CallGetMeta(addr string) (meta []byte, ok bool) {
 	var req = &GetMetaRequest{}
 	var res = &GetMetaResponse{}
-	err := c.node.rpcs.CallTimeout(addr, c.node.rpcs.GetMetaServiceName(), req, res, c.getMetaTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), c.getMetaTimeout)
+	defer cancel()
+	err := c.node.rpcs.CallWithContext(ctx, addr, c.node.rpcs.GetMetaServiceName(), req, res)
 	if err != nil {
 		c.node.logger.Tracef("raft.CallGetMeta %s -> %s error %s", c.node.address, addr, err.Error())
 		return nil, false
