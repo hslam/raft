@@ -269,6 +269,10 @@ func (n *node) run() {
 			n.keepAliveTicker.Stop()
 			n.detectTicker.Stop()
 			n.checkLogTicker.Stop()
+			if n.workTicker != nil {
+				n.workTicker.Stop()
+				n.workTicker = nil
+			}
 			return
 		}
 	}
