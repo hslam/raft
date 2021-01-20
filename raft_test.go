@@ -191,6 +191,8 @@ func TestClusterMore(t *testing.T) {
 	os.RemoveAll(dir)
 	members := []*Member{{Address: "localhost:9001"}, {Address: "localhost:9002"}, {Address: "localhost:9003"}, {Address: "localhost:9004"}, {Address: "localhost:9005"}}
 	wg := sync.WaitGroup{}
+	al := sync.WaitGroup{}
+	al.Add(5)
 	for i := 0; i < len(members); i++ {
 		address := members[i].Address
 		index := i
@@ -250,7 +252,9 @@ func TestClusterMore(t *testing.T) {
 					break
 				}
 			}
-			time.Sleep(time.Second * 3)
+			al.Done()
+			time.Sleep(time.Second)
+			al.Wait()
 			if node.isLeader() {
 				node.put(nil)
 				invoker := node.put(&testCommand1{})
