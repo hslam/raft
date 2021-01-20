@@ -65,6 +65,7 @@ func (r *rpcs) ListenAndServe() {
 	r.server = rpc.NewServer()
 	r.server.RegisterName(serviceName, service)
 	r.server.SetLogLevel(rpc.OffLogLevel)
+	r.server.SetNoCopy(true)
 	r.node.logger.Errorln(r.server.Listen(network, r.addr, codec))
 }
 

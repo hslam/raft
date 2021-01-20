@@ -5,7 +5,20 @@ package raft
 
 import (
 	"fmt"
+	"unsafe"
 )
+
+func cloneString(str string) string {
+	c := make([]byte, len(str))
+	copy(c, str)
+	return *(*string)(unsafe.Pointer(&c))
+}
+
+func cloneBytes(b []byte) []byte {
+	c := make([]byte, len(b))
+	copy(c, b)
+	return c
+}
 
 // Address returns a raft node address with the given host and port.
 func Address(host string, port int) string {

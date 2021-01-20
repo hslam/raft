@@ -53,7 +53,7 @@ func (c *cluster) CallGetLeader(addr string) (term uint64, LeaderID string, ok b
 		return 0, "", false
 	}
 	c.node.logger.Tracef("raft.CallGetLeader %s -> %s LeaderID %s", c.node.address, addr, res.LeaderID)
-	return res.Term, res.LeaderID, true
+	return res.Term, cloneString(res.LeaderID), true
 }
 
 func (c *cluster) CallAddMember(addr string, member *Member) (success bool, LeaderID string, ok bool) {
@@ -65,10 +65,10 @@ func (c *cluster) CallAddMember(addr string, member *Member) (success bool, Lead
 	err := c.node.rpcs.CallWithContext(ctx, addr, c.node.rpcs.AddMemberServiceName(), req, res)
 	if err != nil {
 		c.node.logger.Tracef("raft.CallAddMember %s -> %s error %s", c.node.address, addr, err.Error())
-		return false, res.LeaderID, false
+		return false, cloneString(res.LeaderID), false
 	}
 	c.node.logger.Tracef("raft.CallAddMember %s -> %s Success %t", c.node.address, addr, res.Success)
-	return res.Success, res.LeaderID, true
+	return res.Success, cloneString(res.LeaderID), true
 }
 
 func (c *cluster) CallRemoveMember(addr string, Address string) (success bool, LeaderID string, ok bool) {
@@ -80,10 +80,10 @@ func (c *cluster) CallRemoveMember(addr string, Address string) (success bool, L
 	err := c.node.rpcs.CallWithContext(ctx, addr, c.node.rpcs.RemoveMemberServiceName(), req, res)
 	if err != nil {
 		c.node.logger.Tracef("raft.CallRemoveMember %s -> %s error %s", c.node.address, addr, err.Error())
-		return false, res.LeaderID, false
+		return false, cloneString(res.LeaderID), false
 	}
 	c.node.logger.Tracef("raft.CallRemoveMember %s -> %s Success %t", c.node.address, addr, res.Success)
-	return res.Success, res.LeaderID, true
+	return res.Success, cloneString(res.LeaderID), true
 }
 
 func (c *cluster) CallSetMeta(addr string, meta []byte) (ok bool) {
@@ -111,7 +111,7 @@ func (c *cluster) CallGetMeta(addr string) (meta []byte, ok bool) {
 		return nil, false
 	}
 	c.node.logger.Tracef("raft.CallGetMeta %s -> %s Meta length %d", c.node.address, addr, len(res.Meta))
-	return res.Meta, true
+	return cloneBytes(res.Meta), true
 }
 
 func (c *cluster) GetLeader(req *GetLeaderRequest, res *GetLeaderResponse) error {
@@ -125,7 +125,7 @@ func (c *cluster) GetLeader(req *GetLeaderRequest, res *GetLeaderResponse) error
 
 func (c *cluster) AddMember(req *AddMemberRequest, res *AddMemberResponse) error {
 	if c.node.IsLeader() {
-		_, err := c.node.do(newSetPeerCommand(req.Member), defaultCommandTimeout)
+		_, err := c.node.do(newSetPeerCommand(cloneString(req.Member.Address), req.Member.NonVoting), defaultCommandTimeout)
 		if err == nil {
 			_, err = c.node.do(reconfigurationCommand, defaultCommandTimeout)
 			if err == nil {
@@ -140,7 +140,7 @@ func (c *cluster) AddMember(req *AddMemberRequest, res *AddMemberResponse) error
 
 func (c *cluster) RemoveMember(req *RemoveMemberRequest, res *RemoveMemberResponse) error {
 	if c.node.IsLeader() {
-		_, err := c.node.do(newRemovePeerCommand(req.Address), defaultCommandTimeout)
+		_, err := c.node.do(newRemovePeerCommand(cloneString(req.Address)), defaultCommandTimeout)
 		if err == nil {
 			_, err = c.node.do(reconfigurationCommand, defaultCommandTimeout)
 			if err == nil {
@@ -154,7 +154,7 @@ func (c *cluster) RemoveMember(req *RemoveMemberRequest, res *RemoveMemberRespon
 }
 
 func (c *cluster) SetMeta(req *SetMetaRequest, res *SetMetaResponse) error {
-	c.node.meta = req.Meta
+	c.node.meta = cloneBytes(req.Meta)
 	res.Success = true
 	return nil
 }

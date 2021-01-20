@@ -112,10 +112,10 @@ func newReconfigurationCommand() Command {
 }
 
 // newSetPeerCommand returns a new SetPeerCommand.
-func newSetPeerCommand(member *Member) Command {
+func newSetPeerCommand(address string, nonVoting bool) Command {
 	return &DefaultCommand{
 		Operation: setPeerOperation,
-		Member:    member,
+		Member:    &Member{Address: address, NonVoting: nonVoting},
 	}
 }
 

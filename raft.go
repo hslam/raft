@@ -134,7 +134,7 @@ func (r *raft) RequestVote(req *RequestVoteRequest, res *RequestVoteResponse) er
 	isUpToDate := req.LastLogIndex >= r.node.lastLogIndex && req.LastLogTerm >= r.node.lastLogTerm
 	if (r.node.votedFor.Load() == "" || r.node.votedFor.Load() == req.CandidateID) && isUpToDate {
 		res.VoteGranted = true
-		r.node.votedFor.Store(req.CandidateID)
+		r.node.votedFor.Store(cloneString(req.CandidateID))
 		r.node.stepDown(true)
 	}
 	return nil
@@ -154,8 +154,8 @@ func (r *raft) AppendEntries(req *AppendEntriesRequest, res *AppendEntriesRespon
 		}
 	}
 	if r.node.leader.Load() == "" {
-		r.node.votedFor.Store(req.LeaderID)
-		r.node.leader.Store(req.LeaderID)
+		r.node.votedFor.Store(cloneString(req.LeaderID))
+		r.node.leader.Store(cloneString(req.LeaderID))
 		r.node.logger.Tracef("raft.HandleAppendEntries %s State:%s leader-%s Term:%d", r.node.address, r.node.State(), r.node.leader.Load(), r.node.currentTerm.Load())
 		if r.node.leaderChange != nil {
 			go r.node.leaderChange()
@@ -182,13 +182,8 @@ func (r *raft) AppendEntries(req *AppendEntriesRequest, res *AppendEntriesRespon
 	}
 
 	if req.LeaderCommit > r.node.commitIndex.ID() {
-		//var commitIndex=r.node.commitIndex
 		r.node.commitIndex.Set(minUint64(req.LeaderCommit, r.node.lastLogIndex))
-		//if r.node.commitIndex>commitIndex{
-		//	r.node.logger.Tracef("raft.HandleAppendEntries %s commitIndex %d==>%d",r.node.address, commitIndex,r.node.commitIndex)
-		//}
 	}
-	//r.node.logger.Tracef("raft.HandleAppendEntries %s len%d PrevLogIndex%d lastLogIndex%d", r.node.address, len(req.Entries), req.PrevLogIndex, r.node.lastLogIndex)
 	if len(req.Entries) == 0 {
 		res.Success = true
 		return nil
@@ -226,7 +221,7 @@ func (r *raft) InstallSnapshot(req *InstallSnapshotRequest, res *InstallSnapshot
 	res.Offset = uint64(offset)
 	if req.Done {
 		if r.node.leader.Load() != req.LeaderID {
-			r.node.leader.Store(req.LeaderID)
+			r.node.leader.Store(cloneString(req.LeaderID))
 		}
 		r.node.reset()
 		r.node.stateMachine.snapshotReadWriter.finish = true
