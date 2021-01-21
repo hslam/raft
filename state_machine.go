@@ -155,22 +155,22 @@ func (s *stateMachine) saveSnapshot() error {
 				}
 				lastIncludedTerm = entry.Term
 			}
-			s.snapshotReadWriter.Reset(lastIncludedIndex, lastIncludedTerm)
+			s.snapshotReadWriter.clearFlush()
 			_, err := s.snapshot.Save(s.snapshotReadWriter)
+			startTime := time.Now()
 			s.snapshotReadWriter.Rename()
-			startTime := time.Now().UnixNano()
+			s.snapshotReadWriter.Reset(lastIncludedIndex, lastIncludedTerm)
 			if s.node.isLeader() {
 				s.node.log.deleteBefore(minUint64(s.node.minNextIndex(), lastIncludedIndex))
+				select {
+				case s.snapshotReadWriter.trigger <- struct{}{}:
+				default:
+				}
 			} else {
 				s.node.log.deleteBefore(lastIncludedIndex)
 			}
-			go func() {
-				if s.node.isLeader() {
-					s.snapshotReadWriter.Tar()
-				}
-			}()
-			duration := (time.Now().UnixNano() - startTime) / 1000000
-			s.node.logger.Tracef("stateMachine.saveSnapshot %s Finish lastIncludedIndex %d==>%d duration:%dms", s.node.address, lastPrintLastIncludedIndex, s.snapshotReadWriter.lastIncludedIndex.ID(), duration)
+			duration := time.Now().Sub(startTime)
+			s.node.logger.Tracef("stateMachine.saveSnapshot %s Finish lastIncludedIndex %d==>%d duration:%v", s.node.address, lastPrintLastIncludedIndex, s.snapshotReadWriter.lastIncludedIndex.ID(), duration)
 			return err
 		}
 		return nil

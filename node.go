@@ -738,7 +738,7 @@ func (n *node) requestVotes() error {
 	n.votes.Clear()
 	n.votes.vote <- newVote(n.address, n.currentTerm.Load(), 1)
 	for _, v := range n.peers {
-		if v.alive == true && v.voting() {
+		if v.alive.Load() && v.voting() {
 			go v.requestVote()
 		}
 	}
@@ -749,7 +749,7 @@ func (n *node) requestVotes() error {
 func (n *node) detectNodes() error {
 	n.nodesMut.RLock()
 	for _, v := range n.peers {
-		if v.alive == false {
+		if !v.alive.Load() {
 			go v.ping()
 		}
 	}
@@ -779,7 +779,7 @@ func (n *node) heartbeats() bool {
 		if !v.voting() {
 			continue
 		}
-		if v.alive {
+		if v.alive.Load() {
 			atomic.AddUint32(&send, 1)
 			go func() {
 				ok := v.heartbeat()
@@ -817,7 +817,7 @@ func (n *node) install() bool {
 	n.nodesMut.RLock()
 	defer n.nodesMut.RUnlock()
 	for _, v := range n.peers {
-		if atomic.LoadInt32(&v.install) > 0 {
+		if v.alive.Load() && atomic.LoadInt32(&v.install) > 0 {
 			return false
 		}
 	}
@@ -827,7 +827,7 @@ func (n *node) install() bool {
 func (n *node) check() error {
 	n.nodesMut.RLock()
 	for _, v := range n.peers {
-		if v.alive == true {
+		if v.alive.Load() == true {
 			go v.check()
 		}
 	}
@@ -842,7 +842,7 @@ func (n *node) minNextIndex() uint64 {
 	n.nodesMut.RLock()
 	var min uint64
 	for _, v := range n.peers {
-		if v.alive == true && v.nextIndex > 0 {
+		if v.alive.Load() == true && v.nextIndex > 0 {
 			if min == 0 {
 				min = v.nextIndex
 			} else {
@@ -906,9 +906,6 @@ func (n *node) checkLog() error {
 	if n.storage.IsEmpty(defaultLastIncludedTerm) {
 		n.stateMachine.snapshotReadWriter.lastIncludedTerm.save()
 	}
-	if n.storage.IsEmpty(defaultLastTarIndex) {
-		n.stateMachine.snapshotReadWriter.lastTarIndex.save()
-	}
 	if n.storage.IsEmpty(defaultConfig) {
 		n.stateMachine.configuration.save()
 	}
@@ -919,9 +916,12 @@ func (n *node) checkLog() error {
 			n.storage.Truncate(defaultSnapshot, 1)
 		}
 	}
-	if n.isLeader() && n.storage.IsEmpty(n.stateMachine.snapshotReadWriter.FileName()) && !n.storage.IsEmpty(defaultSnapshot) && !n.storage.IsEmpty(defaultLastIncludedIndex) && !n.storage.IsEmpty(defaultLastIncludedTerm) {
+	if n.storage.IsEmpty(defaultLastTarIndex) {
+		n.stateMachine.snapshotReadWriter.lastTarIndex.save()
+	}
+	if n.isLeader() && n.storage.IsEmpty(n.stateMachine.snapshotReadWriter.FileName()) {
 		n.stateMachine.snapshotReadWriter.lastTarIndex.Set(0)
-		n.stateMachine.snapshotReadWriter.Tar()
+
 	}
 	return nil
 }

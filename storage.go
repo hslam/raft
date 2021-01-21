@@ -101,6 +101,16 @@ func (s *storage) Size(fileName string) (int64, error) {
 	return f.Seek(0, os.SEEK_END)
 }
 
+func (s *storage) Sync(fileName string) error {
+	filePath := path.Join(s.dataDir, fileName)
+	f, err := os.OpenFile(filePath, os.O_WRONLY, 0600)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	return f.Sync()
+}
+
 func (s *storage) OverWrite(fileName string, data []byte) error {
 	filePath := path.Join(s.dataDir, fileName)
 	f, err := os.OpenFile(filePath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0600)

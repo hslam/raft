@@ -220,15 +220,19 @@ func (r *raft) InstallSnapshot(req *InstallSnapshotRequest, res *InstallSnapshot
 	}
 	res.Offset = uint64(offset)
 	if req.Done {
-		if r.node.leader.Load() != req.LeaderID {
+		if r.node.leader.Load() == req.LeaderID {
+			r.node.reset()
+			r.node.stateMachine.snapshotReadWriter.lastIncludedIndex.Set(req.LastIncludedIndex)
+			r.node.stateMachine.snapshotReadWriter.lastIncludedTerm.Set(req.LastIncludedTerm)
+			r.node.stateMachine.snapshotReadWriter.finish.Store(true)
+			if err := r.node.stateMachine.snapshotReadWriter.untar(); err == nil {
+				r.node.recover()
+			}
+		} else {
 			r.node.leader.Store(cloneString(req.LeaderID))
+			r.node.stateMachine.snapshotReadWriter.finish.Store(false)
+			r.node.stateMachine.snapshotReadWriter.clear()
 		}
-		r.node.reset()
-		r.node.stateMachine.snapshotReadWriter.lastIncludedIndex.Set(req.LastIncludedIndex)
-		r.node.stateMachine.snapshotReadWriter.lastIncludedTerm.Set(req.LastIncludedTerm)
-		r.node.stateMachine.snapshotReadWriter.finish.Store(true)
-		r.node.stateMachine.snapshotReadWriter.untar()
-		r.node.recover()
 	}
 	res.NextIndex = r.node.nextIndex
 	return nil

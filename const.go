@@ -14,12 +14,12 @@ const (
 	defaultNodeTracePrintTick           = 1000 * time.Millisecond
 	defaultHeartbeatTick                = 100 * time.Millisecond
 	defaultDetectTick                   = 100 * time.Millisecond
-	defaultKeepAliveTick                = 10000 * time.Millisecond
+	defaultKeepAliveTick                = 10 * 1000 * time.Millisecond
 	defaultCheckLogTick                 = time.Second
 	defaultElectionTimeout              = 1000 * time.Millisecond
 	defaultHearbeatTimeout              = 100 * time.Millisecond
 	defaultRequestVoteTimeout           = 1000 * time.Millisecond
-	defaultAppendEntriesTimeout         = 10 * 1000 * time.Millisecond
+	defaultAppendEntriesTimeout         = 60 * 1000 * time.Millisecond
 	defaultInstallSnapshotTimeout       = 60 * 1000 * time.Millisecond
 	defaultGetLeaderTimeout             = 60 * 1000 * time.Millisecond
 	defaultAddMemberTimeout             = 60 * 1000 * time.Millisecond

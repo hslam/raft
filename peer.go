@@ -4,9 +4,9 @@
 package raft
 
 import (
+	"github.com/hslam/atomic"
 	"math"
 	"sync"
-	"sync/atomic"
 	"time"
 )
 
@@ -14,13 +14,12 @@ type peer struct {
 	mu                 sync.Mutex
 	node               *node
 	address            string
-	alive              bool
+	alive              *atomic.Bool
 	nextIndex          uint64
 	matchIndex         uint64
 	lastPrintNextIndex uint64
 	checking           int32
 	sending            int32
-	packing            int32
 	installing         int32
 	install            int32
 	nonVoting          bool
@@ -36,6 +35,7 @@ func newPeer(n *node, address string) *peer {
 	p := &peer{
 		node:      n,
 		address:   address,
+		alive:     atomic.NewBool(false),
 		nextIndex: 0,
 	}
 	return p
@@ -44,6 +44,7 @@ func newPeer(n *node, address string) *peer {
 func (p *peer) init() {
 	p.nextIndex = 0
 	p.matchIndex = 0
+	p.install = 0
 	p.lastMatchTime = time.Now()
 }
 
@@ -57,14 +58,15 @@ func (p *peer) heartbeat() bool {
 }
 
 func (p *peer) requestVote() {
-	if !p.alive {
+	if !p.alive.Load() {
 		return
 	}
-	p.alive = p.node.raft.CallRequestVote(p.address)
+	ok := p.node.raft.CallRequestVote(p.address)
+	p.update(ok)
 }
 
 func (p *peer) appendEntries(entries []*Entry) (nextIndex uint64, term uint64, success bool, ok bool) {
-	if !p.alive {
+	if !p.alive.Load() {
 		return
 	}
 	var prevLogIndex, prevLogTerm uint64
@@ -94,22 +96,24 @@ func (p *peer) appendEntries(entries []*Entry) (nextIndex uint64, term uint64, s
 		p.nextIndex = nextIndex
 		p.matchIndex = 0
 		if p.lastMatchTime.Add(defaultMatchTimeout).Before(time.Now()) {
+			p.lastMatchTime = time.Now()
 			p.matchIndex = 0
 			p.nextIndex = 1
 		}
-	} else if !ok {
-		p.alive = false
 	}
+	p.update(ok)
 	p.checkNextIndex()
 	return
 }
 
 func (p *peer) installSnapshot(offset uint64, data []byte, Done bool) (recvOffset uint64) {
-	if !p.alive {
+	if !p.alive.Load() {
 		return
 	}
 	var nextIndex uint64
-	recvOffset, nextIndex, p.alive = p.node.raft.CallInstallSnapshot(p.address, p.node.stateMachine.snapshotReadWriter.lastIncludedIndex.ID(), p.node.stateMachine.snapshotReadWriter.lastIncludedTerm.ID(), offset, data, Done)
+	var ok bool
+	recvOffset, nextIndex, ok = p.node.raft.CallInstallSnapshot(p.address, p.node.stateMachine.snapshotReadWriter.lastIncludedIndex.ID(), p.node.stateMachine.snapshotReadWriter.lastIncludedTerm.ID(), offset, data, Done)
+	p.update(ok)
 	if nextIndex > 0 {
 		p.nextIndex = nextIndex
 	}
@@ -119,12 +123,21 @@ func (p *peer) installSnapshot(offset uint64, data []byte, Done bool) (recvOffse
 }
 
 func (p *peer) ping() {
-	if err := p.node.rpcs.Ping(p.address); err != nil {
-		p.alive = false
-	} else {
-		p.alive = true
-	}
+	err := p.node.rpcs.Ping(p.address)
+	p.update(err == nil)
 	//logger.Debugf("Peer.ping %s %t",p.address,p.alive)
+}
+
+func (p *peer) update(alive bool) {
+	if alive {
+		if !p.alive.Load() {
+			p.alive.Store(true)
+		}
+	} else {
+		if p.alive.Load() {
+			p.alive.Store(false)
+		}
+	}
 }
 
 func (p *peer) checkNextIndex() {
@@ -145,93 +158,75 @@ func (p *peer) check() {
 	if p.node.lastLogIndex > p.nextIndex-1 && p.nextIndex > 0 {
 		if p.node.stateMachine.snapshot != nil && p.node.commitIndex.ID() > 1 &&
 			(p.nextIndex == 1 || (p.nextIndex > 1 && p.nextIndex < p.node.firstLogIndex)) {
+			if !p.node.stateMachine.snapshotReadWriter.finish.Load() {
+				return
+			}
 			if atomic.CompareAndSwapInt32(&p.installing, 0, 1) {
-				atomic.StoreInt32(&p.install, 1)
+				atomic.AddInt32(&p.install, 1)
 				//logger.Debugf("Peer.check %s %d %d", p.address, p.nextIndex, p.node.firstLogIndex)
-				if p.node.storage.IsEmpty(p.node.stateMachine.snapshotReadWriter.FileName()) {
-					if !atomic.CompareAndSwapInt32(&p.packing, 0, 1) {
-						atomic.StoreInt32(&p.installing, 0)
-						return
-					}
-					go func() {
-						defer atomic.StoreInt32(&p.installing, 0)
-						defer atomic.StoreInt32(&p.packing, 0)
-						err := p.node.stateMachine.snapshotReadWriter.Tar()
+				go func() {
+					defer atomic.StoreInt32(&p.installing, 0)
+					if p.chunk == 0 {
+						size, err := p.node.storage.Size(p.node.stateMachine.snapshotReadWriter.FileName())
 						if err != nil {
 							return
 						}
-					}()
-				} else {
-					if !atomic.CompareAndSwapInt32(&p.sending, 0, 1) {
-						atomic.StoreInt32(&p.installing, 0)
-						return
+						p.size = uint64(size)
+						p.chunkNum = int(math.Ceil(float64(size) / float64(defaultChunkSize)))
 					}
-					go func() {
-						defer atomic.StoreInt32(&p.installing, 0)
-						defer atomic.StoreInt32(&p.sending, 0)
-						if p.chunk == 0 {
-							size, err := p.node.storage.Size(p.node.stateMachine.snapshotReadWriter.FileName())
-							if err != nil {
-								return
-							}
-							p.size = uint64(size)
-							p.chunkNum = int(math.Ceil(float64(size) / float64(defaultChunkSize)))
+					if p.chunk < p.chunkNum-1 {
+						b := make([]byte, defaultChunkSize)
+						n, err := p.node.storage.SeekRead(p.node.stateMachine.snapshotReadWriter.FileName(), p.offset, b)
+						if err != nil {
+							p.chunk = 0
+							p.offset = 0
+							return
 						}
-						if p.chunk < p.chunkNum-1 {
-							b := make([]byte, defaultChunkSize)
-							n, err := p.node.storage.SeekRead(p.node.stateMachine.snapshotReadWriter.FileName(), p.offset, b)
-							if err != nil {
+						if int64(n) == defaultChunkSize {
+							offset := p.installSnapshot(p.offset, b[:n], false)
+							if offset == p.offset+uint64(n) {
+								p.offset += uint64(n)
+								p.chunk++
+							} else {
 								p.chunk = 0
 								p.offset = 0
-								atomic.StoreInt32(&p.install, 0)
-								return
-							}
-							if int64(n) == defaultChunkSize {
-								offset := p.installSnapshot(p.offset, b[:n], false)
-								if offset == p.offset+uint64(n) {
-									p.offset += uint64(n)
-									p.chunk++
-								} else {
-									p.chunk = 0
-									p.offset = 0
-									atomic.StoreInt32(&p.install, 0)
-								}
-							}
-						} else {
-							b := make([]byte, p.size-p.offset)
-							n, err := p.node.storage.SeekRead(p.node.stateMachine.snapshotReadWriter.FileName(), p.offset, b)
-							if err != nil {
-								p.chunk = 0
-								p.offset = 0
-								atomic.StoreInt32(&p.install, 0)
-								return
-							}
-							if uint64(n) == p.size-p.offset {
-								offset := p.installSnapshot(p.offset, b[:n], true)
-								if offset == p.offset+uint64(n) {
-									p.offset += uint64(n)
-									p.chunk++
-								} else {
-									p.chunk = 0
-									p.offset = 0
-									atomic.StoreInt32(&p.install, 0)
-								}
-								//logger.Debugf("Peer.check %s send n-%d offset-%d p.offset-%d", p.address, n, offset, p.offset)
-							}
-							//logger.Debugf("Peer.check %s send n-%d offset-%d size-%d chunk-%d chunkNum-%d", p.address, n, p.offset, p.size, p.chunk, p.chunkNum)
-							if p.offset == p.size && p.chunk == p.chunkNum {
-								p.chunk = 0
-								p.offset = 0
-								atomic.StoreInt32(&p.install, 0)
 							}
 						}
-					}()
-				}
+					} else {
+						b := make([]byte, p.size-p.offset)
+						n, err := p.node.storage.SeekRead(p.node.stateMachine.snapshotReadWriter.FileName(), p.offset, b)
+						if err != nil {
+							p.chunk = 0
+							p.offset = 0
+							return
+						}
+						if uint64(n) == p.size-p.offset {
+							offset := p.installSnapshot(p.offset, b[:n], true)
+							atomic.StoreInt32(&p.install, 0)
+							if offset == p.offset+uint64(n) {
+								p.offset += uint64(n)
+								p.chunk++
+							} else {
+								p.chunk = 0
+								p.offset = 0
+							}
+							//logger.Debugf("Peer.check %s send n-%d offset-%d p.offset-%d", p.address, n, offset, p.offset)
+						}
+						//logger.Debugf("Peer.check %s send n-%d offset-%d size-%d chunk-%d chunkNum-%d", p.address, n, p.offset, p.size, p.chunk, p.chunkNum)
+						if p.offset == p.size && p.chunk == p.chunkNum {
+							p.chunk = 0
+							p.offset = 0
+						}
+					}
+				}()
 			}
 
 		} else {
 			if p.matchIndex != p.nextIndex-1 {
 				return
+			}
+			if atomic.LoadInt32(&p.install) > 0 {
+				atomic.StoreInt32(&p.install, 0)
 			}
 			if atomic.CompareAndSwapInt32(&p.sending, 0, 1) {
 				go func() {

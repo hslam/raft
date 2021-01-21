@@ -38,6 +38,7 @@ type snapshotReadWriter struct {
 	lastIncludedTerm  *persistentUint64
 	lastTarIndex      *persistentUint64
 	ticker            *time.Ticker
+	trigger           chan struct{}
 	work              int32
 	archive           int32
 	finish            *atomic.Bool
@@ -57,6 +58,7 @@ func newSnapshotReadWriter(n *node, name string, gzip bool) *snapshotReadWriter 
 		ret:               0,
 		readRet:           0,
 		ticker:            time.NewTicker(defaultTarTick),
+		trigger:           make(chan struct{}),
 		lastIncludedIndex: newPersistentUint64(n, defaultLastIncludedIndex, 0, 0),
 		lastIncludedTerm:  newPersistentUint64(n, defaultLastIncludedTerm, 0, 0),
 		lastTarIndex:      newPersistentUint64(n, defaultLastTarIndex, 0, 0),
@@ -83,6 +85,10 @@ func (s *snapshotReadWriter) FileName() string {
 func (s *snapshotReadWriter) Reset(lastIncludedIndex, lastIncludedTerm uint64) {
 	s.lastIncludedIndex.Set(lastIncludedIndex)
 	s.lastIncludedTerm.Set(lastIncludedTerm)
+	s.clearFlush()
+}
+
+func (s *snapshotReadWriter) clearFlush() {
 	s.node.storage.Rm(s.flushName)
 	s.ret = 0
 	s.readRet = 0
@@ -92,6 +98,10 @@ func (s *snapshotReadWriter) clearTar() {
 	s.lastTarIndex.Set(0)
 	s.node.storage.Rm(s.tarName)
 	s.node.storage.Rm(s.tarGzName)
+}
+
+func (s *snapshotReadWriter) clear() error {
+	return s.node.storage.Truncate(s.FileName(), 0)
 }
 
 func (s *snapshotReadWriter) Write(p []byte) (n int, err error) {
@@ -109,6 +119,7 @@ func (s *snapshotReadWriter) Rename() error {
 		if s.node.storage.Exists(s.tmpName) {
 			s.node.storage.Rm(s.tmpName)
 		}
+		s.node.storage.Sync(s.name)
 	}()
 	s.node.storage.Rename(s.name, s.tmpName)
 	return s.node.storage.Rename(s.flushName, s.name)
@@ -157,55 +168,52 @@ func (s *snapshotReadWriter) tar() error {
 		return errors.New(defaultSnapshot + " file is not existed")
 	}
 	s.finish.Store(false)
-	lastTarIndex := s.lastTarIndex.ID()
-	s.lastTarIndex.Set(s.lastIncludedIndex.ID())
 	if s.gzip {
 		tar.Targz(s.node.storage.FilePath(defaultTarGz),
-			s.node.storage.FilePath(defaultLastTarIndex),
 			s.node.storage.FilePath(defaultConfig),
 			s.node.storage.FilePath(defaultSnapshot),
 		)
 	} else {
 		tar.Tar(s.node.storage.FilePath(defaultTar),
-			s.node.storage.FilePath(defaultLastTarIndex),
 			s.node.storage.FilePath(defaultConfig),
 			s.node.storage.FilePath(defaultSnapshot),
 		)
 	}
 	s.finish.Store(true)
-	s.node.logger.Tracef("snapshotReadWriter.tar %s lastTarIndex %d==>%d", s.node.address, lastTarIndex, s.lastTarIndex.ID())
+	lastTarIndex := s.lastTarIndex.ID()
+	s.lastTarIndex.Set(s.lastIncludedIndex.ID())
+	if lastTarIndex != s.lastTarIndex.ID() {
+		s.node.logger.Tracef("snapshotReadWriter.tar %s lastTarIndex %d==>%d", s.node.address, lastTarIndex, s.lastTarIndex.ID())
+	}
 	return nil
 }
 
-func (s *snapshotReadWriter) untar() error {
+func (s *snapshotReadWriter) untar() (err error) {
 	if s.node.storage.IsEmpty(s.FileName()) {
 		return errors.New(s.FileName() + " file is empty")
 	}
 	if !s.finish.Load() {
-		return nil
+		return errors.New("do not finish")
 	}
 	s.node.logger.Tracef("snapshotReadWriter.untar gzip %t dir %s", s.gzip, s.node.storage.dataDir)
 	if s.gzip {
-		tar.Untargz(s.node.storage.FilePath(defaultTarGz), s.node.storage.dataDir)
+		_, _, err = tar.Untargz(s.node.storage.FilePath(defaultTarGz), s.node.storage.dataDir)
 		s.node.storage.Rm(defaultTarGz)
 	} else {
-		tar.Untar(s.node.storage.FilePath(defaultTar), s.node.storage.dataDir)
+		_, _, err = tar.Untar(s.node.storage.FilePath(defaultTar), s.node.storage.dataDir)
 		s.node.storage.Rm(defaultTar)
 	}
-	return nil
-}
-
-func (s *snapshotReadWriter) clear() error {
-	return s.node.storage.Truncate(s.FileName(), 0)
+	return err
 }
 
 func (s *snapshotReadWriter) run() {
 	for {
+		if s.node.install() && s.lastIncludedIndex.ID() > s.lastTarIndex.ID() && s.node.isLeader() {
+			s.Tar()
+		}
 		select {
 		case <-s.ticker.C:
-			if s.node.install() && s.lastIncludedIndex.ID() > s.lastTarIndex.ID() && s.node.isLeader() {
-				s.Tar()
-			}
+		case <-s.trigger:
 		case <-s.done:
 			s.ticker.Stop()
 			return
