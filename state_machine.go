@@ -6,6 +6,7 @@ package raft
 import (
 	"errors"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -137,12 +138,10 @@ func (s *stateMachine) SaveSnapshot() error {
 
 func (s *stateMachine) saveSnapshot() error {
 	if s.snapshot != nil {
-		if s.lastApplied > s.snapshotReadWriter.lastIncludedIndex.ID() && s.snapshotReadWriter.work {
+		if s.lastApplied > s.snapshotReadWriter.lastIncludedIndex.ID() &&
+			atomic.CompareAndSwapInt32(&s.snapshotReadWriter.work, 0, 1) {
+			defer atomic.StoreInt32(&s.snapshotReadWriter.work, 0)
 			s.node.logger.Tracef("stateMachine.saveSnapshot %s Start", s.node.address)
-			s.snapshotReadWriter.work = false
-			defer func() {
-				s.snapshotReadWriter.work = true
-			}()
 			var lastPrintLastIncludedIndex = s.snapshotReadWriter.lastIncludedIndex.ID()
 			var lastIncludedIndex, lastIncludedTerm uint64
 			if s.node.lastLogIndex == s.lastApplied {
@@ -152,7 +151,7 @@ func (s *stateMachine) saveSnapshot() error {
 				lastIncludedIndex = s.lastApplied
 				entry := s.node.log.read(lastIncludedIndex)
 				if entry == nil {
-					return errors.New("this meta is not existed")
+					return errors.New("this entry is not existed")
 				}
 				lastIncludedTerm = entry.Term
 			}

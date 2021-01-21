@@ -27,7 +27,6 @@ type Snapshot interface {
 type snapshotReadWriter struct {
 	mut               sync.RWMutex
 	node              *node
-	work              bool
 	name              string
 	tmpName           string
 	flushName         string
@@ -38,10 +37,10 @@ type snapshotReadWriter struct {
 	lastIncludedIndex *persistentUint64
 	lastIncludedTerm  *persistentUint64
 	lastTarIndex      *persistentUint64
-	length            uint64
 	ticker            *time.Ticker
-	tarWork           bool
-	finish            bool
+	work              int32
+	archive           int32
+	finish            *atomic.Bool
 	gzip              bool
 	done              chan struct{}
 	closed            int32
@@ -50,7 +49,6 @@ type snapshotReadWriter struct {
 func newSnapshotReadWriter(n *node, name string, gzip bool) *snapshotReadWriter {
 	s := &snapshotReadWriter{
 		node:              n,
-		work:              true,
 		name:              name,
 		tmpName:           name + defaultTmp,
 		flushName:         name + defaultFlush,
@@ -62,7 +60,7 @@ func newSnapshotReadWriter(n *node, name string, gzip bool) *snapshotReadWriter 
 		lastIncludedIndex: newPersistentUint64(n, defaultLastIncludedIndex, 0, 0),
 		lastIncludedTerm:  newPersistentUint64(n, defaultLastIncludedTerm, 0, 0),
 		lastTarIndex:      newPersistentUint64(n, defaultLastTarIndex, 0, 0),
-		tarWork:           true,
+		finish:            atomic.NewBool(false),
 		gzip:              gzip,
 		done:              make(chan struct{}, 1),
 	}
@@ -143,14 +141,12 @@ func (s *snapshotReadWriter) load() (err error) {
 	return err
 }
 
-func (s *snapshotReadWriter) Tar() error {
-	if s.canTar() {
-		s.disableTar()
-		defer s.enableTar()
-		err := s.tar()
-		return err
+func (s *snapshotReadWriter) Tar() (err error) {
+	if atomic.CompareAndSwapInt32(&s.archive, 0, 1) {
+		defer atomic.StoreInt32(&s.archive, 0)
+		err = s.tar()
 	}
-	return nil
+	return
 }
 
 func (s *snapshotReadWriter) tar() error {
@@ -160,7 +156,7 @@ func (s *snapshotReadWriter) tar() error {
 	if !s.node.storage.Exists(defaultSnapshot) {
 		return errors.New(defaultSnapshot + " file is not existed")
 	}
-	s.finish = false
+	s.finish.Store(false)
 	lastTarIndex := s.lastTarIndex.ID()
 	s.lastTarIndex.Set(s.lastIncludedIndex.ID())
 	if s.gzip {
@@ -176,7 +172,7 @@ func (s *snapshotReadWriter) tar() error {
 			s.node.storage.FilePath(defaultSnapshot),
 		)
 	}
-	s.finish = true
+	s.finish.Store(true)
 	s.node.logger.Tracef("snapshotReadWriter.tar %s lastTarIndex %d==>%d", s.node.address, lastTarIndex, s.lastTarIndex.ID())
 	return nil
 }
@@ -185,7 +181,7 @@ func (s *snapshotReadWriter) untar() error {
 	if s.node.storage.IsEmpty(s.FileName()) {
 		return errors.New(s.FileName() + " file is empty")
 	}
-	if !s.finish {
+	if !s.finish.Load() {
 		return nil
 	}
 	s.node.logger.Tracef("snapshotReadWriter.untar gzip %t dir %s", s.gzip, s.node.storage.dataDir)
@@ -201,25 +197,6 @@ func (s *snapshotReadWriter) untar() error {
 
 func (s *snapshotReadWriter) clear() error {
 	return s.node.storage.Truncate(s.FileName(), 0)
-}
-
-func (s *snapshotReadWriter) canTar() bool {
-	s.mut.RLock()
-	tarWork := s.tarWork
-	s.mut.RUnlock()
-	return tarWork
-}
-
-func (s *snapshotReadWriter) disableTar() {
-	s.mut.Lock()
-	s.tarWork = false
-	s.mut.Unlock()
-}
-
-func (s *snapshotReadWriter) enableTar() {
-	s.mut.Lock()
-	s.tarWork = true
-	s.mut.Unlock()
 }
 
 func (s *snapshotReadWriter) run() {
