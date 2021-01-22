@@ -50,11 +50,11 @@ func (l *waLog) putEmtyEntries(entries []*Entry) {
 	}
 }
 
-func (l *waLog) lookup(index uint64) *Entry {
+func (l *waLog) lookupTerm(index uint64) (term uint64) {
 	l.mu.Lock()
-	entry := l.read(index)
+	term = l.readTerm(index)
 	l.mu.Unlock()
-	return entry
+	return
 }
 
 func (l *waLog) consistencyCheck(index uint64, term uint64) (ok bool) {
@@ -69,11 +69,11 @@ func (l *waLog) consistencyCheck(index uint64, term uint64) (ok bool) {
 			return true
 		}
 	}
-	entry := l.node.log.lookup(index)
-	if entry == nil {
+	entryTerm := l.node.log.lookupTerm(index)
+	if entryTerm == 0 {
 		return false
 	}
-	if entry.Term != term {
+	if entryTerm != term {
 		l.node.log.deleteAfter(index)
 		l.node.nextIndex = l.node.lastLogIndex + 1
 		return false
@@ -105,8 +105,8 @@ func (l *waLog) deleteAfter(index uint64) {
 	l.wal.Truncate(index - 1)
 	lastLogIndex := l.node.lastLogIndex
 	if lastLogIndex > 0 {
-		entry := l.read(lastLogIndex)
-		l.node.lastLogTerm = entry.Term
+		entryTerm := l.readTerm(lastLogIndex)
+		l.node.lastLogTerm = entryTerm
 	} else {
 		l.node.lastLogTerm = 0
 	}
@@ -219,6 +219,17 @@ func (l *waLog) applyCommitedBatch(startIndex uint64, endIndex uint64) {
 	//l.node.logger.Tracef("log.applyCommitedRange %s startIndex %d endIndex %d End %d",l.node.address,startIndex,endIndex,len(entries))
 }
 
+func (l *waLog) readTerm(index uint64) (term uint64) {
+	entry := l.read(index)
+	if entry != nil {
+		term = entry.Term
+		l.putEmtyEntry(entry)
+	} else if l.node.stateMachine.snapshotReadWriter.lastIncludedIndex.ID() == index {
+		term = l.node.stateMachine.snapshotReadWriter.lastIncludedTerm.ID()
+	}
+	return
+}
+
 func (l *waLog) read(index uint64) *Entry {
 	b, err := l.wal.Read(index)
 	if err != nil {
@@ -228,6 +239,7 @@ func (l *waLog) read(index uint64) *Entry {
 	entry := l.getEmtyEntry()
 	err = l.node.codec.Unmarshal(b, entry)
 	if err != nil {
+		l.putEmtyEntry(entry)
 		l.node.logger.Errorf("log.Decode %s", string(b))
 		return nil
 	}

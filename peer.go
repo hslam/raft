@@ -74,15 +74,10 @@ func (p *peer) appendEntries(entries []*Entry) (nextIndex uint64, term uint64, s
 		prevLogIndex = 0
 		prevLogTerm = 0
 	} else {
-		entry := p.node.log.lookup(p.nextIndex - 1)
-		if entry == nil {
-			if p.node.stateMachine.snapshotReadWriter.lastIncludedIndex.ID() == p.nextIndex-1 {
-				prevLogIndex = p.node.stateMachine.snapshotReadWriter.lastIncludedIndex.ID()
-				prevLogTerm = p.node.stateMachine.snapshotReadWriter.lastIncludedTerm.ID()
-			}
-		} else {
+		term := p.node.log.lookupTerm(p.nextIndex - 1)
+		if term > 0 {
 			prevLogIndex = p.nextIndex - 1
-			prevLogTerm = entry.Term
+			prevLogTerm = term
 		}
 	}
 	//logger.Tracef("Peer.run %s %d %d %d ",p.address,prevLogIndex,prevLogTerm,len(entries))
