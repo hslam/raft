@@ -125,7 +125,7 @@ func (c *cluster) GetLeader(req *GetLeaderRequest, res *GetLeaderResponse) error
 
 func (c *cluster) AddMember(req *AddMemberRequest, res *AddMemberResponse) error {
 	if c.node.IsLeader() {
-		_, err := c.node.do(newSetPeerCommand(cloneString(req.Member.Address), req.Member.NonVoting), defaultCommandTimeout)
+		_, err := c.node.do(newAddMemberCommand(cloneString(req.Member.Address), req.Member.NonVoting), defaultCommandTimeout)
 		if err == nil {
 			_, err = c.node.do(reconfigurationCommand, defaultCommandTimeout)
 			if err == nil {
@@ -140,7 +140,7 @@ func (c *cluster) AddMember(req *AddMemberRequest, res *AddMemberResponse) error
 
 func (c *cluster) RemoveMember(req *RemoveMemberRequest, res *RemoveMemberResponse) error {
 	if c.node.IsLeader() {
-		_, err := c.node.do(newRemovePeerCommand(cloneString(req.Address)), defaultCommandTimeout)
+		_, err := c.node.do(newRemoveMemberCommand(cloneString(req.Address)), defaultCommandTimeout)
 		if err == nil {
 			_, err = c.node.do(reconfigurationCommand, defaultCommandTimeout)
 			if err == nil {

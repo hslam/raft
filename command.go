@@ -10,8 +10,8 @@ import (
 
 const (
 	noOperation              = 0x1
-	setPeerOperation         = 0x2
-	removePeerOperation      = 0x3
+	addMemberOperation       = 0x2
+	removeMemberOperation    = 0x3
 	reconfigurationOperation = 0x4
 )
 
@@ -76,12 +76,12 @@ func (c *DefaultCommand) Do(context interface{}) (interface{}, error) {
 	switch c.Operation {
 	case noOperation:
 		return true, nil
-	case setPeerOperation:
+	case addMemberOperation:
 		n := context.(*node)
 		n.stateMachine.configuration.AddMember(c.Member)
 		n.stateMachine.configuration.load()
 		return nil, nil
-	case removePeerOperation:
+	case removeMemberOperation:
 		n := context.(*node)
 		n.stateMachine.configuration.RemoveMember(c.Member.Address)
 		return nil, nil
@@ -111,18 +111,18 @@ func newReconfigurationCommand() Command {
 	}
 }
 
-// newSetPeerCommand returns a new SetPeerCommand.
-func newSetPeerCommand(address string, nonVoting bool) Command {
+// NewAddMemberCommand returns a new AddMemberCommand.
+func newAddMemberCommand(address string, nonVoting bool) Command {
 	return &DefaultCommand{
-		Operation: setPeerOperation,
+		Operation: addMemberOperation,
 		Member:    &Member{Address: address, NonVoting: nonVoting},
 	}
 }
 
-// NewRemovePeerCommand returns a new RemovePeerCommand.
-func newRemovePeerCommand(address string) Command {
+// NewRemoveMemberCommand returns a new RemoveMemberCommand.
+func newRemoveMemberCommand(address string) Command {
 	return &DefaultCommand{
-		Operation: removePeerOperation,
+		Operation: removeMemberOperation,
 		Member:    &Member{Address: address},
 	}
 }
