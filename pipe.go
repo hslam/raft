@@ -13,7 +13,7 @@ import (
 const lastsSize = 4
 const minLatency = int64(time.Millisecond * 10)
 
-type pipeline struct {
+type pipe struct {
 	node           *node
 	lock           sync.Mutex
 	buffer         []byte
@@ -37,8 +37,8 @@ type pipeline struct {
 	readTrigger    chan bool
 }
 
-func newPipeline(n *node) *pipeline {
-	p := &pipeline{
+func newPipe(n *node) *pipe {
+	p := &pipe{
 		node:          n,
 		buffer:        make([]byte, 1024*64),
 		pending:       make(map[uint64]*invoker),
@@ -55,12 +55,12 @@ func newPipeline(n *node) *pipeline {
 	return p
 }
 
-func (p *pipeline) init(lastLogIndex uint64) {
-	//logger.Tracef("pipeline.init %d", lastLogIndex)
+func (p *pipe) init(lastLogIndex uint64) {
+	//logger.Tracef("pipe.init %d", lastLogIndex)
 	p.applyIndex = lastLogIndex + 1
 }
 
-func (p *pipeline) concurrency() (n int) {
+func (p *pipe) concurrency() (n int) {
 	p.mutex.Lock()
 	p.lastsCursor++
 	concurrency := len(p.pending)
@@ -78,14 +78,14 @@ func (p *pipeline) concurrency() (n int) {
 	return max
 }
 
-func (p *pipeline) batch() int {
+func (p *pipe) batch() int {
 	p.mutex.Lock()
 	max := p.max
 	p.mutex.Unlock()
 	return max
 }
 
-func (p *pipeline) updateLatency(d int64) (n int64) {
+func (p *pipe) updateLatency(d int64) (n int64) {
 	p.mutex.Lock()
 	p.latencysCursor++
 	p.latencys[p.latencysCursor%lastsSize] = d
@@ -95,21 +95,21 @@ func (p *pipeline) updateLatency(d int64) (n int64) {
 			min = p.latencys[i]
 		}
 	}
-	//logger.Tracef("pipeline.updateLatency %v,%d", p.latencys, min)
+	//logger.Tracef("pipe.updateLatency %v,%d", p.latencys, min)
 	p.min = min
 	p.mutex.Unlock()
 	return min
 }
 
-func (p *pipeline) minLatency() time.Duration {
+func (p *pipe) minLatency() time.Duration {
 	p.mutex.Lock()
 	min := p.min
 	p.mutex.Unlock()
-	//logger.Tracef("pipeline.minLatency%d", min)
+	//logger.Tracef("pipe.minLatency%d", min)
 	return time.Duration(min)
 }
 
-func (p *pipeline) sleepTime() (d time.Duration) {
+func (p *pipe) sleepTime() (d time.Duration) {
 	if p.batch() < 1 {
 		d = time.Second
 	} else {
@@ -118,14 +118,14 @@ func (p *pipeline) sleepTime() (d time.Duration) {
 	return
 }
 
-func (p *pipeline) write(i *invoker) {
+func (p *pipe) write(i *invoker) {
 	p.lock.Lock()
 	i.index = atomic.LoadUint64(&p.node.nextIndex)
 	p.mutex.Lock()
 	p.pending[i.index] = i
 	p.mutex.Unlock()
 	concurrency := p.concurrency()
-	//logger.Tracef("pipeline.write concurrency-%d", concurrency)
+	//logger.Tracef("pipe.write concurrency-%d", concurrency)
 	var data []byte
 	var codec Codec
 	if i.Command.Type() > 0 {
@@ -165,13 +165,13 @@ func (p *pipeline) write(i *invoker) {
 	}
 }
 
-func (p *pipeline) append() {
+func (p *pipe) append() {
 	for {
 		runtime.Gosched()
 		select {
 		case entries, ok := <-p.appendEntries:
 			if ok && len(entries) > 0 {
-				//logger.Tracef("pipeline.write concurrency-%d,entries-%d,sleep-%v", p.batch(), len(entries), p.sleepTime())
+				//logger.Tracef("pipe.write concurrency-%d,entries-%d,sleep-%v", p.batch(), len(entries), p.sleepTime())
 				start := time.Now().UnixNano()
 				p.node.log.appendEntries(entries)
 				go func(d int64) {
@@ -186,7 +186,7 @@ func (p *pipeline) append() {
 	}
 }
 
-func (p *pipeline) run() {
+func (p *pipe) run() {
 	for {
 		p.lock.Lock()
 		if len(p.readyEntries) > 0 {
@@ -210,7 +210,7 @@ func (p *pipeline) run() {
 	}
 }
 
-func (p *pipeline) read() {
+func (p *pipe) read() {
 	for {
 	loop:
 		runtime.Gosched()
@@ -229,12 +229,12 @@ func (p *pipeline) read() {
 	}
 }
 
-func (p *pipeline) apply() {
+func (p *pipe) apply() {
 	if !atomic.CompareAndSwapInt32(&p.applying, 0, 1) {
 		return
 	}
 	if p.applyIndex-1 > p.node.stateMachine.lastApplied && p.node.commitIndex.ID() > p.node.stateMachine.lastApplied {
-		//logger.Tracef("pipeline.read commitIndex-%d", p.node.commitIndex)
+		//logger.Tracef("pipe.read commitIndex-%d", p.node.commitIndex)
 		p.node.log.applyCommitedEnd(p.applyIndex - 1)
 	}
 	var err error
@@ -245,7 +245,7 @@ func (p *pipeline) apply() {
 			i = in
 		} else {
 			p.mutex.Unlock()
-			//Traceln("pipeline.read sleep")
+			//Traceln("pipe.read sleep")
 			runtime.Gosched()
 			time.Sleep(p.minLatency() / 100)
 			continue
@@ -264,7 +264,7 @@ func (p *pipeline) apply() {
 	atomic.StoreInt32(&p.applying, 0)
 }
 
-func (p *pipeline) Stop() {
+func (p *pipe) Stop() {
 	if atomic.CompareAndSwapInt32(&p.closed, 0, 1) {
 		close(p.done)
 	}

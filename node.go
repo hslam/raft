@@ -113,7 +113,7 @@ type node struct {
 
 	context  interface{}
 	commands *commands
-	pipeline *pipeline
+	pipe     *pipe
 
 	commiting int32
 
@@ -167,7 +167,7 @@ func NewNode(host string, port int, dataDir string, context interface{}, join bo
 	n.rpcs = newRPCs(n, fmt.Sprintf(":%d", port))
 	n.commitIndex = newPersistentUint64(n, defaultCommitIndex, 0, time.Second)
 	n.state = newFollowerState(n)
-	n.pipeline = newPipeline(n)
+	n.pipe = newPipe(n)
 	n.registerCommand(&DefaultCommand{})
 	if join {
 		n.majorities = false
@@ -209,7 +209,7 @@ func (n *node) Stop() {
 		n.commitIndex.Stop()
 		n.rpcs.Stop()
 		n.stateMachine.Stop()
-		n.pipeline.Stop()
+		n.pipe.Stop()
 		n.readIndex.Stop()
 	})
 }
@@ -487,7 +487,7 @@ func (n *node) put(command Command) *invoker {
 	}
 	if n.IsLeader() {
 		if n.commands.exists(command) {
-			n.pipeline.write(i)
+			n.pipe.write(i)
 			return i
 		}
 		i.Error = ErrCommandNotRegistered
@@ -975,7 +975,7 @@ func (n *node) commit() bool {
 		index := n.lastLogIndex
 		if index > n.commitIndex.ID() {
 			n.commitIndex.Set(index)
-			go n.pipeline.apply()
+			go n.pipe.apply()
 			return true
 		}
 		return false
@@ -997,7 +997,7 @@ func (n *node) commit() bool {
 	if index > n.commitIndex.ID() {
 		//n.logger.Tracef("node.commit %s sort after %v %d", n.address, lastLogIndexs, index)
 		n.commitIndex.Set(index)
-		go n.pipeline.apply()
+		go n.pipe.apply()
 		return true
 	}
 	return false
