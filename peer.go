@@ -42,7 +42,7 @@ func newPeer(n *node, address string) *peer {
 }
 
 func (p *peer) init() {
-	p.nextIndex = 0
+	p.nextIndex = p.node.lastLogIndex + 1
 	p.matchIndex = 0
 	p.install = 0
 	p.lastMatchTime = time.Now()
@@ -69,17 +69,8 @@ func (p *peer) appendEntries(entries []*Entry) (nextIndex uint64, term uint64, s
 	if !p.alive.Load() {
 		return
 	}
-	var prevLogIndex, prevLogTerm uint64
-	if p.nextIndex <= 1 {
-		prevLogIndex = 0
-		prevLogTerm = 0
-	} else {
-		term := p.node.log.lookupTerm(p.nextIndex - 1)
-		if term > 0 {
-			prevLogIndex = p.nextIndex - 1
-			prevLogTerm = term
-		}
-	}
+	prevLogIndex := p.nextIndex - 1
+	prevLogTerm := p.node.log.lookupTerm(prevLogIndex)
 	//logger.Tracef("Peer.run %s %d %d %d ",p.address,prevLogIndex,prevLogTerm,len(entries))
 	nextIndex, term, success, ok = p.node.raft.CallAppendEntries(p.address, prevLogIndex, prevLogTerm, entries)
 	if success && ok {
