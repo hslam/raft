@@ -273,6 +273,9 @@ func (n *node) run() {
 				n.workTicker.Stop()
 				n.workTicker = nil
 			}
+			if n.state.String() == leader {
+				n.state.StepDown()
+			}
 			return
 		}
 	}
