@@ -9,13 +9,11 @@ import (
 )
 
 type waLog struct {
-	mu                sync.Mutex
-	node              *node
-	cacheLastLogIndex uint64
-	cacheLastLogTerm  uint64
-	wal               *wal.Log
-	buf               []byte
-	entryPool         *sync.Pool
+	mu        sync.Mutex
+	node      *node
+	wal       *wal.Log
+	buf       []byte
+	entryPool *sync.Pool
 }
 
 func newLog(n *node) *waLog {
