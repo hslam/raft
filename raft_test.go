@@ -120,7 +120,10 @@ func TestCluster(t *testing.T) {
 			node.MemberChange(func() {
 			})
 			node.LeaderChange(func() {
-				time.Sleep(time.Second * 2)
+				if index >= 3 {
+					return
+				}
+				time.Sleep(time.Second)
 				if node.IsLeader() {
 					if node.Leader() != node.leader.Load() {
 						t.Error()
