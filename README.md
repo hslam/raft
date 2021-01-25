@@ -1,5 +1,5 @@
 # raft
-Package raft implements the Raft distributed consensus protocol based on [hslam/rpc](https://github.com/hslam/rpc "rpc").
+Package raft implements the [Raft](https://raft.github.io/raft.pdf "raft") distributed consensus protocol based on [hslam/rpc](https://github.com/hslam/rpc "rpc").
 
 ## Features
 
