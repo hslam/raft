@@ -80,8 +80,6 @@ func TestCluster(t *testing.T) {
 	os.RemoveAll(dir)
 	members := []*Member{{Address: "localhost:9001"}, {Address: "localhost:9002"}, {Address: "localhost:9003"}, {Address: "localhost:9004", NonVoting: true}, {Address: "localhost:9005", NonVoting: true}}
 	wg := sync.WaitGroup{}
-	var readflag uint32
-	startRead := make(chan struct{})
 	var joinflag uint32
 	startJoin := make(chan struct{})
 	al := sync.WaitGroup{}
@@ -132,26 +130,6 @@ func TestCluster(t *testing.T) {
 					time.Sleep(time.Millisecond * 100)
 					go node.waitApplyTimeout(node.commitIndex.ID()+1, time.NewTimer(defaultCommandTimeout))
 				}
-				node.Do(&testCommand{"foobar"})
-				if node.IsLeader() {
-					if atomic.CompareAndSwapUint32(&readflag, 0, 1) {
-						close(startRead)
-					}
-				}
-				<-startRead
-				time.Sleep(time.Second)
-				if ok := node.LeaseRead(); ok {
-					value := ctx.Get()
-					if value != "foobar" {
-						t.Error(value)
-					}
-				}
-				if ok := node.ReadIndex(); ok {
-					value := ctx.Get()
-					if value != "foobar" {
-						t.Error(value)
-					}
-				}
 				if node.IsLeader() {
 					if atomic.CompareAndSwapUint32(&joinflag, 0, 1) {
 						close(startJoin)
@@ -161,7 +139,7 @@ func TestCluster(t *testing.T) {
 			node.Start()
 			if index < 3 {
 				<-startJoin
-				time.Sleep(time.Second * 3)
+				time.Sleep(time.Second * 5)
 				if node.IsLeader() {
 					if ok := node.Leave(members[4].Address); !ok {
 						t.Error()
@@ -180,6 +158,86 @@ func TestCluster(t *testing.T) {
 				node.nextState()
 			}
 			time.Sleep(time.Second * 3)
+			node.Stop()
+			time.Sleep(time.Second * 3)
+		}()
+	}
+	wg.Wait()
+	os.RemoveAll(dir)
+}
+
+func TestClusterDoCommand(t *testing.T) {
+	dir := "raft.test"
+	os.RemoveAll(dir)
+	members := []*Member{{Address: "localhost:9001"}, {Address: "localhost:9002"}, {Address: "localhost:9003"}, {Address: "localhost:9004"}, {Address: "localhost:9005"}}
+	var readflag uint32
+	startRead := make(chan struct{})
+	wg := sync.WaitGroup{}
+	al := sync.WaitGroup{}
+	al.Add(5)
+	for i := 0; i < len(members); i++ {
+		address := members[i].Address
+		index := i
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			ctx := &testContext{data: ""}
+			strs := strings.Split(address, ":")
+			port, _ := strconv.Atoi(strs[1])
+			var n Node
+			var err error
+			n, err = NewNode(strs[0], port, dir+"/node."+strconv.FormatInt(int64(index), 10), ctx, false, members)
+			if err != nil {
+				t.Error(err)
+			}
+			node := n.(*node)
+			if node.Address() != address {
+				t.Error()
+			}
+			node.RegisterCommand(&testCommand{})
+			node.SetCodec(&JSONCodec{})
+			node.SetContext(ctx)
+			node.SetSnapshot(&testSnapshot{ctx: ctx})
+			node.SetSyncTypes([]*SyncType{
+				{Seconds: 1, Changes: 1},
+			})
+			node.SetGzipSnapshot(true)
+			node.MemberChange(func() {
+			})
+			var start uint32
+			node.LeaderChange(func() {
+				atomic.StoreUint32(&start, 1)
+			})
+			node.Start()
+			for {
+				time.Sleep(time.Second)
+				if atomic.LoadUint32(&start) > 0 && len(node.Leader()) > 0 {
+					break
+				}
+			}
+			al.Done()
+			al.Wait()
+			time.Sleep(time.Second)
+			node.Do(&testCommand{"foobar"})
+			if node.IsLeader() {
+				if atomic.CompareAndSwapUint32(&readflag, 0, 1) {
+					close(startRead)
+				}
+			}
+			<-startRead
+			time.Sleep(time.Second * 6)
+			if ok := node.LeaseRead(); ok {
+				value := ctx.Get()
+				if len(value) > 0 && value != "foobar" {
+					t.Error(value)
+				}
+			}
+			if ok := node.ReadIndex(); ok {
+				value := ctx.Get()
+				if len(value) > 0 && value != "foobar" {
+					t.Error(value)
+				}
+			}
 			node.Stop()
 		}()
 	}
@@ -251,12 +309,12 @@ func TestClusterMore(t *testing.T) {
 			node.Start()
 			for {
 				time.Sleep(time.Second)
-				if atomic.LoadUint32(&start) > 0 {
+				if atomic.LoadUint32(&start) > 0 && len(node.Leader()) > 0 {
 					break
 				}
 			}
 			al.Done()
-			time.Sleep(time.Second)
+			time.Sleep(time.Second * 6)
 			al.Wait()
 			if node.isLeader() {
 				node.put(nil)
@@ -267,6 +325,7 @@ func TestClusterMore(t *testing.T) {
 				node.log.applyCommitedEnd(node.commitIndex.ID())
 			}
 			node.Stop()
+			time.Sleep(time.Second * 3)
 			if index >= 3 {
 				node.deleteNotPeers(nil)
 			}
