@@ -780,6 +780,7 @@ func (n *node) heartbeats() bool {
 	for i := range peers {
 		v := peers[i]
 		if !v.voting() {
+			go v.heartbeat()
 			continue
 		}
 		if v.alive.Load() {
