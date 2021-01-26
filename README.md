@@ -39,7 +39,7 @@ import (
 	"time"
 )
 
-var host, path, peers string
+var host, path, members string
 var port int
 var join bool
 
@@ -48,13 +48,13 @@ func init() {
 	flag.IntVar(&port, "p", 9001, "port")
 	flag.StringVar(&path, "path", "raft.example/node.1", "data dir")
 	flag.BoolVar(&join, "join", false, "")
-	flag.StringVar(&peers, "peers", "localhost:9001", "host:port,nonVoting;host:port")
+	flag.StringVar(&members, "members", "localhost:9001", "host:port,nonVoting;host:port")
 	flag.Parse()
 }
 
 func main() {
 	ctx := &Context{data: ""}
-	node, err := raft.NewNode(host, port, path, ctx, join, parse(peers))
+	node, err := raft.NewNode(host, port, path, ctx, join, parse(members))
 	if err != nil {
 		panic(err)
 	}
@@ -106,14 +106,14 @@ func (c *Command) Do(context interface{}) (interface{}, error) {
 	return nil, nil
 }
 
-func parse(peers string) (infos []*raft.NodeInfo) {
-	if peers != "" {
-		for _, v := range strings.Split(peers, ";") {
-			if len(v) > 0 {
-				info := strings.Split(v, ",")
-				infos = append(infos, &raft.NodeInfo{Address: info[0]})
-				if len(info) > 1 && info[1] == "true" {
-					infos[len(infos)-1].NonVoting = true
+func parse(members string) (m []*raft.Member) {
+	if members != "" {
+		for _, member := range strings.Split(members, ";") {
+			if len(member) > 0 {
+				strs := strings.Split(member, ",")
+				m = append(m, &raft.Member{Address: strs[0]})
+				if len(strs) > 1 && strs[1] == "true" {
+					m[len(m)-1].NonVoting = true
 				}
 			}
 		}
@@ -135,13 +135,13 @@ go build -o node main.go
 **Three nodes**
 ```sh
 ./node -h=localhost -p=9001 -path="raft.example/node.hw.1" -join=false \
--peers="localhost:9001;localhost:9002;localhost:9003"
+-members="localhost:9001;localhost:9002;localhost:9003"
 
 ./node -h=localhost -p=9002 -path="raft.example/node.hw.2" -join=false \
--peers="localhost:9001;localhost:9002;localhost:9003"
+-members="localhost:9001;localhost:9002;localhost:9003"
 
 ./node -h=localhost -p=9003 -path="raft.example/node.hw.3" -join=false \
--peers="localhost:9001;localhost:9002;localhost:9003"
+-members="localhost:9001;localhost:9002;localhost:9003"
 ```
 
 **Membership changes**
@@ -149,25 +149,25 @@ go build -o node main.go
 ./node -h=localhost -p=9001 -path="raft.example/node.mc.1" -join=false
 
 ./node -h=localhost -p=9002 -path="raft.example/node.mc.2" -join=true \
--peers="localhost:9001;localhost:9002"
+-members="localhost:9001;localhost:9002"
 
 ./node -h=localhost -p=9003 -path="raft.example/node.mc.3" -join=true \
--peers="localhost:9001;localhost:9002;localhost:9003"
+-members="localhost:9001;localhost:9002;localhost:9003"
 ```
 
 **Non-voting**
 ```sh
 ./node -h=localhost -p=9001 -path="raft.example/node.nv.1" -join=false \
--peers="localhost:9001;localhost:9002;localhost:9003;localhost:9004,true"
+-members="localhost:9001;localhost:9002;localhost:9003;localhost:9004,true"
 
 ./node -h=localhost -p=9002 -path="raft.example/node.nv.2" -join=false \
--peers="localhost:9001;localhost:9002;localhost:9003;localhost:9004,true"
+-members="localhost:9001;localhost:9002;localhost:9003;localhost:9004,true"
 
 ./node -h=localhost -p=9003 -path="raft.example/node.nv.3" -join=false \
--peers="localhost:9001;localhost:9002;localhost:9003;localhost:9004,true"
+-members="localhost:9001;localhost:9002;localhost:9003;localhost:9004,true"
 
 ./node -h=localhost -p=9004 -path="raft.example/node.nv.4" -join=false \
--peers="localhost:9001;localhost:9002;localhost:9003;localhost:9004,true"
+-members="localhost:9001;localhost:9002;localhost:9003;localhost:9004,true"
 ```
 
 ### [Benchmark](https://github.com/hslam/raft-benchmark  "raft-benchmark")
