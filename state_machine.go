@@ -262,10 +262,7 @@ func (s *stateMachine) run() {
 func (s *stateMachine) StopSnapshotSyncs() {
 	//s.node.logger.Tracef("stateMachine.Stop %d", len(s.snapshotSyncs))
 	for _, snapshotSync := range s.snapshotSyncs {
-		if snapshotSync != nil {
-			snapshotSync.Stop()
-			snapshotSync = nil
-		}
+		snapshotSync.Stop()
 	}
 	s.snapshotSyncs = make([]*snapshotSync, 0)
 }
