@@ -1,4 +1,7 @@
 # raft
+[![PkgGoDev](https://pkg.go.dev/badge/github.com/hslam/raft)](https://pkg.go.dev/github.com/hslam/raft)
+[![LICENSE](https://img.shields.io/github/license/hslam/raft.svg?style=flat-square)](https://github.com/hslam/raft/blob/master/LICENSE)
+
 Package raft implements the [Raft](https://raft.github.io/raft.pdf "raft") distributed consensus protocol based on [hslam/rpc](https://github.com/hslam/rpc "rpc").
 
 ## Features
