@@ -157,7 +157,6 @@ func TestCluster(t *testing.T) {
 			if index < 3 && node.IsLeader() {
 				node.nextState()
 			}
-			time.Sleep(time.Second * 3)
 			node.Stop()
 			time.Sleep(time.Second * 3)
 		}()
@@ -175,6 +174,8 @@ func TestClusterDoCommand(t *testing.T) {
 	wg := sync.WaitGroup{}
 	al := sync.WaitGroup{}
 	al.Add(5)
+	end := sync.WaitGroup{}
+	end.Add(5)
 	for i := 0; i < len(members); i++ {
 		address := members[i].Address
 		index := i
@@ -225,19 +226,25 @@ func TestClusterDoCommand(t *testing.T) {
 				}
 			}
 			<-startRead
-			time.Sleep(time.Second * 6)
+			for len(ctx.Get()) == 0 {
+				time.Sleep(time.Second)
+			}
+			time.Sleep(time.Second)
 			if ok := node.LeaseRead(); ok {
 				value := ctx.Get()
-				if len(value) > 0 && value != "foobar" {
+				if value != "foobar" {
 					t.Error(value)
 				}
 			}
 			if ok := node.ReadIndex(); ok {
 				value := ctx.Get()
-				if len(value) > 0 && value != "foobar" {
+				if value != "foobar" {
 					t.Error(value)
 				}
 			}
+			end.Done()
+			end.Wait()
+			time.Sleep(time.Second)
 			node.Stop()
 		}()
 	}
@@ -324,6 +331,7 @@ func TestClusterMore(t *testing.T) {
 				}
 				node.log.applyCommitedEnd(node.commitIndex.ID())
 			}
+			time.Sleep(time.Second * 3)
 			node.Stop()
 			time.Sleep(time.Second * 3)
 			if index >= 3 {
