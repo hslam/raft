@@ -72,7 +72,9 @@ func main() {
 				log.Printf("State:%s, Get:%s\n", node.State(), ctx.Get())
 			}
 		} else {
-			time.Sleep(time.Second * 3)
+			for len(ctx.Get()) == 0 {
+				time.Sleep(time.Second)
+			}
 			log.Printf("State:%s, Get:%s\n", node.State(), ctx.Get())
 		}
 	})
