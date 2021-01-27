@@ -11,7 +11,7 @@ import (
 type waLog struct {
 	mu        sync.Mutex
 	node      *node
-	wal       *wal.Log
+	wal       *wal.WAL
 	buf       []byte
 	entryPool *sync.Pool
 }
@@ -209,7 +209,7 @@ func (l *waLog) applyCommitedBatch(startIndex uint64, endIndex uint64) {
 		if err == nil {
 			l.node.stateMachine.apply(entries[i].Index, command)
 		} else {
-			l.node.logger.Errorf("log.applyCommitedRange %s %d error %s", l.node.address, i, err)
+			l.node.logger.Errorf("log.applyCommitedRange %s %d error %s", l.node.address, i, err.Error())
 		}
 		l.node.commands.put(command)
 	}
