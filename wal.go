@@ -320,3 +320,7 @@ func (l *waLog) Write(entries []*Entry) (err error) {
 	//l.node.logger.Tracef("log.Write %d", len(entries))
 	return l.wal.FlushAndSync()
 }
+
+func (l *waLog) Stop() (err error) {
+	return l.wal.Close()
+}

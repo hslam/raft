@@ -211,6 +211,7 @@ func (n *node) Stop() {
 		n.stateMachine.Stop()
 		n.pipe.Stop()
 		n.readIndex.Stop()
+		n.log.Stop()
 	})
 }
 
