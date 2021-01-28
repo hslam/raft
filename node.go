@@ -780,11 +780,11 @@ func (n *node) heartbeats() bool {
 	send := uint32(1)
 	for i := range peers {
 		v := peers[i]
-		if !v.voting() {
-			go v.heartbeat()
-			continue
-		}
 		if v.alive.Load() {
+			if !v.voting() {
+				go v.heartbeat()
+				continue
+			}
 			atomic.AddUint32(&send, 1)
 			go func() {
 				ok := v.heartbeat()
