@@ -243,7 +243,7 @@ func (n *node) run() {
 				n.state.FixedUpdate()
 			}
 		case <-n.updateTicker.C:
-			if n.workTicker != nil && n.deferTime.Add(time.Duration(minLatency*10)).Before(time.Now()) {
+			if n.workTicker != nil && n.deferTime.Add(defaultUpdateTick).Before(time.Now()) {
 				n.workTicker.Stop()
 				n.workTicker = nil
 			}

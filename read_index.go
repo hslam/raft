@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-const minReadIndexLatency = int64(time.Millisecond)
+const readIndexLatency = int64(time.Millisecond)
 
 type readIndex struct {
 	mu             sync.Mutex
@@ -33,7 +33,7 @@ func newReadIndex(n *node) *readIndex {
 		trigger: make(chan struct{}, 1),
 		done:    make(chan struct{}, 1),
 		m:       make(map[uint64][]chan bool),
-		min:     minReadIndexLatency,
+		min:     readIndexLatency,
 	}
 	go r.run()
 	return r
@@ -43,7 +43,7 @@ func (r *readIndex) updateLatency(d int64) (n int64) {
 	r.mutex.Lock()
 	r.latencysCursor++
 	r.latencys[r.latencysCursor%lastsSize] = d
-	var min int64 = minReadIndexLatency
+	var min int64 = readIndexLatency
 	for i := 0; i < lastsSize; i++ {
 		if r.latencys[i] > 0 && r.latencys[i] < min {
 			min = r.latencys[i]

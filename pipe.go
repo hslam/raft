@@ -11,7 +11,7 @@ import (
 )
 
 const lastsSize = 4
-const minLatency = int64(time.Millisecond * 10)
+const latency = int64(time.Millisecond * 10)
 
 type pipe struct {
 	node           *node
@@ -47,7 +47,7 @@ func newPipe(n *node) *pipe {
 		trigger:       make(chan bool),
 		readTrigger:   make(chan bool, 1),
 		done:          make(chan bool, 1),
-		min:           minLatency,
+		min:           latency,
 	}
 	go p.append()
 	go p.run()
@@ -89,7 +89,7 @@ func (p *pipe) updateLatency(d int64) (n int64) {
 	p.mutex.Lock()
 	p.latencysCursor++
 	p.latencys[p.latencysCursor%lastsSize] = d
-	var min int64 = minLatency
+	var min int64 = latency
 	for i := 0; i < lastsSize; i++ {
 		if p.latencys[i] > 0 && p.latencys[i] < min {
 			min = p.latencys[i]
