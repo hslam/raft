@@ -24,7 +24,6 @@ type stateMachine struct {
 	snapshotSyncs      []*snapshotSync
 	saves              []*SyncType
 	saveLog            bool
-	always             bool
 }
 
 func newStateMachine(n *node) *stateMachine {
@@ -69,9 +68,6 @@ func (s *stateMachine) apply(index uint64, command Command) (reply interface{}, 
 		reply, err = command.Do(s.node)
 	}
 	s.lastApplied = index
-	if s.always {
-		s.saveSnapshot()
-	}
 	return reply, err, nil
 }
 
@@ -83,7 +79,6 @@ func (s *stateMachine) SetSnapshotPolicy(snapshotPolicy SnapshotPolicy) {
 
 func (s *stateMachine) setSnapshotPolicy(snapshotPolicy SnapshotPolicy) {
 	s.snapshotPolicy = snapshotPolicy
-	s.always = false
 	s.StopSnapshotSyncs()
 	switch s.snapshotPolicy {
 	case Never:
@@ -114,8 +109,6 @@ func (s *stateMachine) setSnapshotPolicy(snapshotPolicy SnapshotPolicy) {
 			s.snapshotSyncs = append(s.snapshotSyncs, newSnapshotSync(s, v))
 		}
 		go s.run()
-	case Always:
-		s.always = true
 	}
 }
 

@@ -14,7 +14,7 @@ Package raft implements the [Raft](https://raft.github.io/raft.pdf "raft") distr
 * [Write-ahead logging](https://github.com/hslam/wal "wal")
 * ReadIndex/LeaseRead
 * Non-voting members (The leader only replicates log entries to them)
-* Snapshot policies (Never/EverySecond/CustomSync/Always)
+* Snapshot policies (Never/EverySecond/CustomSync)
 
 ## Get started
 

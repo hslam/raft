@@ -63,8 +63,6 @@ const (
 	DefalutSync SnapshotPolicy = 5
 	// CustomSync is a custom SnapshotPolicy.
 	CustomSync SnapshotPolicy = 6
-	// Always is a SnapshotPolicy that will sync the snapshot to the disk every command.
-	Always SnapshotPolicy = 9
 )
 
 const (
