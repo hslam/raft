@@ -229,7 +229,7 @@ func TestClusterDoCommand(t *testing.T) {
 			for len(ctx.Get()) == 0 {
 				time.Sleep(time.Second)
 			}
-			time.Sleep(time.Second)
+			time.Sleep(time.Second * 3)
 			if ok := node.LeaseRead(); ok {
 				value := ctx.Get()
 				if value != "foobar" {
@@ -296,7 +296,6 @@ func TestClusterMore(t *testing.T) {
 			node.SetCodec(&JSONCodec{})
 			node.SetContext(ctx)
 			node.SetSnapshot(&testSnapshot{ctx: ctx})
-			node.SetSnapshotPolicy(Always)
 			node.SetSnapshotPolicy(EverySecond)
 			node.SetSnapshotPolicy(EveryMinute)
 			node.SetSnapshotPolicy(EveryHour)
@@ -514,7 +513,7 @@ func TestClusterNonVoting(t *testing.T) {
 			node.SetCodec(&JSONCodec{})
 			node.SetContext(ctx)
 			node.SetSnapshot(&testSnapshot{ctx: ctx})
-			node.SetSnapshotPolicy(Always)
+			node.SetSnapshotPolicy(EverySecond)
 			node.Start()
 			time.Sleep(time.Second * 6)
 			node.Stop()
@@ -744,7 +743,7 @@ func TestClusterMeta(t *testing.T) {
 			node.SetCodec(&JSONCodec{})
 			node.SetContext(ctx)
 			node.SetSnapshot(&testSnapshot{ctx: ctx})
-			node.SetSnapshotPolicy(Always)
+			node.SetSnapshotPolicy(EverySecond)
 			node.Start()
 			time.Sleep(time.Second * 5)
 			for j := 0; j < len(members); j++ {
