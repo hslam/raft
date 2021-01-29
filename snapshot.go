@@ -106,12 +106,11 @@ func (s *snapshotReadWriter) clear() error {
 
 func (s *snapshotReadWriter) Write(p []byte) (n int, err error) {
 	err = s.node.storage.SeekWrite(s.flushName, s.ret, p)
-	if err != nil {
-		return 0, err
+	if err == nil {
+		n = len(p)
+		s.ret += uint64(n)
 	}
-	n = len(p)
-	s.ret += uint64(n)
-	return n, nil
+	return
 }
 
 func (s *snapshotReadWriter) Rename() error {
@@ -127,10 +126,10 @@ func (s *snapshotReadWriter) Rename() error {
 
 func (s *snapshotReadWriter) Append(offset uint64, p []byte) (n int, err error) {
 	err = s.node.storage.SeekWrite(s.FileName(), offset, p)
-	if err != nil {
-		return 0, err
+	if err == nil {
+		n = len(p)
 	}
-	return len(p), nil
+	return
 }
 
 func (s *snapshotReadWriter) Read(p []byte) (n int, err error) {
