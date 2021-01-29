@@ -87,13 +87,6 @@ func (vs *votes) Count() int {
 	return voteCount
 }
 
-func (vs *votes) Total() int {
-	vs.mu.Lock()
-	voteTotal := vs.voteTotal
-	vs.mu.Unlock()
-	return voteTotal
-}
-
 func clearVote(v chan *vote) {
 	for len(v) > 0 {
 		clearVoteOnce(v)
