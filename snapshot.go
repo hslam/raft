@@ -135,11 +135,10 @@ func (s *snapshotReadWriter) Append(offset uint64, p []byte) (n int, err error) 
 
 func (s *snapshotReadWriter) Read(p []byte) (n int, err error) {
 	n, err = s.node.storage.SeekRead(s.name, s.readRet, p)
-	if err != nil {
-		return n, err
+	if n > 0 {
+		s.readRet += uint64(n)
 	}
-	s.readRet += uint64(n)
-	return n, nil
+	return
 }
 
 func (s *snapshotReadWriter) load() (err error) {
