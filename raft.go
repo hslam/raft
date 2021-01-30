@@ -54,7 +54,6 @@ func (r *raft) CallRequestVote(addr string) (ok bool) {
 		r.node.currentTerm.Store(res.Term)
 		r.node.stepDown(false)
 	}
-	//r.node.logger.Tracef("raft.CallRequestVote %s recv %s vote %t",r.node.address,addr,res.VoteGranted)
 	if res.VoteGranted {
 		r.node.votes.vote <- newVote(addr, req.Term, 1)
 	} else {
@@ -80,7 +79,7 @@ func (r *raft) CallAppendEntries(addr string, prevLogIndex, prevLogTerm uint64, 
 	defer cancel()
 	err := r.node.rpcs.CallWithContext(ctx, addr, r.node.rpcs.AppendEntriesServiceName(), req, res)
 	if err != nil {
-		r.node.logger.Tracef("raft.CallAppendEntries %s -> %s error %s", r.node.address, addr, err.Error())
+		//r.node.logger.Tracef("raft.CallAppendEntries %s -> %s error %s", r.node.address, addr, err.Error())
 		return 0, 0, false, false
 	}
 	if res.Term > r.node.currentTerm.Load() {
@@ -90,7 +89,6 @@ func (r *raft) CallAppendEntries(addr string, prevLogIndex, prevLogTerm uint64, 
 			return res.NextIndex, res.Term, false, true
 		}
 	}
-	//r.node.logger.Tracef("raft.CallAppendEntries %s -> %s",r.node.address,addr)
 	return res.NextIndex, res.Term, res.Success, true
 }
 
@@ -115,7 +113,6 @@ func (r *raft) CallInstallSnapshot(addr string, LastIncludedIndex, LastIncludedT
 		r.node.currentTerm.Store(res.Term)
 		r.node.stepDown(false)
 	}
-	//r.node.logger.Tracef("raft.CallInstallSnapshot %s -> %s offset %d",r.node.address,addr,res.Offset)
 	return res.Offset, res.NextIndex, true
 }
 
