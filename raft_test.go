@@ -210,19 +210,29 @@ func TestClusterDoCommand(t *testing.T) {
 				atomic.StoreUint32(&start, 1)
 			})
 			node.Start()
+			var count = 0
 			for {
 				time.Sleep(time.Second)
 				if atomic.LoadUint32(&start) > 0 && len(node.Leader()) > 0 {
-					break
+					count++
+					if count > 6 {
+						break
+					}
+				} else {
+					count = 0
 				}
 			}
 			al.Done()
 			al.Wait()
-			time.Sleep(time.Second)
+			time.Sleep(time.Second * 3)
 			node.Do(&testCommand{"foobar"})
-			if node.IsLeader() {
-				if atomic.CompareAndSwapUint32(&readflag, 0, 1) {
-					close(startRead)
+			for node.IsLeader() {
+				_, err := node.Do(&testCommand{"foobar"})
+				if err == nil {
+					if atomic.CompareAndSwapUint32(&readflag, 0, 1) {
+						close(startRead)
+					}
+					break
 				}
 			}
 			<-startRead
