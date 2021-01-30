@@ -42,7 +42,6 @@ type Node interface {
 	Leave(Address string) (success bool)
 	Members() []*Member
 	LeaderChange(leaderChange func())
-	MemberChange(memberChange func())
 }
 
 type node struct {
@@ -122,7 +121,6 @@ type node struct {
 	leave      bool
 
 	leaderChange func()
-	memberChange func()
 }
 
 // NewNode returns a new raft node.
@@ -340,10 +338,6 @@ func (n *node) State() (state string) {
 
 func (n *node) LeaderChange(leaderChange func()) {
 	n.leaderChange = leaderChange
-}
-
-func (n *node) MemberChange(memberChange func()) {
-	n.memberChange = memberChange
 }
 
 func (n *node) Leader() string {

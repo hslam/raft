@@ -115,8 +115,6 @@ func TestCluster(t *testing.T) {
 			node.SetSyncTypes([]*SyncType{
 				{Seconds: 1, Changes: 1},
 			})
-			node.MemberChange(func() {
-			})
 			node.LeaderChange(func() {
 				if index >= 3 {
 					return
@@ -203,8 +201,6 @@ func TestClusterDoCommand(t *testing.T) {
 				{Seconds: 1, Changes: 1},
 			})
 			node.SetGzipSnapshot(true)
-			node.MemberChange(func() {
-			})
 			var start uint32
 			node.LeaderChange(func() {
 				atomic.StoreUint32(&start, 1)
@@ -316,8 +312,6 @@ func TestClusterMore(t *testing.T) {
 				{Seconds: 1, Changes: 1},
 			})
 			node.SetGzipSnapshot(true)
-			node.MemberChange(func() {
-			})
 			var start uint32
 			node.LeaderChange(func() {
 				atomic.StoreUint32(&start, 1)
@@ -396,8 +390,6 @@ func TestClusterState(t *testing.T) {
 				{Seconds: 1, Changes: 1},
 			})
 			node.SetGzipSnapshot(true)
-			node.MemberChange(func() {
-			})
 			node.LeaderChange(func() {
 			})
 			node.Start()
@@ -460,8 +452,6 @@ func TestLeaderTimeout(t *testing.T) {
 				{Seconds: 1, Changes: 1},
 			})
 			node.SetGzipSnapshot(true)
-			node.MemberChange(func() {
-			})
 			if len(node.Members()) != len(members) {
 				t.Error()
 			}

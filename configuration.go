@@ -43,9 +43,6 @@ func (c *configuration) AddMember(member *Member) {
 	c.members[member.Address] = member
 	c.mu.Unlock()
 	c.save()
-	if c.node.memberChange != nil {
-		go c.node.memberChange()
-	}
 }
 
 func (c *configuration) RemoveMember(addr string) {
@@ -55,9 +52,6 @@ func (c *configuration) RemoveMember(addr string) {
 	}
 	c.mu.Unlock()
 	c.save()
-	if c.node.memberChange != nil {
-		go c.node.memberChange()
-	}
 }
 
 func (c *configuration) LookupMember(addr string) (member *Member) {
