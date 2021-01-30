@@ -1,5 +1,8 @@
 # raft
 [![PkgGoDev](https://pkg.go.dev/badge/github.com/hslam/raft)](https://pkg.go.dev/github.com/hslam/raft)
+[![Build Status](https://github.com/hslam/raft/workflows/build/badge.svg)](https://github.com/hslam/raft/actions)
+[![codecov](https://codecov.io/gh/hslam/raft/branch/master/graph/badge.svg)](https://codecov.io/gh/hslam/raft)
+[![Go Report Card](https://goreportcard.com/badge/github.com/hslam/raft)](https://goreportcard.com/report/github.com/hslam/raft)
 [![LICENSE](https://img.shields.io/github/license/hslam/raft.svg?style=flat-square)](https://github.com/hslam/raft/blob/master/LICENSE)
 
 Package raft implements the [Raft](https://raft.github.io/raft.pdf "raft") distributed consensus protocol based on [hslam/rpc](https://github.com/hslam/rpc "rpc").
