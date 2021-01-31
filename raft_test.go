@@ -180,6 +180,9 @@ func TestClusterDoCommand(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
+			if index > 0 {
+				time.Sleep(time.Second * 3)
+			}
 			ctx := &testContext{data: ""}
 			strs := strings.Split(address, ":")
 			port, _ := strconv.Atoi(strs[1])
