@@ -669,6 +669,8 @@ func (n *node) consideredForMajorities() {
 	n.nodesMut.Lock()
 	if n.stateMachine.configuration.LookupMember(n.address) != nil {
 		n.majorities = true
+	} else {
+		n.majorities = false
 	}
 	for _, v := range n.peers {
 		v.majorities = true
@@ -681,9 +683,9 @@ func (n *node) deleteNotPeers(peers []string) {
 		n.clearPeers()
 		return
 	}
-	m := make(map[string]bool)
+	m := make(map[string]struct{})
 	for _, v := range peers {
-		m[v] = true
+		m[v] = struct{}{}
 	}
 	n.nodesMut.Lock()
 	for _, v := range n.peers {

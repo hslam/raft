@@ -84,6 +84,7 @@ func (c *DefaultCommand) Do(context interface{}) (interface{}, error) {
 	case removeMemberOperation:
 		n := context.(*node)
 		n.stateMachine.configuration.RemoveMember(c.Member.Address)
+		n.stateMachine.configuration.load()
 		return nil, nil
 	case reconfigurationOperation:
 		n := context.(*node)

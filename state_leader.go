@@ -61,11 +61,14 @@ func (s *leaderState) Update() bool {
 }
 
 func (s *leaderState) FixedUpdate() {
-	if s.node.election.Timeout() {
+	if !s.node.voting() {
+		s.node.lease = false
+		s.node.stepDown(false)
+		s.node.logger.Tracef("%s leaderState.FixedUpdate Non-Voting", s.node.address)
+	} else if s.node.election.Timeout() {
 		s.node.lease = false
 		s.node.stepDown(false)
 		s.node.logger.Tracef("%s leaderState.FixedUpdate ElectionTimeout", s.node.address)
-		return
 	}
 }
 
