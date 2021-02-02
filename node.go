@@ -63,9 +63,8 @@ type node struct {
 	//config
 	heartbeatTick time.Duration
 	storage       *storage
-	raft          Raft
-	cluster       Cluster
-	rpcs          *rpcs
+	service       *service
+	rpcs          RPCs
 	log           *waLog
 	readIndex     *readIndex
 	stateMachine  *stateMachine
@@ -160,9 +159,8 @@ func NewNode(host string, port int, dataDir string, context interface{}, join bo
 	n.setMembers(members)
 	n.log = newLog(n)
 	n.election = newElection(n, defaultElectionTimeout)
-	n.raft = newRaft(n)
-	n.cluster = newCluster(n)
-	n.rpcs = newRPCs(n, fmt.Sprintf(":%d", port))
+	n.service = newService(n)
+	n.rpcs = newRPCs(fmt.Sprintf(":%d", port))
 	n.commitIndex = newPersistentUint64(n, defaultCommitIndex, 0, time.Second)
 	n.state = newFollowerState(n)
 	n.pipe = newPipe(n)
@@ -193,7 +191,8 @@ func (n *node) Start() {
 		n.recover()
 		n.currentTerm.Store(n.lastLogTerm + 1)
 		n.checkLog()
-		go n.rpcs.ListenAndServe()
+		n.rpcs.Register(n.service)
+		go func() { n.logger.Errorln(n.rpcs.ListenAndServe()) }()
 		go n.run()
 	})
 	n.election.Reset()
@@ -205,7 +204,7 @@ func (n *node) Stop() {
 		close(n.done)
 		n.running = false
 		n.commitIndex.Stop()
-		n.rpcs.Stop()
+		n.rpcs.Close()
 		n.stateMachine.Stop()
 		n.pipe.Stop()
 		n.readIndex.Stop()
@@ -357,7 +356,7 @@ func (n *node) SetNodeMeta(address string, meta []byte) (ok bool) {
 			n.meta = meta
 			ok = true
 		} else {
-			ok = n.cluster.CallSetMeta(address, meta)
+			ok = n.service.cluster.CallSetMeta(address, meta)
 		}
 	}
 	return
@@ -369,7 +368,7 @@ func (n *node) GetNodeMeta(address string) (meta []byte, ok bool) {
 			meta = n.meta
 			ok = true
 		} else {
-			meta, ok = n.cluster.CallGetMeta(address)
+			meta, ok = n.service.cluster.CallGetMeta(address)
 		}
 	}
 	return
@@ -574,7 +573,7 @@ func (n *node) membership() []string {
 func (n *node) Join(member *Member) (success bool) {
 	leader := n.Leader()
 	for leader != "" {
-		success, leaderID, ok := n.cluster.CallAddMember(leader, member)
+		success, leaderID, ok := n.service.cluster.CallAddMember(leader, member)
 		if success && ok {
 			return true
 		}
@@ -582,11 +581,11 @@ func (n *node) Join(member *Member) (success bool) {
 	}
 	peers := n.Peers()
 	for i := 0; i < len(peers); i++ {
-		_, leaderID, ok := n.cluster.CallGetLeader(peers[i])
+		_, leaderID, ok := n.service.cluster.CallGetLeader(peers[i])
 		if leaderID != "" && ok {
 			leader = leaderID
 			for leader != "" {
-				success, leaderID, ok := n.cluster.CallAddMember(leader, member)
+				success, leaderID, ok := n.service.cluster.CallAddMember(leader, member)
 				if success && ok {
 					return true
 				}
@@ -600,7 +599,7 @@ func (n *node) Join(member *Member) (success bool) {
 func (n *node) Leave(Address string) (success bool) {
 	leader := n.Leader()
 	for leader != "" {
-		success, leaderID, ok := n.cluster.CallRemoveMember(leader, Address)
+		success, leaderID, ok := n.service.cluster.CallRemoveMember(leader, Address)
 		if success && ok {
 			return true
 		}
@@ -608,11 +607,11 @@ func (n *node) Leave(Address string) (success bool) {
 	}
 	peers := n.Peers()
 	for i := 0; i < len(peers); i++ {
-		_, leaderID, ok := n.cluster.CallGetLeader(peers[i])
+		_, leaderID, ok := n.service.cluster.CallGetLeader(peers[i])
 		if leaderID != "" && ok {
 			leader = leaderID
 			for leader != "" {
-				success, leaderID, ok := n.cluster.CallRemoveMember(leader, Address)
+				success, leaderID, ok := n.service.cluster.CallRemoveMember(leader, Address)
 				if success && ok {
 					return true
 				}

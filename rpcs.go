@@ -4,6 +4,7 @@
 package raft
 
 import (
+	"context"
 	"github.com/hslam/rpc"
 )
 
@@ -13,15 +14,31 @@ const (
 	network             = "tcp"
 	codec               = "pb"
 	serviceName         = "R"
-	requestVoteName     = "R"
-	appendEntriesName   = "A"
-	installSnapshotName = "I"
-	getLeaderName       = "Q"
-	addMemberName       = "J"
-	removeMemberName    = "L"
-	setMetaName         = "S"
-	getMetaName         = "G"
+	requestVoteName     = "RequestVote"
+	appendEntriesName   = "AppendEntries"
+	installSnapshotName = "InstallSnapshot"
+	getLeaderName       = "GetLeader"
+	addMemberName       = "AddMember"
+	removeMemberName    = "RemoveMember"
+	setMetaName         = "SetMeta"
+	getMetaName         = "GetMeta"
 )
+
+// RPCs represents the RPCs.
+type RPCs interface {
+	Register(s Service) error
+	ListenAndServe() error
+	Close() error
+	Ping(addr string) error
+	RequestVote(ctx context.Context, addr string, req *RequestVoteRequest, res *RequestVoteResponse) error
+	AppendEntries(ctx context.Context, addr string, req *AppendEntriesRequest, res *AppendEntriesResponse) error
+	InstallSnapshot(ctx context.Context, addr string, req *InstallSnapshotRequest, res *InstallSnapshotResponse) error
+	GetLeader(ctx context.Context, addr string, req *GetLeaderRequest, res *GetLeaderResponse) error
+	AddMember(ctx context.Context, addr string, req *AddMemberRequest, res *AddMemberResponse) error
+	RemoveMember(ctx context.Context, addr string, req *RemoveMemberRequest, res *RemoveMemberResponse) error
+	SetMeta(ctx context.Context, addr string, req *SetMetaRequest, res *SetMetaResponse) error
+	GetMeta(ctx context.Context, addr string, req *GetMetaRequest, res *GetMetaResponse) error
+}
 
 type rpcs struct {
 	*rpc.Transport
@@ -33,12 +50,11 @@ type rpcs struct {
 	removeMemberServiceName    string
 	setMetaServiceName         string
 	getMetaServiceName         string
-	node                       *node
 	server                     *rpc.Server
 	addr                       string
 }
 
-func newRPCs(n *node, addr string) *rpcs {
+func newRPCs(addr string) *rpcs {
 	r := &rpcs{
 		Transport: &rpc.Transport{
 			MaxConnsPerHost:     maxConnsPerHost,
@@ -53,55 +69,55 @@ func newRPCs(n *node, addr string) *rpcs {
 		removeMemberServiceName:    serviceName + "." + removeMemberName,
 		setMetaServiceName:         serviceName + "." + setMetaName,
 		getMetaServiceName:         serviceName + "." + getMetaName,
-		node:                       n,
 		addr:                       addr,
 	}
 	return r
 }
 
-func (r *rpcs) ListenAndServe() {
-	service := new(service)
-	service.node = r.node
+func (r *rpcs) Register(service Service) error {
 	r.server = rpc.NewServer()
-	r.server.RegisterName(serviceName, service)
-	r.server.SetLogLevel(rpc.OffLogLevel)
-	r.server.SetNoCopy(true)
-	r.node.logger.Errorln(r.server.Listen(network, r.addr, codec))
+	return r.server.RegisterName(serviceName, service)
 }
 
-func (r *rpcs) Stop() error {
+func (r *rpcs) ListenAndServe() error {
+	r.server.SetLogLevel(rpc.OffLogLevel)
+	r.server.SetNoCopy(true)
+	return r.server.Listen(network, r.addr, codec)
+}
+
+func (r *rpcs) Close() error {
 	r.Transport.Close()
 	return r.server.Close()
 }
 
-func (r *rpcs) AppendEntriesServiceName() string {
-	return r.appendEntriesServiceName
+func (r *rpcs) RequestVote(ctx context.Context, addr string, req *RequestVoteRequest, res *RequestVoteResponse) error {
+	return r.CallWithContext(ctx, addr, r.requestVoteServiceName, req, res)
 }
 
-func (r *rpcs) RequestVoteServiceName() string {
-	return r.requestVoteServiceName
+func (r *rpcs) AppendEntries(ctx context.Context, addr string, req *AppendEntriesRequest, res *AppendEntriesResponse) error {
+	return r.CallWithContext(ctx, addr, r.appendEntriesServiceName, req, res)
 }
 
-func (r *rpcs) InstallSnapshotServiceName() string {
-	return r.installSnapshotServiceName
+func (r *rpcs) InstallSnapshot(ctx context.Context, addr string, req *InstallSnapshotRequest, res *InstallSnapshotResponse) error {
+	return r.CallWithContext(ctx, addr, r.installSnapshotServiceName, req, res)
 }
 
-func (r *rpcs) GetLeaderServiceName() string {
-	return r.getLeaderServiceName
+func (r *rpcs) GetLeader(ctx context.Context, addr string, req *GetLeaderRequest, res *GetLeaderResponse) error {
+	return r.CallWithContext(ctx, addr, r.getLeaderServiceName, req, res)
 }
 
-func (r *rpcs) AddMemberServiceName() string {
-	return r.addMemberServiceName
+func (r *rpcs) AddMember(ctx context.Context, addr string, req *AddMemberRequest, res *AddMemberResponse) error {
+	return r.CallWithContext(ctx, addr, r.addMemberServiceName, req, res)
 }
 
-func (r *rpcs) RemoveMemberServiceName() string {
-	return r.removeMemberServiceName
+func (r *rpcs) RemoveMember(ctx context.Context, addr string, req *RemoveMemberRequest, res *RemoveMemberResponse) error {
+	return r.CallWithContext(ctx, addr, r.removeMemberServiceName, req, res)
 }
 
-func (r *rpcs) SetMetaServiceName() string {
-	return r.setMetaServiceName
+func (r *rpcs) SetMeta(ctx context.Context, addr string, req *SetMetaRequest, res *SetMetaResponse) error {
+	return r.CallWithContext(ctx, addr, r.setMetaServiceName, req, res)
 }
 
-func (r *rpcs) GetMetaServiceName() string {
-	return r.getMetaServiceName
+func (r *rpcs) GetMeta(ctx context.Context, addr string, req *GetMetaRequest, res *GetMetaResponse) error {
+	return r.CallWithContext(ctx, addr, r.getMetaServiceName, req, res)
 }

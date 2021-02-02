@@ -8,16 +8,7 @@ import (
 	"time"
 )
 
-// Raft represents the raft service.
-type Raft interface {
-	CallRequestVote(addr string) (ok bool)
-	CallAppendEntries(addr string, prevLogIndex, prevLogTerm uint64, entries []*Entry) (nextIndex, term uint64, success, ok bool)
-	CallInstallSnapshot(addr string, LastIncludedIndex, LastIncludedTerm, Offset uint64, Data []byte, Done bool) (offset, nextIndex uint64, ok bool)
-	RequestVote(req *RequestVoteRequest, res *RequestVoteResponse) error
-	AppendEntries(req *AppendEntriesRequest, res *AppendEntriesResponse) error
-	InstallSnapshot(req *InstallSnapshotRequest, res *InstallSnapshotResponse) error
-}
-
+// raft implements the raft service.
 type raft struct {
 	node                   *node
 	hearbeatTimeout        time.Duration
@@ -26,7 +17,7 @@ type raft struct {
 	installSnapshotTimeout time.Duration
 }
 
-func newRaft(n *node) Raft {
+func newRaft(n *node) *raft {
 	return &raft{
 		node:                   n,
 		hearbeatTimeout:        defaultHearbeatTimeout,
@@ -45,7 +36,7 @@ func (r *raft) CallRequestVote(addr string) (ok bool) {
 	var res = &RequestVoteResponse{}
 	ctx, cancel := context.WithTimeout(context.Background(), r.requestVoteTimeout)
 	defer cancel()
-	err := r.node.rpcs.CallWithContext(ctx, addr, r.node.rpcs.RequestVoteServiceName(), req, res)
+	err := r.node.rpcs.RequestVote(ctx, addr, req, res)
 	if err != nil {
 		r.node.logger.Tracef("raft.CallRequestVote %s recv %s vote error %s", r.node.address, addr, err.Error())
 		return false
@@ -77,7 +68,7 @@ func (r *raft) CallAppendEntries(addr string, prevLogIndex, prevLogTerm uint64, 
 	var res = &AppendEntriesResponse{}
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	err := r.node.rpcs.CallWithContext(ctx, addr, r.node.rpcs.AppendEntriesServiceName(), req, res)
+	err := r.node.rpcs.AppendEntries(ctx, addr, req, res)
 	if err != nil {
 		//r.node.logger.Tracef("raft.CallAppendEntries %s -> %s error %s", r.node.address, addr, err.Error())
 		return 0, 0, false, false
@@ -104,7 +95,7 @@ func (r *raft) CallInstallSnapshot(addr string, LastIncludedIndex, LastIncludedT
 	var res = &InstallSnapshotResponse{}
 	ctx, cancel := context.WithTimeout(context.Background(), r.installSnapshotTimeout)
 	defer cancel()
-	err := r.node.rpcs.CallWithContext(ctx, addr, r.node.rpcs.InstallSnapshotServiceName(), req, res)
+	err := r.node.rpcs.InstallSnapshot(ctx, addr, req, res)
 	if err != nil {
 		r.node.logger.Tracef("raft.CallInstallSnapshot %s -> %s error %s", r.node.address, addr, err.Error())
 		return 0, 0, false
