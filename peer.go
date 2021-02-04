@@ -10,22 +10,22 @@ import (
 )
 
 type peer struct {
-	mu                 sync.Mutex
-	node               *node
-	address            string
-	alive              *atomic.Bool
-	nextIndex          uint64
-	matchIndex         uint64
-	lastPrintNextIndex uint64
-	checking           int32
-	sending            int32
-	installing         int32
-	install            int32
-	nonVoting          bool
-	majorities         bool
-	size               uint64
-	offset             uint64
-	lastMatchTime      time.Time
+	mu                  sync.Mutex
+	node                *node
+	address             string
+	alive               *atomic.Bool
+	nextIndex           uint64
+	matchIndex          uint64
+	lastPrintMatchIndex uint64
+	checking            int32
+	sending             int32
+	installing          int32
+	install             int32
+	nonVoting           bool
+	majorities          bool
+	size                uint64
+	offset              uint64
+	lastMatchTime       time.Time
 }
 
 func newPeer(n *node, address string) *peer {

@@ -933,9 +933,9 @@ func (n *node) printPeers() {
 	n.nodesMut.RLock()
 	defer n.nodesMut.RUnlock()
 	for _, v := range n.peers {
-		if v.nextIndex > v.lastPrintNextIndex {
-			n.logger.Tracef("node.printPeers %s nextIndex %d==>%d", v.address, v.lastPrintNextIndex, v.nextIndex)
-			v.lastPrintNextIndex = v.nextIndex
+		if v.matchIndex > v.lastPrintMatchIndex {
+			n.logger.Tracef("node.printPeers %s matchIndex %d==>%d", v.address, v.lastPrintMatchIndex, v.matchIndex)
+			v.lastPrintMatchIndex = v.matchIndex
 		}
 	}
 }
