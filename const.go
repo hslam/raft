@@ -28,7 +28,8 @@ const (
 	defaultGetMetaTimeout               = 60 * 1000 * time.Millisecond
 	defaultCommandTimeout               = 60 * 1000 * time.Millisecond
 	defaultMatchTimeout                 = 60 * 1000 * time.Millisecond
-	defaultMaxBatch                     = 64 * 1024
+	defaultMaxBatch                     = 32 * 1024
+	defaultMaxCache                     = 32 * 1024
 	defaultTarTick                      = time.Second
 	defaultMaxDelay                     = time.Millisecond
 	defaultDataDir                      = "default.raft"

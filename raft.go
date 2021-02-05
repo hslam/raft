@@ -177,7 +177,7 @@ func (r *raft) AppendEntries(req *AppendEntriesRequest, res *AppendEntriesRespon
 		return nil
 	}
 	if req.PrevLogIndex+1 == req.Entries[0].Index {
-		res.Success = r.node.log.appendEntries(req.Entries)
+		res.Success = r.node.log.appendEntries(req.Entries, true)
 		r.node.nextIndex = r.node.lastLogIndex + 1
 		res.NextIndex = r.node.nextIndex
 		return nil

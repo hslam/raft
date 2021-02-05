@@ -142,7 +142,7 @@ func (p *pipe) write(i *invoker) {
 	}
 	data = make([]byte, len(b))
 	copy(data, b)
-	entry := p.node.log.getEmtyEntry()
+	entry := &Entry{}
 	entry.Index = i.index
 	entry.Term = p.node.currentTerm.Load()
 	entry.Command = data
@@ -173,7 +173,7 @@ func (p *pipe) append() {
 			if ok && len(entries) > 0 {
 				//logger.Tracef("pipe.write concurrency-%d,entries-%d,sleep-%v", p.batch(), len(entries), p.sleepTime())
 				start := time.Now().UnixNano()
-				p.node.log.appendEntries(entries)
+				p.node.log.appendEntries(entries, false)
 				go func(d int64) {
 					p.updateLatency(d)
 					p.lastTime = time.Now()

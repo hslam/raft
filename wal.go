@@ -4,48 +4,34 @@
 package raft
 
 import (
+	"github.com/hslam/lru"
 	"github.com/hslam/wal"
 	"sync"
 )
 
 type waLog struct {
-	mu        sync.Mutex
-	node      *node
-	wal       *wal.WAL
-	buf       []byte
-	entryPool *sync.Pool
+	mu    sync.Mutex
+	node  *node
+	wal   *wal.WAL
+	cache *lru.LRU
+	buf   []byte
 }
 
 func newLog(n *node) *waLog {
 	l := &waLog{
-		node: n,
-		buf:  make([]byte, 1024*64),
+		node:  n,
+		buf:   make([]byte, 1024*64),
+		cache: lru.New(defaultMaxCache, nil),
 	}
 	l.wal, _ = wal.Open(n.storage.dataDir, nil)
-	l.entryPool = &sync.Pool{
-		New: func() interface{} {
-			return &Entry{}
-		},
-	}
 	return l
 }
 
-func (l *waLog) getEmtyEntry() *Entry {
-	return l.entryPool.Get().(*Entry)
-}
-
-func (l *waLog) putEmtyEntry(entry *Entry) {
-	entry.Index = 0
-	entry.Term = 0
-	entry.Command = []byte{}
-	entry.CommandType = 0
-	l.entryPool.Put(entry)
-}
-
-func (l *waLog) putEmtyEntries(entries []*Entry) {
-	for _, entry := range entries {
-		l.putEmtyEntry(entry)
-	}
+func (l *waLog) cloneEntry(entry *Entry) *Entry {
+	clone := &Entry{}
+	*clone = *entry
+	clone.Command = cloneBytes(entry.Command)
+	return clone
 }
 
 func (l *waLog) lookupTerm(index uint64) (term uint64) {
@@ -93,6 +79,7 @@ func (l *waLog) check(entries []*Entry) bool {
 
 func (l *waLog) deleteAfter(index uint64) {
 	l.mu.Lock()
+	l.cache.Reset()
 	if index == l.node.firstLogIndex {
 		l.wal.Reset()
 		l.wal.InitFirstIndex(index)
@@ -214,7 +201,6 @@ func (l *waLog) applyCommitedBatch(startIndex uint64, endIndex uint64) {
 		}
 		l.node.commands.put(command)
 	}
-	l.putEmtyEntries(entries)
 	//l.node.logger.Tracef("log.applyCommitedRange %s startIndex %d endIndex %d End %d",l.node.address,startIndex,endIndex,len(entries))
 }
 
@@ -222,7 +208,6 @@ func (l *waLog) readTerm(index uint64) (term uint64) {
 	entry := l.read(index)
 	if entry != nil {
 		term = entry.Term
-		l.putEmtyEntry(entry)
 	} else if l.node.stateMachine.snapshotReadWriter.lastIncludedIndex.ID() == index {
 		term = l.node.stateMachine.snapshotReadWriter.lastIncludedTerm.ID()
 	}
@@ -237,18 +222,23 @@ func (l *waLog) Read(index uint64) *Entry {
 }
 
 func (l *waLog) read(index uint64) *Entry {
+	if value, _, ok := l.cache.Get(index); ok {
+		if entry, ok := value.(*Entry); ok && entry.Index == index {
+			return entry
+		}
+	}
 	b, err := l.wal.Read(index)
 	if err != nil {
 		//l.node.logger.Errorf("log.read %s index %d firstIndex %d lastIndex %d, commit %d", l.node.address, index, l.node.firstLogIndex, l.node.lastLogIndex, l.node.commitIndex.ID())
 		return nil
 	}
-	entry := l.getEmtyEntry()
+	entry := &Entry{}
 	err = l.node.codec.Unmarshal(b, entry)
 	if err != nil {
-		l.putEmtyEntry(entry)
 		l.node.logger.Errorf("log.Decode %s", string(b))
 		return nil
 	}
+	l.cache.Set(entry.Index, entry)
 	return entry
 }
 
@@ -292,7 +282,7 @@ func (l *waLog) load() (err error) {
 	return nil
 }
 
-func (l *waLog) appendEntries(entries []*Entry) bool {
+func (l *waLog) appendEntries(entries []*Entry, clone bool) bool {
 	l.mu.Lock()
 	if !l.node.isLeader() {
 		if !l.check(entries) {
@@ -304,18 +294,23 @@ func (l *waLog) appendEntries(entries []*Entry) bool {
 		l.mu.Unlock()
 		return false
 	}
-	l.Write(entries)
+	l.Write(entries, clone)
 	l.node.lastLogIndex = entries[len(entries)-1].Index
 	l.node.lastLogTerm = entries[len(entries)-1].Term
 	l.mu.Unlock()
-	l.putEmtyEntries(entries)
 	//l.node.logger.Tracef("log.appendEntries %s entries %d", l.node.address, len(entries))
 	return true
 }
 
-func (l *waLog) Write(entries []*Entry) (err error) {
+func (l *waLog) Write(entries []*Entry, clone bool) (err error) {
 	for i := 0; i < len(entries); i++ {
-		entry := entries[i]
+		var entry *Entry
+		if clone {
+			entry = l.cloneEntry(entries[i])
+		} else {
+			entry = entries[i]
+		}
+		l.cache.Set(entry.Index, entry)
 		b, err := l.node.codec.Marshal(l.buf, entry)
 		if err != nil {
 			return err
