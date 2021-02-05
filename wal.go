@@ -199,15 +199,16 @@ func (l *waLog) applyCommitedBatch(startIndex uint64, endIndex uint64) {
 	//l.node.logger.Tracef("log.applyCommitedRange %s startIndex %d endIndex %d length %d",l.node.address,startIndex,endIndex,len(entries))
 	for i := 0; i < len(entries); i++ {
 		//l.node.logger.Tracef("log.applyCommitedRange %s Index %d Type %d",l.node.address,entries[i].Index,entries[i].CommandType)
-		command := l.node.commands.clone(entries[i].CommandType)
+		entry := entries[i]
+		command := l.node.commands.clone(entry.CommandType)
 		var err error
-		if entries[i].CommandType > 0 {
-			err = l.node.codec.Unmarshal(entries[i].Command, command)
+		if entry.CommandType > 0 {
+			err = l.node.codec.Unmarshal(entry.Command, command)
 		} else {
-			err = l.node.raftCodec.Unmarshal(entries[i].Command, command)
+			err = l.node.raftCodec.Unmarshal(entry.Command, command)
 		}
 		if err == nil {
-			l.node.stateMachine.apply(entries[i].Index, command)
+			l.node.stateMachine.apply(entry.Index, command)
 		} else {
 			l.node.logger.Errorf("log.applyCommitedRange %s %d error %s", l.node.address, i, err.Error())
 		}
@@ -245,7 +246,6 @@ func (l *waLog) read(index uint64) *Entry {
 }
 
 func (l *waLog) batchRead(startIndex uint64, endIndex uint64) []*Entry {
-
 	entries := make([]*Entry, 0, endIndex-startIndex+1)
 	for i := startIndex; i < endIndex+1; i++ {
 		entry := l.read(i)
