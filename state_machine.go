@@ -53,9 +53,6 @@ func (s *stateMachine) Unlock() {
 }
 
 func (s *stateMachine) apply(index uint64, command Command) (reply interface{}, err error, applyErr error) {
-	if !s.node.running {
-		return nil, nil, ErrNotRunning
-	}
 	if index <= s.lastApplied {
 		return nil, nil, errRepeated
 	}
