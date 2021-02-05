@@ -229,6 +229,13 @@ func (l *waLog) readTerm(index uint64) (term uint64) {
 	return
 }
 
+func (l *waLog) Read(index uint64) *Entry {
+	l.mu.Lock()
+	entry := l.read(index)
+	l.mu.Unlock()
+	return entry
+}
+
 func (l *waLog) read(index uint64) *Entry {
 	b, err := l.wal.Read(index)
 	if err != nil {

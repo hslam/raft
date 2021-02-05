@@ -145,7 +145,7 @@ func (s *stateMachine) saveSnapshot() error {
 				lastIncludedTerm = s.node.lastLogTerm
 			} else {
 				lastIncludedIndex = s.lastApplied
-				entry := s.node.log.read(lastIncludedIndex)
+				entry := s.node.log.Read(lastIncludedIndex)
 				if entry == nil {
 					return errors.New("this entry is not existed")
 				}
