@@ -14,7 +14,7 @@ Package raft implements the [Raft](https://raft.github.io/raft.pdf "raft") distr
 * Membership changes
 * Log compaction (snapshotting)
 * [RPC](https://github.com/hslam/rpc "rpc") transport
-* [Write-ahead logging](https://github.com/hslam/wal "wal")
+* [Write-ahead logging](https://github.com/hslam/wal "wal") and [LRU cache](https://github.com/hslam/lru "lru")
 * ReadIndex/LeaseRead
 * Non-voting members (The leader only replicates log entries to them)
 * Snapshot policies (Never/EverySecond/CustomSync)
