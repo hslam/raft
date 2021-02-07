@@ -24,7 +24,7 @@ type pipe struct {
 	appendEntries  chan []*Entry
 	count          uint64
 	closed         int32
-	done           chan bool
+	done           chan struct{}
 	lasts          [lastsSize]int
 	lastsCursor    int
 	latencys       [lastsSize]int64
@@ -33,8 +33,8 @@ type pipe struct {
 	min            int64
 	lastTime       time.Time
 	applying       int32
-	trigger        chan bool
-	readTrigger    chan bool
+	trigger        chan struct{}
+	readTrigger    chan struct{}
 }
 
 func newPipe(n *node) *pipe {
@@ -44,9 +44,9 @@ func newPipe(n *node) *pipe {
 		pending:       make(map[uint64]*invoker),
 		appendEntries: make(chan []*Entry, 1024),
 		lastTime:      time.Now(),
-		trigger:       make(chan bool),
-		readTrigger:   make(chan bool, 1),
-		done:          make(chan bool, 1),
+		trigger:       make(chan struct{}),
+		readTrigger:   make(chan struct{}, 1),
+		done:          make(chan struct{}, 1),
 		min:           latency,
 	}
 	go p.append()
@@ -156,11 +156,11 @@ func (p *pipe) write(i *invoker) {
 	atomic.AddUint64(&p.node.nextIndex, 1)
 	p.lock.Unlock()
 	select {
-	case p.trigger <- true:
+	case p.trigger <- struct{}{}:
 	default:
 	}
 	select {
-	case p.readTrigger <- true:
+	case p.readTrigger <- struct{}{}:
 	default:
 	}
 }
