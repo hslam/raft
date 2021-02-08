@@ -82,7 +82,6 @@ func (l *waLog) deleteAfter(index uint64) {
 	l.cache.Reset()
 	if index == l.node.firstLogIndex {
 		l.wal.Reset()
-		l.wal.InitFirstIndex(index)
 		l.mu.Unlock()
 		return
 	}

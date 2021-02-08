@@ -222,7 +222,6 @@ func (s *stateMachine) recover() error {
 		s.node.nextIndex = s.snapshotReadWriter.lastIncludedIndex.ID() + 1
 		s.node.logger.Tracef("stateMachine.recover %s nextIndex %d==>%d", s.node.address, nextIndex, s.node.nextIndex)
 		s.node.log.wal.Reset()
-		s.node.log.wal.InitFirstIndex(s.node.nextIndex)
 		s.node.log.load()
 	}
 	return nil
