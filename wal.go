@@ -9,10 +9,24 @@ import (
 	"sync"
 )
 
+// WAL represents the write-ahead log.
+type WAL interface {
+	FirstIndex() (uint64, error)
+	LastIndex() (uint64, error)
+	Read(index uint64) ([]byte, error)
+	Write(index uint64, data []byte) error
+	Flush() error
+	Sync() error
+	Clean(index uint64) error
+	Truncate(index uint64) error
+	Reset() error
+	Close() error
+}
+
 type waLog struct {
 	mu    sync.Mutex
 	node  *node
-	wal   *wal.WAL
+	wal   WAL
 	cache *lru.LRU
 	buf   []byte
 }
@@ -319,7 +333,11 @@ func (l *waLog) Write(entries []*Entry, clone bool) (err error) {
 		}
 	}
 	//l.node.logger.Tracef("log.Write %d", len(entries))
-	return l.wal.FlushAndSync()
+	err = l.wal.Flush()
+	if err != nil {
+		return
+	}
+	return l.wal.Sync()
 }
 
 func (l *waLog) Stop() (err error) {
