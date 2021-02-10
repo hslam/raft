@@ -24,18 +24,18 @@ type WAL interface {
 }
 
 type waLog struct {
-	mu    sync.Mutex
-	node  *node
-	wal   WAL
-	cache *lru.LRU
-	buf   []byte
+	mu   sync.Mutex
+	node *node
+	wal  WAL
+	lru  *lru.LRU
+	buf  []byte
 }
 
 func newLog(n *node) *waLog {
 	l := &waLog{
-		node:  n,
-		buf:   make([]byte, 1024*64),
-		cache: lru.New(defaultMaxCache, nil),
+		node: n,
+		buf:  make([]byte, 1024*64),
+		lru:  lru.New(defaultMaxCache, nil),
 	}
 	l.wal, _ = wal.Open(n.storage.dataDir, nil)
 	return l
@@ -93,7 +93,7 @@ func (l *waLog) check(entries []*Entry) bool {
 
 func (l *waLog) deleteAfter(index uint64) {
 	l.mu.Lock()
-	l.cache.Reset()
+	l.lru.Reset()
 	if index == l.node.firstLogIndex {
 		l.wal.Reset()
 		l.mu.Unlock()
@@ -235,7 +235,7 @@ func (l *waLog) Read(index uint64) *Entry {
 }
 
 func (l *waLog) read(index uint64) *Entry {
-	if value, _, ok := l.cache.Get(index); ok {
+	if value, _, ok := l.lru.Get(index); ok {
 		if entry, ok := value.(*Entry); ok && entry.Index == index {
 			return entry
 		}
@@ -251,7 +251,7 @@ func (l *waLog) read(index uint64) *Entry {
 		l.node.logger.Errorf("log.Decode %s", string(b))
 		return nil
 	}
-	l.cache.Set(entry.Index, entry)
+	l.lru.Set(entry.Index, entry)
 	return entry
 }
 
@@ -323,7 +323,7 @@ func (l *waLog) Write(entries []*Entry, clone bool) (err error) {
 		} else {
 			entry = entries[i]
 		}
-		l.cache.Set(entry.Index, entry)
+		l.lru.Set(entry.Index, entry)
 		b, err := l.node.codec.Marshal(l.buf, entry)
 		if err != nil {
 			return err
