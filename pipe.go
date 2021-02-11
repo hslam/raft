@@ -173,12 +173,11 @@ func (p *pipe) append() {
 			if ok && len(entries) > 0 {
 				//logger.Tracef("pipe.write concurrency-%d,entries-%d,sleep-%v", p.batch(), len(entries), p.sleepTime())
 				start := time.Now().UnixNano()
+				p.node.log.cache.AppendEntries(entries)
 				p.node.log.appendEntries(entries, false)
-				go func(d int64) {
-					p.updateLatency(d)
-					p.lastTime = time.Now()
-					p.node.check()
-				}(time.Now().UnixNano() - start)
+				p.updateLatency(time.Now().UnixNano() - start)
+				p.lastTime = time.Now()
+				go p.node.check()
 			}
 		case <-p.done:
 			return

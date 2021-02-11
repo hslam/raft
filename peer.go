@@ -139,7 +139,7 @@ func (p *peer) check() {
 		return
 	}
 	defer atomic.StoreInt32(&p.checking, 0)
-	if p.node.lastLogIndex > p.nextIndex-1 && p.nextIndex > 0 {
+	if p.nextIndex > 0 {
 		if p.node.stateMachine.snapshot != nil && p.node.commitIndex.ID() > 1 &&
 			(p.nextIndex == 1 || (p.nextIndex > 1 && p.nextIndex < p.node.firstLogIndex)) {
 			if !p.node.stateMachine.snapshotReadWriter.finish.Load() {

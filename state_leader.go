@@ -37,6 +37,7 @@ func (s *leaderState) Start() {
 	}
 	s.node.ready = false
 	s.node.pipe.init(s.node.lastLogIndex)
+	s.node.log.cache.Reset()
 	s.node.leader.Store(s.node.address)
 	s.node.lease = true
 	s.node.election.Random(false)

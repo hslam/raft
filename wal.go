@@ -24,18 +24,20 @@ type WAL interface {
 }
 
 type waLog struct {
-	mu   sync.Mutex
-	node *node
-	wal  WAL
-	lru  *lru.LRU
-	buf  []byte
+	mu    sync.Mutex
+	node  *node
+	wal   WAL
+	lru   *lru.LRU
+	cache *cache
+	buf   []byte
 }
 
 func newLog(n *node) *waLog {
 	l := &waLog{
-		node: n,
-		buf:  make([]byte, 1024*64),
-		lru:  lru.New(defaultMaxCache, nil),
+		node:  n,
+		buf:   make([]byte, 1024*64),
+		lru:   lru.New(defaultMaxCache, nil),
+		cache: newCache(defaultMaxCache),
 	}
 	l.wal, _ = wal.Open(n.storage.dataDir, nil)
 	return l
@@ -128,6 +130,10 @@ func (l *waLog) endIndex(index uint64) uint64 {
 }
 
 func (l *waLog) copyAfter(index uint64, max int) (entries []*Entry) {
+	entries = l.cache.CopyAfter(index, max)
+	if len(entries) > 0 {
+		return
+	}
 	l.mu.Lock()
 	startIndex := l.startIndex(index)
 	endIndex := l.endIndex(startIndex + uint64(max))
