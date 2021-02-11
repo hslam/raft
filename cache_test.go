@@ -20,7 +20,7 @@ func TestCache(t *testing.T) {
 	index := uint64(1000000)
 	for i := uint64(0); i < uint64(size); i++ {
 		index++
-		c.Append(&Entry{Index: index})
+		c.AppendEntries([]*Entry{{Index: index}})
 	}
 	if entries := c.CopyAfter(index-10000, size); len(entries) != 0 {
 		t.Error()
@@ -30,7 +30,7 @@ func TestCache(t *testing.T) {
 	}
 	for i := uint64(0); i < 100; i++ {
 		index++
-		c.Append(&Entry{Index: index})
+		c.AppendEntries([]*Entry{{Index: index}})
 		if c.firstIndex() > c.lastIndex() {
 			t.Error()
 		}
@@ -51,7 +51,7 @@ func TestReset(t *testing.T) {
 	index := uint64(1000000)
 	for i := uint64(0); i < uint64(size); i++ {
 		index++
-		c.Append(&Entry{Index: index})
+		c.AppendEntries([]*Entry{{Index: index}})
 	}
 	c.Reset()
 	if c.length() != 0 {

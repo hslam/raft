@@ -39,9 +39,11 @@ func (c *cache) Reset() {
 	c.lock.Unlock()
 }
 
-func (c *cache) Append(entry *Entry) {
+func (c *cache) AppendEntries(entries []*Entry) {
 	c.lock.Lock()
-	c.enqueue(entry)
+	for i := 0; i < len(entries); i++ {
+		c.enqueue(entries[i])
+	}
 	c.lock.Unlock()
 }
 
