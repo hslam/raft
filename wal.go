@@ -79,6 +79,8 @@ func (l *waLog) consistencyCheck(index uint64, term uint64) (ok bool) {
 		if index-l.thresh >= l.node.firstLogIndex {
 			index -= l.thresh
 			l.thresh *= 2
+		} else {
+			index = l.node.firstLogIndex
 		}
 		l.node.log.deleteAfter(index)
 		l.node.nextIndex = l.node.lastLogIndex + 1
