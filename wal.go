@@ -356,5 +356,9 @@ func (l *waLog) Write(entries []*Entry, clone bool) (err error) {
 }
 
 func (l *waLog) Stop() (err error) {
+	l.cache.Reset()
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.lru.Reset()
 	return l.wal.Close()
 }
