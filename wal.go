@@ -24,20 +24,22 @@ type WAL interface {
 }
 
 type waLog struct {
-	mu    sync.Mutex
-	node  *node
-	wal   WAL
-	lru   *lru.LRU
-	cache *cache
-	buf   []byte
+	mu     sync.Mutex
+	node   *node
+	wal    WAL
+	lru    *lru.LRU
+	cache  *cache
+	buf    []byte
+	thresh uint64
 }
 
 func newLog(n *node) *waLog {
 	l := &waLog{
-		node:  n,
-		buf:   make([]byte, 1024*64),
-		lru:   lru.New(defaultMaxCache, nil),
-		cache: newCache(defaultMaxCache),
+		node:   n,
+		buf:    make([]byte, 1024*64),
+		lru:    lru.New(defaultMaxCache, nil),
+		cache:  newCache(defaultMaxCache),
+		thresh: 1,
 	}
 	l.wal, _ = wal.Open(n.storage.dataDir, nil)
 	return l
@@ -74,10 +76,15 @@ func (l *waLog) consistencyCheck(index uint64, term uint64) (ok bool) {
 		return false
 	}
 	if entryTerm != term {
+		if index-l.thresh >= l.node.firstLogIndex {
+			index -= l.thresh
+			l.thresh *= 2
+		}
 		l.node.log.deleteAfter(index)
 		l.node.nextIndex = l.node.lastLogIndex + 1
 		return false
 	}
+	l.thresh = 1
 	return true
 }
 
