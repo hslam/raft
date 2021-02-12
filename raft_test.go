@@ -84,6 +84,8 @@ func TestCluster(t *testing.T) {
 	startJoin := make(chan struct{})
 	al := sync.WaitGroup{}
 	al.Add(3)
+	join := sync.WaitGroup{}
+	join.Add(2)
 	for i := 0; i < len(members); i++ {
 		address := members[i].Address
 		index := i
@@ -135,9 +137,23 @@ func TestCluster(t *testing.T) {
 				}
 			})
 			node.Start()
+			if index >= 3 {
+				var count = 0
+				for {
+					time.Sleep(time.Second)
+					if len(node.Leader()) > 0 {
+						count++
+						if count > 6 {
+							break
+						}
+					} else {
+						count = 0
+					}
+				}
+				join.Done()
+			}
+			join.Wait()
 			if index < 3 {
-				<-startJoin
-				time.Sleep(time.Second * 5)
 				if node.IsLeader() {
 					if ok := node.Leave(members[4].Address); !ok {
 						t.Error()
