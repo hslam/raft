@@ -10,6 +10,10 @@ import (
 
 func TestCommand(t *testing.T) {
 	commands := &commands{types: make(map[uint64]*sync.Pool)}
+	commands.put(&testCommand{})
+	if ok := commands.exists(&testCommand{}); ok {
+		t.Error()
+	}
 	if err := commands.register(&testCommand{}); err != nil {
 		t.Error()
 	}
@@ -21,6 +25,10 @@ func TestCommand(t *testing.T) {
 		t.Error()
 	}
 	if cp := commands.clone(cmd.Type() + 1); cp != nil {
+		t.Error()
+	}
+	commands.put(&testCommand{})
+	if ok := commands.exists(cmd); !ok {
 		t.Error()
 	}
 	command := &DefaultCommand{}

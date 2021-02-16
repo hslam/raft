@@ -30,39 +30,43 @@ type commands struct {
 
 func (c *commands) register(cmd Command) error {
 	c.mu.Lock()
-	defer c.mu.Unlock()
 	if _, ok := c.types[cmd.Type()]; ok {
+		c.mu.Unlock()
 		return ErrCommandTypeExisted
 	}
 	pool := &sync.Pool{New: func() interface{} {
 		return reflect.New(reflect.Indirect(reflect.ValueOf(cmd)).Type()).Interface()
 	}}
-	pool.Put(pool.Get())
 	c.types[cmd.Type()] = pool
+	c.mu.Unlock()
+	pool.Put(pool.Get())
 	return nil
 }
 
 func (c *commands) clone(Type uint64) Command {
 	c.mu.RLock()
-	defer c.mu.RUnlock()
 	if commandPool, ok := c.types[Type]; ok {
+		c.mu.RUnlock()
 		return commandPool.Get().(Command)
 	}
+	c.mu.RUnlock()
 	return nil
 }
 
 func (c *commands) put(cmd Command) {
 	c.mu.RLock()
-	defer c.mu.RUnlock()
 	if commandPool, ok := c.types[cmd.Type()]; ok {
+		c.mu.RUnlock()
 		commandPool.Put(cmd)
+	} else {
+		c.mu.RUnlock()
 	}
 }
 
 func (c *commands) exists(cmd Command) bool {
 	c.mu.RLock()
-	defer c.mu.RUnlock()
 	_, ok := c.types[cmd.Type()]
+	c.mu.RUnlock()
 	return ok
 }
 
