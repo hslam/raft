@@ -98,13 +98,13 @@ func (c *configuration) membership() []string {
 }
 
 func (c *configuration) save() {
-	n := nodes{}
+	m := members{}
 	c.mu.Lock()
 	for _, v := range c.members {
-		n = append(n, v)
+		m = append(m, v)
 	}
-	sort.Sort(n)
-	storage := &ConfigurationStorage{Members: n}
+	sort.Sort(m)
+	storage := &ConfigurationStorage{Members: m}
 	c.mu.Unlock()
 	b, _ := json.Marshal(storage)
 	c.node.storage.OverWrite(defaultConfig, b)
@@ -163,8 +163,8 @@ func (c *configuration) membershipChanges() bool {
 	return !reflect.DeepEqual(oldMembership, newMembership)
 }
 
-type nodes []*Member
+type members []*Member
 
-func (n nodes) Len() int           { return len(n) }
-func (n nodes) Less(i, j int) bool { return n[i].Address < n[j].Address }
-func (n nodes) Swap(i, j int)      { n[i], n[j] = n[j], n[i] }
+func (m members) Len() int           { return len(m) }
+func (m members) Less(i, j int) bool { return m[i].Address < m[j].Address }
+func (m members) Swap(i, j int)      { m[i], m[j] = m[j], m[i] }
