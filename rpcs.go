@@ -69,13 +69,13 @@ func newRPCs(addr string) *rpcs {
 		removeMemberServiceName:    serviceName + "." + removeMemberName,
 		setMetaServiceName:         serviceName + "." + setMetaName,
 		getMetaServiceName:         serviceName + "." + getMetaName,
+		server:                     rpc.NewServer(),
 		addr:                       addr,
 	}
 	return r
 }
 
 func (r *rpcs) Register(service Service) error {
-	r.server = rpc.NewServer()
 	return r.server.RegisterName(serviceName, service)
 }
 
