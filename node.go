@@ -113,7 +113,7 @@ type node struct {
 	commands *commands
 	pipe     *pipe
 
-	commiting int32
+	committing int32
 
 	nonVoting  bool
 	majorities bool
@@ -965,10 +965,10 @@ func (n *node) print() {
 }
 
 func (n *node) commit() bool {
-	if !atomic.CompareAndSwapInt32(&n.commiting, 0, 1) {
+	if !atomic.CompareAndSwapInt32(&n.committing, 0, 1) {
 		return true
 	}
-	defer atomic.StoreInt32(&n.commiting, 0)
+	defer atomic.StoreInt32(&n.committing, 0)
 	n.nodesMut.RLock()
 	defer n.nodesMut.RUnlock()
 	if n.votingsCount() == 1 {
