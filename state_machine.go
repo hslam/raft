@@ -148,9 +148,9 @@ func (s *stateMachine) saveSnapshot() error {
 				}
 				lastIncludedTerm = entry.Term
 			}
+			startTime := time.Now()
 			s.snapshotReadWriter.clearFlush()
 			_, err := s.snapshot.Save(s.snapshotReadWriter)
-			startTime := time.Now()
 			s.snapshotReadWriter.Rename()
 			s.snapshotReadWriter.Reset(lastIncludedIndex, lastIncludedTerm)
 			if s.node.isLeader() {
