@@ -10,5 +10,5 @@ require (
 	github.com/hslam/rpc v0.0.4
 	github.com/hslam/tar v0.0.1
 	github.com/hslam/timer v1.0.1
-	github.com/hslam/wal v0.0.3
+	github.com/hslam/wal v0.0.4
 )
