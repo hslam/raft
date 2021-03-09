@@ -23,8 +23,8 @@ github.com/hslam/sortedlist v1.0.0/go.mod h1:imZe+DoceVZdQ7yTak/YTsn8F4JJkllQ8PA
 github.com/hslam/splice v1.0.1 h1:kaSQzUWm6t0bkQKLw4BT77+Z0G/0cacGAj9lxQjw26c=
 github.com/hslam/splice v1.0.1/go.mod h1:7D1QlFptoG0ruXzcAwpzckKxUN4+ZpvrIhwfbcAQcx8=
 github.com/hslam/stats v1.0.1/go.mod h1:Mk3c/vBiti7zxQFsvQVpg4BVL35bHxbgJooX+qEKyuQ=
-github.com/hslam/tar v0.0.1 h1:XnuqWca3F8DlofJNqNCHJX8pK+k+Hw5z4m4r5/AjjFw=
-github.com/hslam/tar v0.0.1/go.mod h1:DSW7oJr1hnw7Af421Ry7zZIn62LhdVU0/Avj/CVHJvo=
+github.com/hslam/tar v0.0.2 h1:lOD9wGmkfftoV7xh0JbNXtLp8bNxwCpLNChtP8w/pu0=
+github.com/hslam/tar v0.0.2/go.mod h1:DSW7oJr1hnw7Af421Ry7zZIn62LhdVU0/Avj/CVHJvo=
 github.com/hslam/timer v1.0.1 h1:w6zbrBFaY6zuUYY9LgjijDcXPJgpPB+Q7iu9Pn6PGyY=
 github.com/hslam/timer v1.0.1/go.mod h1:Hnbw1g9GU52+3Ve5DGWXL/ssqqYhgxEQpxSx7g8tPhY=
 github.com/hslam/wal v0.0.4 h1:7rWe7MZdJzS9OVlkY8Y8w4lpBhqR9YXSAN7jngX5IA8=
