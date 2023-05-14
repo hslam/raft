@@ -19,8 +19,8 @@ github.com/hslam/netpoll v0.0.4-0.20230219164802-be4599214e92 h1:BhmxNdEv4AlcFUD
 github.com/hslam/netpoll v0.0.4-0.20230219164802-be4599214e92/go.mod h1:AyEQGapo/Y2YJnpjR4K8GqxcdXjnjkvRLOKHhm9lUmg=
 github.com/hslam/reuse v0.0.0-20230219162114-9a3f8d1f9550 h1:FJ2dXfgNhK0rLpj0q0DsWOWmP+5WaZprgjbz27k7a5E=
 github.com/hslam/reuse v0.0.0-20230219162114-9a3f8d1f9550/go.mod h1:zrrCu2XS412Bqv9D2+VPvjMeOhn70cmHikky63L65XE=
-github.com/hslam/rpc v0.0.5-0.20230513104650-013f461d5599 h1:bsoxh22OTiO0i/76tb6yVO94vseQxX0ZUczfPM/YZxY=
-github.com/hslam/rpc v0.0.5-0.20230513104650-013f461d5599/go.mod h1:ePjV4Xwaip3FmuZ7gBIPT5UQeJeVm0kin3YbhCbYZ5w=
+github.com/hslam/rpc v0.0.5-0.20230514031537-46c501a434cb h1:uSVoxTra+5AaR5EXyZMB919EtdDL9OngFR3ZUc5YdEU=
+github.com/hslam/rpc v0.0.5-0.20230514031537-46c501a434cb/go.mod h1:ePjV4Xwaip3FmuZ7gBIPT5UQeJeVm0kin3YbhCbYZ5w=
 github.com/hslam/scheduler v0.0.0-20211028175315-641598104976 h1:7xDxY7ffYQjS+eM6/7zSvvxrGowxHIwGWHM+drPp/XA=
 github.com/hslam/scheduler v0.0.0-20211028175315-641598104976/go.mod h1:5Lu1StnE7hhW2QwdImTNFLdzIUhAUjO7SlLco+H5h9A=
 github.com/hslam/sendfile v1.0.1 h1:0OLb5VRwjdN3q9hkslfk5nPQIrH5UmGTjSuJtV4Zq+8=
