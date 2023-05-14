@@ -9,8 +9,8 @@ github.com/hslam/funcs v1.0.2-0.20220105101002-455c99d05c0a h1:WplvsbwDeli82n81Y
 github.com/hslam/funcs v1.0.2-0.20220105101002-455c99d05c0a/go.mod h1:KyY5JoFH01sc4UpHKeGCmGTRdNoCQta0OM6JZ5lWMwU=
 github.com/hslam/inproc v0.0.0-20210912032833-46957e53529f h1:DqKW18/u99Qin79RDhjRPmqkw9ZvQjOl5tmUiJhBDlo=
 github.com/hslam/inproc v0.0.0-20210912032833-46957e53529f/go.mod h1:UDfJZX2mkqDQFBK4P8oSuiM+PC08eis5Vvr0tvdhC3I=
-github.com/hslam/log v1.0.3 h1:B5V1rcDQDDiFcXkw3FEVQ75cevy13EulWcifrNdLg/g=
-github.com/hslam/log v1.0.3/go.mod h1:dqeIT0IEmfN+v5/ptoz6yYHzjqt5kAjtqV7nUXVeXBg=
+github.com/hslam/log v1.0.4 h1:VdzQaFg3xHQy+2m0uVJW+n925+DSfGj1j6riVWVylmY=
+github.com/hslam/log v1.0.4/go.mod h1:dqeIT0IEmfN+v5/ptoz6yYHzjqt5kAjtqV7nUXVeXBg=
 github.com/hslam/lru v0.0.2 h1:3E9zwjiUojFfhjmauaNv1/3fIx/x4fs/HDnO34/PzVk=
 github.com/hslam/lru v0.0.2/go.mod h1:hW+fXI7/9QK0FryVOSwluDHgtXSbFKAeOaaJkE2jdAs=
 github.com/hslam/mmap v1.0.0 h1:GSp55lZrPDhctob3yE0SqESBjzgCn9cP4iu4Pmmm+gE=
@@ -19,8 +19,8 @@ github.com/hslam/netpoll v0.0.4-0.20230219164802-be4599214e92 h1:BhmxNdEv4AlcFUD
 github.com/hslam/netpoll v0.0.4-0.20230219164802-be4599214e92/go.mod h1:AyEQGapo/Y2YJnpjR4K8GqxcdXjnjkvRLOKHhm9lUmg=
 github.com/hslam/reuse v0.0.0-20230219162114-9a3f8d1f9550 h1:FJ2dXfgNhK0rLpj0q0DsWOWmP+5WaZprgjbz27k7a5E=
 github.com/hslam/reuse v0.0.0-20230219162114-9a3f8d1f9550/go.mod h1:zrrCu2XS412Bqv9D2+VPvjMeOhn70cmHikky63L65XE=
-github.com/hslam/rpc v0.0.5-0.20230512153619-09307bd13ec4 h1:+ePRPRlmkk+ZFGLYVOZhkXbWbgc3vwlPgcLISqgx8p0=
-github.com/hslam/rpc v0.0.5-0.20230512153619-09307bd13ec4/go.mod h1:y0KHpbDHQbXOC69PzVPJaVGzRMCVbBEU//rYY9KyNVQ=
+github.com/hslam/rpc v0.0.5-0.20230513104650-013f461d5599 h1:bsoxh22OTiO0i/76tb6yVO94vseQxX0ZUczfPM/YZxY=
+github.com/hslam/rpc v0.0.5-0.20230513104650-013f461d5599/go.mod h1:ePjV4Xwaip3FmuZ7gBIPT5UQeJeVm0kin3YbhCbYZ5w=
 github.com/hslam/scheduler v0.0.0-20211028175315-641598104976 h1:7xDxY7ffYQjS+eM6/7zSvvxrGowxHIwGWHM+drPp/XA=
 github.com/hslam/scheduler v0.0.0-20211028175315-641598104976/go.mod h1:5Lu1StnE7hhW2QwdImTNFLdzIUhAUjO7SlLco+H5h9A=
 github.com/hslam/sendfile v1.0.1 h1:0OLb5VRwjdN3q9hkslfk5nPQIrH5UmGTjSuJtV4Zq+8=

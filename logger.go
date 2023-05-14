@@ -3,30 +3,34 @@
 
 package raft
 
+import (
+	"github.com/hslam/log"
+)
+
 // LogLevel defines the level for log.
 // Higher levels log less info.
-type LogLevel int
+type LogLevel log.Level
 
 const (
 	logPrefix = "raft"
-	//DebugLogLevel defines the level of debug in test environments.
-	DebugLogLevel LogLevel = 1
+	//AllLogLevel defines the lowest level.
+	AllLogLevel = LogLevel(log.AllLevel)
 	//TraceLogLevel defines the level of trace in test environments.
-	TraceLogLevel LogLevel = 2
-	//AllLogLevel defines the lowest level in production environments.
-	AllLogLevel LogLevel = 3
+	TraceLogLevel = LogLevel(log.TraceLevel)
+	//DebugLogLevel defines the level of debug.
+	DebugLogLevel = LogLevel(log.DebugLevel)
 	//InfoLogLevel defines the level of info.
-	InfoLogLevel LogLevel = 4
+	InfoLogLevel = LogLevel(log.InfoLevel)
 	//NoticeLogLevel defines the level of notice.
-	NoticeLogLevel LogLevel = 5
+	NoticeLogLevel = LogLevel(log.NoticeLevel)
 	//WarnLogLevel defines the level of warn.
-	WarnLogLevel LogLevel = 6
+	WarnLogLevel = LogLevel(log.WarnLevel)
 	//ErrorLogLevel defines the level of error.
-	ErrorLogLevel LogLevel = 7
+	ErrorLogLevel = LogLevel(log.ErrorLevel)
 	//PanicLogLevel defines the level of panic.
-	PanicLogLevel LogLevel = 8
+	PanicLogLevel = LogLevel(log.PanicLevel)
 	//FatalLogLevel defines the level of fatal.
-	FatalLogLevel LogLevel = 9
+	FatalLogLevel = LogLevel(log.FatalLevel)
 	//OffLogLevel defines the level of no log.
-	OffLogLevel LogLevel = 10
+	OffLogLevel = LogLevel(log.OffLevel)
 )
